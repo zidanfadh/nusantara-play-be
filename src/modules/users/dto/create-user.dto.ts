@@ -19,6 +19,10 @@ export class CreateUserDto {
 
   @IsString()
   @IsOptional()
+  avatar_url?: string;
+
+  @IsString()
+  @IsOptional()
   bio?: string;
 
   @IsUUID()
