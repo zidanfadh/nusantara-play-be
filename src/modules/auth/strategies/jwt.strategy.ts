@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { JwtPayload } from '../../../common/interfaces/jwt-payload.interface';
 import { UsersService } from '../../users/users.service';
+import jwksRsa from 'jwks-rsa'; // ⭐ Default import
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -11,19 +12,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private configService: ConfigService,
     private usersService: UsersService,
   ) {
-    const jwtSecret = configService.get<string>('supabase.jwtSecret');
+    const supabaseUrl = configService.get<string>('supabase.url');
 
-    if (!jwtSecret) {
-      throw new Error(
-        'Missing Supabase JWT Secret: SUPABASE_JWT_SECRET is required',
-      );
+    if (!supabaseUrl) {
+      throw new Error('Missing Supabase URL: SUPABASE_URL is required');
     }
 
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: jwtSecret,
+      secretOrKeyProvider: jwksRsa.passportJwtSecret({
+        cache: true,
+        rateLimit: true,
+        jwksRequestsPerMinute: 5,
+        jwksUri: `${supabaseUrl}/auth/v1/.well-known/jwks.json`,
+      }),
       audience: 'authenticated',
+      algorithms: ['ES256'],
     });
   }
 
@@ -31,22 +36,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // Payload from Supabase JWT contains 'sub' which is the supabase user id
     const supabaseUserId = payload.sub;
 
-    // Find or create user in our database (JIT sync)
     let user = await this.usersService.findBySupabaseId(supabaseUserId);
 
     if (!user) {
-      // First time login - create user with default role
       user = await this.usersService.createFromSupabase({
         supabase_user_id: supabaseUserId,
         email: payload.email,
-        full_name: payload.email.split('@')[0], // Use email prefix as default name
+        full_name: payload.email.split('@')[0],
       });
     }
 
-    // Update last login
     await this.usersService.updateLastLogin(user.id);
 
-    // Return user object which will be attached to request.user
     return user;
   }
 }
