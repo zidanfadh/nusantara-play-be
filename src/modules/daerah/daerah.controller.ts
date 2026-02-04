@@ -9,20 +9,30 @@ export class DaerahController {
 
   @Get()
   @Public()
-  findAll(@Query('level') level?: DaerahLevel, @Query('provinsi') provinsi?: string) {
-    if (level) {
-      return this.daerahService.findByLevel(level);
-    }
-    if (provinsi) {
-      return this.daerahService.findByProvinsi(provinsi);
-    }
-    return this.daerahService.findAll();
+  findAll(
+    @Query('level') level?: DaerahLevel,
+    @Query('provinsi') provinsi?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.daerahService.findAll({
+      level,
+      provinsi,
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 10,
+    });
   }
 
   @Get('provinces')
   @Public()
-  getProvinces() {
-    return this.daerahService.findProvinces();
+  getProvinces(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.daerahService.findProvinces({
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 10,
+    });
   }
 
   @Get('stats')
@@ -49,7 +59,15 @@ export class DaerahController {
 
   @Get(':id/children')
   @Public()
-  getChildren(@Param('id') id: string) {
-    return this.daerahService.findChildren(id);
+  getChildren(
+    @Param('id') id: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.daerahService.findChildren(
+      id,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 10,
+    );
   }
 }

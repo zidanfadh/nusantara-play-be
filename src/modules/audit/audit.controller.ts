@@ -16,30 +16,17 @@ export class AuditController {
     @Query('entity_type') entity_type?: string,
     @Query('entity_id') entity_id?: string,
     @Query('action') action?: string,
+    @Query('page') page?: string,
     @Query('limit') limit?: string,
-    @Query('offset') offset?: string,
   ) {
-    const logs = await this.auditService.findAll({
+    return this.auditService.findAll({
       user_id,
       entity_type,
       entity_id,
       action,
-      limit: limit ? parseInt(limit, 10) : 100,
-      offset: offset ? parseInt(offset, 10) : 0,
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 10,
     });
-
-    const total = await this.auditService.count({
-      user_id,
-      entity_type,
-      entity_id,
-    });
-
-    return {
-      data: logs,
-      total,
-      limit: limit ? parseInt(limit, 10) : 100,
-      offset: offset ? parseInt(offset, 10) : 0,
-    };
   }
 
   @Get('entity/:type/:id')
@@ -50,7 +37,15 @@ export class AuditController {
 
   @Get('user/:id')
   @Roles('admin_kpoti')
-  findByUser(@Param('id') id: string, @Query('limit') limit?: string) {
-    return this.auditService.findByUser(id, limit ? parseInt(limit, 10) : 50);
+  findByUser(
+    @Param('id') id: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.auditService.findByUser(
+      id,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 10,
+    );
   }
 }

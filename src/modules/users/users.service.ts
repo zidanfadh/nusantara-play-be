@@ -81,7 +81,23 @@ export class UsersService {
     role?: UserRole;
     status?: UserStatus;
     daerah_id?: string;
-  }): Promise<User[]> {
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    data: User[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    };
+  }> {
+    const page = filters?.page || 1;
+    const limit = filters?.limit || 10;
+    const skip = (page - 1) * limit;
+
     const query = this.usersRepository.createQueryBuilder('user');
 
     if (filters?.role) {
@@ -96,7 +112,23 @@ export class UsersService {
       query.andWhere('user.daerah_id = :daerah_id', { daerah_id: filters.daerah_id });
     }
 
-    return query.getMany();
+    query.skip(skip).take(limit);
+
+    const [data, total] = await query.getManyAndCount();
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
   }
 
   async count(): Promise<number> {

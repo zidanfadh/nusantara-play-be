@@ -30,9 +30,23 @@ export class AuditService {
     entity_type?: string;
     entity_id?: string;
     action?: string;
+    page?: number;
     limit?: number;
-    offset?: number;
-  }): Promise<AuditLog[]> {
+  }): Promise<{
+    data: AuditLog[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    };
+  }> {
+    const page = filters?.page || 1;
+    const limit = filters?.limit || 10;
+    const skip = (page - 1) * limit;
+
     const query = this.auditLogRepository.createQueryBuilder('audit_log');
 
     if (filters?.user_id) {
@@ -56,24 +70,45 @@ export class AuditService {
     }
 
     query.orderBy('audit_log.created_at', 'DESC');
+    query.skip(skip).take(limit);
 
-    if (filters?.limit) {
-      query.limit(filters.limit);
-    }
+    const [data, total] = await query.getManyAndCount();
 
-    if (filters?.offset) {
-      query.offset(filters.offset);
-    }
+    const totalPages = Math.ceil(total / limit);
 
-    return query.getMany();
+    return {
+      data,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
   }
 
-  async findByEntity(entityType: string, entityId: string): Promise<AuditLog[]> {
-    return this.findAll({ entity_type: entityType, entity_id: entityId });
+  async findByEntity(
+    entityType: string,
+    entityId: string,
+    page: number = 1,
+    limit: number = 10,
+  ) {
+    return this.findAll({
+      entity_type: entityType,
+      entity_id: entityId,
+      page,
+      limit,
+    });
   }
 
-  async findByUser(userId: string, limit: number = 50): Promise<AuditLog[]> {
-    return this.findAll({ user_id: userId, limit });
+  async findByUser(
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+  ) {
+    return this.findAll({ user_id: userId, page, limit });
   }
 
   async count(filters?: {

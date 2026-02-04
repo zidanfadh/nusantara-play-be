@@ -41,8 +41,16 @@ export class UsersController {
     @Query('role') role?: UserRole,
     @Query('status') status?: UserStatus,
     @Query('daerah_id') daerah_id?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.usersService.findAll({ role, status, daerah_id });
+    return this.usersService.findAll({
+      role,
+      status,
+      daerah_id,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
   }
 
   @Get('stats')
