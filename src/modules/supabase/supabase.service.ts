@@ -2,13 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-interface SupabaseUser {
+export interface SupabaseUser {
   id: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   user_metadata: Record<string, any>;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   avatar_url?: string;
   full_name?: string;
   name?: string;
@@ -53,8 +53,8 @@ export class SupabaseService {
 
     return {
       id: data.user.id,
-      email: data.user.email || '',
-      phone: data.user.phone,
+      email: data.user.email ?? null,
+      phone: data.user.phone ?? null,
       user_metadata: data.user.user_metadata,
       created_at: data.user.created_at,
       updated_at: data.user.updated_at,
