@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { JwtPayload } from '../../../common/interfaces/jwt-payload.interface';
 import { UsersService } from '../../users/users.service';
+import { SupabaseService } from '../../supabase';
 import jwksRsa from 'jwks-rsa'; // ⭐ Default import
 
 @Injectable()
@@ -11,6 +12,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private configService: ConfigService,
     private usersService: UsersService,
+    private supabaseService: SupabaseService,
   ) {
     const supabaseUrl = configService.get<string>('supabase.url');
 
@@ -38,12 +40,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     let user = await this.usersService.findBySupabaseId(supabaseUserId);
 
-    if (!user) {
-      user = await this.usersService.createFromSupabase({
-        supabase_user_id: supabaseUserId,
-        email: payload.email,
-        full_name: payload.email.split('@')[0],
-      });
+    try {
+      // Fetch complete user data from Supabase
+      const supabaseUser = await this.supabaseService.fetchUserById(supabaseUserId);
+      user = await this.usersService.syncFromSupabase(supabaseUser);
+    } catch (error) {
+      // Fallback: use existing local data or create minimal user
+      if (!user) {
+        user = await this.usersService.createFromSupabase({
+          supabase_user_id: supabaseUserId,
+          email: payload.email,
+          full_name: payload.email.split('@')[0],
+        });
+      }
+      // Log error but don't block login
+      console.error('Failed to sync user from Supabase, using local data:', error.message);
     }
 
     await this.usersService.updateLastLogin(user.id);
