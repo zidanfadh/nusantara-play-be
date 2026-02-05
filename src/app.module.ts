@@ -14,6 +14,7 @@ import { UsersModule } from './modules/users/users.module';
 import { DaerahModule } from './modules/daerah/daerah.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { SupabaseModule } from './modules/supabase/supabase.module';
 
 // Guards
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -38,6 +39,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     DaerahModule,
     StorageModule,
     AuditModule,
+    SupabaseModule,
   ],
   controllers: [AppController],
   providers: [
