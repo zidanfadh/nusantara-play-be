@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { User, UserRole, UserStatus } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { SupabaseUser } from '../supabase';
 
 @Injectable()
 export class UsersService {
@@ -44,6 +45,37 @@ export class UsersService {
     });
 
     return this.usersRepository.save(user);
+  }
+
+  async syncFromSupabase(supabaseUser: SupabaseUser): Promise<User> {
+    // Determine full_name with fallbacks
+    const fullName =
+      supabaseUser.full_name ||
+      supabaseUser.name ||
+      supabaseUser.user_metadata?.full_name ||
+      supabaseUser.user_metadata?.name ||
+      supabaseUser.email?.split('@')[0] ||
+      '';
+
+    // Map Supabase user to CreateUserDto
+    const userData: CreateUserDto = {
+      supabase_user_id: supabaseUser.id,
+      email: supabaseUser.email || '',
+      full_name: fullName,
+      phone: supabaseUser.phone || undefined,
+      avatar_url: supabaseUser.avatar_url || supabaseUser.user_metadata?.avatar_url,
+    };
+
+    // Check if user exists
+    const existingUser = await this.findBySupabaseId(supabaseUser.id);
+
+    if (existingUser) {
+      // Update existing user
+      return this.update(existingUser.id, userData);
+    } else {
+      // Create new user
+      return this.createFromSupabase(userData);
+    }
   }
 
   async update(id: string, updateUserDto: UpdateUserDto, updatedBy?: string): Promise<User> {
