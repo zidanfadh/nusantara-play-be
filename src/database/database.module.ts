@@ -17,6 +17,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
             type: 'postgres',
             url: databaseUrl,
             entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+            migrations: [__dirname + '/../migrations/*{.ts,.js}'],
             synchronize: false,
             logging: configService.get<string>('app.env') === 'development',
             ssl: ssl ? { rejectUnauthorized: false } : false,
@@ -32,6 +33,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
           password: configService.get<string>('database.password'),
           database: configService.get<string>('database.database'),
           entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+          migrations: [__dirname + '/../migrations/*{.ts,.js}'],
           synchronize: false,
           logging: configService.get<string>('app.env') === 'development',
           ssl: ssl ? { rejectUnauthorized: false } : false,
@@ -40,4 +42,4 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     }),
   ],
 })
-export class DatabaseModule { }
+export class DatabaseModule {}
