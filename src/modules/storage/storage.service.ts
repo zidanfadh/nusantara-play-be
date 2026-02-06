@@ -77,7 +77,10 @@ export class StorageService {
     await this.s3Client.send(command);
   }
 
-  async getPresignedUrl(key: string, expiresIn: number = 3600): Promise<string> {
+  async getPresignedUrl(
+    key: string,
+    expiresIn: number = 3600,
+  ): Promise<string> {
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
       Key: key,
@@ -87,17 +90,19 @@ export class StorageService {
   }
 
   private validateFile(file: Express.Multer.File): void {
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 100 * 1024 * 1024; // 100MB
     const allowedMimeTypes = [
       'image/jpeg',
       'image/jpg',
       'image/png',
+      'image/webp',
       'application/pdf',
       'video/mp4',
+      'video/quicktime', // .mov files
     ];
 
     if (file.size > maxSize) {
-      throw new BadRequestException('File size exceeds 10MB limit');
+      throw new BadRequestException('File size exceeds 100MB limit');
     }
 
     if (!allowedMimeTypes.includes(file.mimetype)) {
