@@ -42,7 +42,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     try {
       // Fetch complete user data from Supabase
-      const supabaseUser = await this.supabaseService.fetchUserById(supabaseUserId);
+      const supabaseUser =
+        await this.supabaseService.fetchUserById(supabaseUserId);
       user = await this.usersService.syncFromSupabase(supabaseUser);
     } catch (error) {
       // Fallback: use existing local data or create minimal user
@@ -54,7 +55,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         });
       }
       // Log error but don't block login
-      console.error('Failed to sync user from Supabase, using local data:', error.message);
+      console.error(
+        'Failed to sync user from Supabase, using local data:',
+        error.message,
+      );
     }
 
     await this.usersService.updateLastLogin(user.id);

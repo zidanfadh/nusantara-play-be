@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole, UserStatus } from './entities/user.entity';
@@ -33,7 +37,9 @@ export class UsersService {
 
   async createFromSupabase(createUserDto: CreateUserDto): Promise<User> {
     // Check if user already exists
-    const existingUser = await this.findBySupabaseId(createUserDto.supabase_user_id);
+    const existingUser = await this.findBySupabaseId(
+      createUserDto.supabase_user_id,
+    );
     if (existingUser) {
       throw new ConflictException('User already exists');
     }
@@ -63,7 +69,8 @@ export class UsersService {
       email: supabaseUser.email || '',
       full_name: fullName,
       phone: supabaseUser.phone || undefined,
-      avatar_url: supabaseUser.avatar_url || supabaseUser.user_metadata?.avatar_url,
+      avatar_url:
+        supabaseUser.avatar_url || supabaseUser.user_metadata?.avatar_url,
     };
 
     // Check if user exists
@@ -78,7 +85,11 @@ export class UsersService {
     }
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto, updatedBy?: string): Promise<User> {
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+    updatedBy?: string,
+  ): Promise<User> {
     const user = await this.findById(id);
 
     Object.assign(user, updateUserDto);
@@ -89,7 +100,11 @@ export class UsersService {
     return this.usersRepository.save(user);
   }
 
-  async updateRole(id: string, role: UserRole, updatedBy: string): Promise<User> {
+  async updateRole(
+    id: string,
+    role: UserRole,
+    updatedBy: string,
+  ): Promise<User> {
     const user = await this.findById(id);
     user.role = role;
     user.updated_by = updatedBy;
@@ -102,7 +117,11 @@ export class UsersService {
     });
   }
 
-  async updateStatus(id: string, status: UserStatus, updatedBy: string): Promise<User> {
+  async updateStatus(
+    id: string,
+    status: UserStatus,
+    updatedBy: string,
+  ): Promise<User> {
     const user = await this.findById(id);
     user.status = status;
     user.updated_by = updatedBy;
@@ -141,7 +160,9 @@ export class UsersService {
     }
 
     if (filters?.daerah_id) {
-      query.andWhere('user.daerah_id = :daerah_id', { daerah_id: filters.daerah_id });
+      query.andWhere('user.daerah_id = :daerah_id', {
+        daerah_id: filters.daerah_id,
+      });
     }
 
     query.skip(skip).take(limit);

@@ -68,11 +68,7 @@ export class DaerahService {
     return daerah;
   }
 
-  async findByLevel(
-    level: DaerahLevel,
-    page: number = 1,
-    limit: number = 10,
-  ) {
+  async findByLevel(level: DaerahLevel, page: number = 1, limit: number = 10) {
     return this.findAll({ level, page, limit });
   }
 
@@ -84,19 +80,11 @@ export class DaerahService {
     );
   }
 
-  async findByProvinsi(
-    provinsi: string,
-    page: number = 1,
-    limit: number = 10,
-  ) {
+  async findByProvinsi(provinsi: string, page: number = 1, limit: number = 10) {
     return this.findAll({ provinsi, page, limit });
   }
 
-  async findChildren(
-    parentId: string,
-    page: number = 1,
-    limit: number = 10,
-  ) {
+  async findChildren(parentId: string, page: number = 1, limit: number = 10) {
     const pg = page || 1;
     const lim = limit || 10;
     const skip = (pg - 1) * lim;

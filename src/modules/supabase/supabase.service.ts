@@ -40,7 +40,8 @@ export class SupabaseService {
   }
 
   async fetchUserById(userId: string): Promise<SupabaseUser> {
-    const { data, error } = await this.adminClient.auth.admin.getUserById(userId);
+    const { data, error } =
+      await this.adminClient.auth.admin.getUserById(userId);
 
     if (error) {
       this.logger.error(`Failed to fetch user from Supabase: ${error.message}`);

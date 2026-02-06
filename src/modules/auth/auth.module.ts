@@ -30,4 +30,4 @@ import { SupabaseModule } from '../supabase';
   providers: [AuthService, JwtStrategy],
   exports: [AuthService, PassportModule],
 })
-export class AuthModule { }
+export class AuthModule {}

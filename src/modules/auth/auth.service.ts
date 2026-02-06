@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
@@ -42,33 +46,40 @@ export class AuthService {
   ): Promise<void> {
     try {
       // First, get the user's email to verify current password
-      const { data: userData, error: userError } = await this.supabase.auth.admin.getUserById(supabaseUserId);
+      const { data: userData, error: userError } =
+        await this.supabase.auth.admin.getUserById(supabaseUserId);
 
       if (userError || !userData.user) {
         throw new BadRequestException('User not found');
       }
 
       // Verify current password by attempting to sign in
-      const { error: signInError } = await this.supabase.auth.signInWithPassword({
-        email: userData.user.email!,
-        password: currentPassword,
-      });
+      const { error: signInError } =
+        await this.supabase.auth.signInWithPassword({
+          email: userData.user.email!,
+          password: currentPassword,
+        });
 
       if (signInError) {
         throw new UnauthorizedException('Current password is incorrect');
       }
 
       // Update password using admin API
-      const { error: updateError } = await this.supabase.auth.admin.updateUserById(
-        supabaseUserId,
-        { password: newPassword },
-      );
+      const { error: updateError } =
+        await this.supabase.auth.admin.updateUserById(supabaseUserId, {
+          password: newPassword,
+        });
 
       if (updateError) {
-        throw new BadRequestException(`Failed to update password: ${updateError.message}`);
+        throw new BadRequestException(
+          `Failed to update password: ${updateError.message}`,
+        );
       }
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof UnauthorizedException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof UnauthorizedException
+      ) {
         throw error;
       }
       throw new BadRequestException('Failed to change password');

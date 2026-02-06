@@ -25,10 +25,7 @@ export class DaerahController {
 
   @Get('provinces')
   @Public()
-  getProvinces(
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
+  getProvinces(@Query('page') page?: string, @Query('limit') limit?: string) {
     return this.daerahService.findProvinces({
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 10,
@@ -39,8 +36,12 @@ export class DaerahController {
   @Public()
   async getStats() {
     const total = await this.daerahService.count();
-    const provinces = await this.daerahService.countByLevel(DaerahLevel.PROVINSI);
-    const kabupaten = await this.daerahService.countByLevel(DaerahLevel.KABUPATEN);
+    const provinces = await this.daerahService.countByLevel(
+      DaerahLevel.PROVINSI,
+    );
+    const kabupaten = await this.daerahService.countByLevel(
+      DaerahLevel.KABUPATEN,
+    );
     const kota = await this.daerahService.countByLevel(DaerahLevel.KOTA);
 
     return {

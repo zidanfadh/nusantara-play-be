@@ -50,7 +50,9 @@ export class AuditService {
     const query = this.auditLogRepository.createQueryBuilder('audit_log');
 
     if (filters?.user_id) {
-      query.andWhere('audit_log.user_id = :user_id', { user_id: filters.user_id });
+      query.andWhere('audit_log.user_id = :user_id', {
+        user_id: filters.user_id,
+      });
     }
 
     if (filters?.entity_type) {
@@ -103,11 +105,7 @@ export class AuditService {
     });
   }
 
-  async findByUser(
-    userId: string,
-    page: number = 1,
-    limit: number = 10,
-  ) {
+  async findByUser(userId: string, page: number = 1, limit: number = 10) {
     return this.findAll({ user_id: userId, page, limit });
   }
 
@@ -119,7 +117,9 @@ export class AuditService {
     const query = this.auditLogRepository.createQueryBuilder('audit_log');
 
     if (filters?.user_id) {
-      query.andWhere('audit_log.user_id = :user_id', { user_id: filters.user_id });
+      query.andWhere('audit_log.user_id = :user_id', {
+        user_id: filters.user_id,
+      });
     }
 
     if (filters?.entity_type) {
