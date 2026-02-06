@@ -115,15 +115,16 @@ export class PROTService {
     const prot = await this.findOne(id);
 
     // Validate daerah cascade if provided
+    const dto = updatePROTDto as Partial<CreatePROTDto>;
     if (
-      updatePROTDto.provinsiKode ||
-      updatePROTDto.kabkotaKode ||
-      updatePROTDto.kecamatanKode ||
-      updatePROTDto.desaKode
+      dto.provinsiKode !== undefined ||
+      dto.kabkotaKode !== undefined ||
+      dto.kecamatanKode !== undefined ||
+      dto.desaKode !== undefined
     ) {
       await this.validateDaerahKode({
         ...prot,
-        ...updatePROTDto,
+        ...dto,
       } as CreatePROTDto);
     }
 
