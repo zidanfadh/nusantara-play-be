@@ -7,9 +7,7 @@
       "Bash(npm uninstall jose)",
       "Bash(npm install jwks-rsa)",
       "Bash(npm run build:*)",
-      "Bash(npm install:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(npm install:*)"
     ]
   }
 }

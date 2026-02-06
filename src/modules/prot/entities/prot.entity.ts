@@ -4,7 +4,21 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  ValueTransformer,
 } from 'typeorm';
+
+const JsonArrayTransformer: ValueTransformer = {
+  to(value: any): any {
+    return JSON.stringify(value);
+  },
+  from(value: any): any {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    // Handle both string and already parsed JSON
+    return typeof value === 'string' ? JSON.parse(value) : value;
+  },
+};
 
 export enum PROTJenis {
   PERMAINAN_RAKYAT = 'PERMAINAN_RAKYAT',
@@ -69,13 +83,25 @@ export class PROT {
   })
   targetUsia: TargetUsia;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({
+    type: 'jsonb',
+    nullable: true,
+    transformer: JsonArrayTransformer,
+  })
   peralatan: Peralatan[];
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({
+    type: 'jsonb',
+    nullable: true,
+    transformer: JsonArrayTransformer,
+  })
   fotoKegiatan: string[];
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({
+    type: 'jsonb',
+    nullable: true,
+    transformer: JsonArrayTransformer,
+  })
   videoKegiatan: string[];
 
   @CreateDateColumn()

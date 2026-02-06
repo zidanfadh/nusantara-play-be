@@ -1,4 +1,5 @@
-import { IsString, IsEnum, IsOptional, IsArray, MinLength } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsArray, MinLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { PROTJenis, TargetUsia } from '../entities/prot.entity';
 import { PeralatanDto } from './peralatan.dto';
 
@@ -46,6 +47,8 @@ export class CreatePROTDto {
   targetUsia: TargetUsia;
 
   @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PeralatanDto)
   @IsOptional()
   peralatan?: PeralatanDto[];
 
