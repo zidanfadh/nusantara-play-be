@@ -36,7 +36,7 @@ export class UsersController {
   }
 
   @Get()
-  @Roles('admin_kpoti')
+  @Roles(UserRole.ADMIN_KPOTI)
   findAll(
     @Query('role') role?: UserRole,
     @Query('status') status?: UserStatus,
@@ -54,20 +54,20 @@ export class UsersController {
   }
 
   @Get('stats')
-  @Roles('admin_kpoti')
+  @Roles(UserRole.ADMIN_KPOTI)
   async getStats() {
     const total = await this.usersService.count();
     return { total };
   }
 
   @Get(':id')
-  @Roles('admin_kpoti', 'kurator_daerah')
+  @Roles(UserRole.ADMIN_KPOTI, UserRole.KURATOR_DAERAH)
   findOne(@Param('id') id: string) {
     return this.usersService.findById(id);
   }
 
   @Patch(':id/role')
-  @Roles('admin_kpoti')
+  @Roles(UserRole.ADMIN_KPOTI)
   updateRole(
     @Param('id') id: string,
     @Body() updateRoleDto: UpdateRoleDto,
@@ -77,7 +77,7 @@ export class UsersController {
   }
 
   @Patch(':id/status')
-  @Roles('admin_kpoti')
+  @Roles(UserRole.ADMIN_KPOTI)
   updateStatus(
     @Param('id') id: string,
     @Body('status') status: UserStatus,

@@ -29,10 +29,10 @@ export class VerifikasiController {
     private readonly protService: PROTService,
   ) {}
 
-  // PAKAR ENDPOINTS
+  // PAKAR & ADMIN ENDPOINTS (Admin can also access Pakar endpoints)
 
   @Get('queue')
-  @Roles(UserRole.PAKAR)
+  @Roles(UserRole.PAKAR, UserRole.ADMIN_KPOTI)
   async getAvailableQueue(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
@@ -41,7 +41,7 @@ export class VerifikasiController {
   }
 
   @Get('my-queue')
-  @Roles(UserRole.PAKAR)
+  @Roles(UserRole.PAKAR, UserRole.ADMIN_KPOTI)
   async getMyQueue(
     @CurrentUser() user: User,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
@@ -51,7 +51,7 @@ export class VerifikasiController {
   }
 
   @Post('queue/:queueId/pick')
-  @Roles(UserRole.PAKAR)
+  @Roles(UserRole.PAKAR, UserRole.ADMIN_KPOTI)
   @UseInterceptors(AuditInterceptor)
   async pickFromQueue(
     @Param('queueId') queueId: string,
@@ -61,7 +61,7 @@ export class VerifikasiController {
   }
 
   @Post('queue/:queueId/release')
-  @Roles(UserRole.PAKAR)
+  @Roles(UserRole.PAKAR, UserRole.ADMIN_KPOTI)
   @UseInterceptors(AuditInterceptor)
   async releaseFromQueue(
     @Param('queueId') queueId: string,
@@ -71,7 +71,7 @@ export class VerifikasiController {
   }
 
   @Post(':protId/review')
-  @Roles(UserRole.PAKAR)
+  @Roles(UserRole.PAKAR, UserRole.ADMIN_KPOTI)
   @UseInterceptors(AuditInterceptor)
   async submitReview(
     @Param('protId') protId: string,
@@ -87,7 +87,7 @@ export class VerifikasiController {
     return this.verifikasiService.getVerifikasiHistory(protId);
   }
 
-  // ADMIN ENDPOINTS
+  // ADMIN ONLY ENDPOINTS
 
   @Post('prot/:protId/publish')
   @Roles(UserRole.ADMIN_KPOTI)

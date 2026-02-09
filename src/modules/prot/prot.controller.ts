@@ -81,14 +81,14 @@ export class PROTController {
   }
 
   @Delete(':id')
-  @Roles('admin_kpoti')
+  @Roles(UserRole.ADMIN_KPOTI)
   async remove(@Param('id') id: string) {
     await this.protService.remove(id);
     return { message: 'PROT deleted successfully' };
   }
 
   @Post(':id/foto-kegiatan')
-  @Roles('kurator_daerah', 'admin_kpoti')
+  @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
   @UseInterceptors(FilesInterceptor('files', 10))
   async addFotoKegiatan(
     @Param('id') id: string,
@@ -101,7 +101,7 @@ export class PROTController {
   }
 
   @Post(':id/video-kegiatan')
-  @Roles('kurator_daerah', 'admin_kpoti')
+  @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
   @UseInterceptors(FilesInterceptor('files', 10))
   async addVideoKegiatan(
     @Param('id') id: string,
@@ -114,7 +114,7 @@ export class PROTController {
   }
 
   @Delete(':id/foto-kegiatan/:index')
-  @Roles('kurator_daerah', 'admin_kpoti')
+  @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
   async removeFotoKegiatan(
     @Param('id') id: string,
     @Param('index', ParseIntPipe) index: number,
@@ -123,7 +123,7 @@ export class PROTController {
   }
 
   @Delete(':id/video-kegiatan/:index')
-  @Roles('kurator_daerah', 'admin_kpoti')
+  @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
   async removeVideoKegiatan(
     @Param('id') id: string,
     @Param('index', ParseIntPipe) index: number,
@@ -132,7 +132,7 @@ export class PROTController {
   }
 
   @Post(':id/submit-kurasi')
-  @Roles(UserRole.KURATOR_DAERAH)
+  @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
   @UseInterceptors(AuditInterceptor)
   async submitKurasi(
     @Param('id') id: string,
@@ -143,7 +143,7 @@ export class PROTController {
   }
 
   @Post(':id/resubmit')
-  @Roles(UserRole.KURATOR_DAERAH)
+  @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
   @UseInterceptors(AuditInterceptor)
   async resubmitAfterRevisi(
     @Param('id') id: string,

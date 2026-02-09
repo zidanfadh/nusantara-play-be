@@ -13,6 +13,7 @@ import { StorageService } from './storage.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
 @Controller('upload')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -48,7 +49,7 @@ export class UploadController {
   }
 
   @Post('document')
-  @Roles('kurator_daerah', 'pakar', 'admin_kpoti')
+  @Roles(UserRole.KURATOR_DAERAH, UserRole.PAKAR, UserRole.ADMIN_KPOTI)
   @UseInterceptors(FileInterceptor('file'))
   async uploadDocument(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
@@ -63,7 +64,7 @@ export class UploadController {
   }
 
   @Post('video')
-  @Roles('kurator_daerah', 'admin_kpoti')
+  @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
   @UseInterceptors(FileInterceptor('file'))
   async uploadVideo(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
@@ -78,7 +79,7 @@ export class UploadController {
   }
 
   @Delete('file')
-  @Roles('kurator_daerah', 'admin_kpoti')
+  @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
   async deleteFile(@Body('url') url: string) {
     if (!url) {
       throw new BadRequestException('No URL provided');
