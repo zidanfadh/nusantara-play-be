@@ -56,26 +56,34 @@ export class PROTService {
     const limit = query.limit || 10;
     const skip = (page - 1) * limit;
 
+    // DEBUG: Log user info
+    console.log('[PROT findAll] User:', user ? { id: user.id, role: user.role, email: user.email } : 'No user');
+
     const queryBuilder = this.protRepository.createQueryBuilder('prot');
 
     // Status filter based on role
     if (!user || user.role === UserRole.PUBLIK) {
       // Public users only see published
-      queryBuilder.andWhere('prot.status = :status', { status: PROTStatus.ARSIP_NASIONAL });
+      console.log('[PROT findAll] Applying PUBLIC filter (ARSIP_NASIONAL only)');
+      queryBuilder.andWhere('prot.status = :roleStatus', { roleStatus: PROTStatus.ARSIP_NASIONAL });
     } else if (user.role === UserRole.KURATOR_DAERAH) {
       // Kurator see own PROT or published
+      console.log('[PROT findAll] Applying KURATOR_DAERAH filter (own + ARSIP_NASIONAL)');
       queryBuilder.andWhere(
-        '(prot.created_by = :userId OR prot.status = :arsipStatus)',
-        { userId: user.id, arsipStatus: PROTStatus.ARSIP_NASIONAL },
+        '(prot.created_by = :userId OR prot.status = :roleStatus)',
+        { userId: user.id, roleStatus: PROTStatus.ARSIP_NASIONAL },
       );
     } else if (user.role === UserRole.PAKAR) {
-      // Pakar see DIKURASI + ARSIP_NASIONAL
+      // Pakar see DIKURASI + DIVERIFIKASI + ARSIP_NASIONAL
+      console.log('[PROT findAll] Applying PAKAR filter (DIKURASI + DIVERIFIKASI + ARSIP_NASIONAL)');
       queryBuilder.andWhere(
-        'prot.status IN (:...pakarStatuses)',
-        { pakarStatuses: [PROTStatus.DIKURASI, PROTStatus.ARSIP_NASIONAL] },
+        'prot.status IN (:...roleStatuses)',
+        { roleStatuses: [PROTStatus.DIKURASI, PROTStatus.DIVERIFIKASI, PROTStatus.ARSIP_NASIONAL] },
       );
+    } else {
+      // ADMIN_KPOTI sees all statuses (no filter applied)
+      console.log('[PROT findAll] Applying ADMIN filter (all statuses, no filter)');
     }
-    // Admin sees all (no filter)
 
     if (query.jenis) {
       queryBuilder.andWhere('prot.jenis = :jenis', { jenis: query.jenis });

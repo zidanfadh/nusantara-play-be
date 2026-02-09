@@ -21,15 +21,20 @@ export class JwtAuthGuard extends AuthGuard('jwt') implements CanActivate {
     ]);
 
     if (isPublic) {
-      return true;
+      // For public routes, activate auth but don't require it
+      // This allows optional authentication
+      return super.canActivate(context);
     }
 
     return super.canActivate(context);
   }
 
   handleRequest(err, user, info) {
-    if (err || !user) {
-      throw err || new UnauthorizedException('Invalid token or user not found');
+    // For public routes or valid auth, allow the request
+    // user will be undefined if no token provided
+    console.log('[JwtAuthGuard] handleRequest - err:', err?.message, 'user:', user?.id, user?.role, 'info:', info?.message);
+    if (err) {
+      throw err;
     }
     return user;
   }
