@@ -1,6 +1,6 @@
-import { IsOptional, IsEnum, IsString, IsNumber } from 'class-validator';
+import { IsOptional, IsEnum, IsString, IsNumber, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PROTJenis, TargetUsia } from '../entities/prot.entity';
+import { PROTJenis, TargetUsia, PROTStatus } from '../entities/prot.entity';
 
 export class QueryPROTDto {
   @IsOptional()
@@ -40,4 +40,12 @@ export class QueryPROTDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @IsOptional()
+  @IsEnum(PROTStatus)
+  status?: PROTStatus;
+
+  @IsOptional()
+  @IsUUID()
+  created_by?: string;
 }

@@ -5,7 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ValueTransformer,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { User } from '../../users/entities/user.entity';
 
 const JsonArrayTransformer: ValueTransformer = {
   to(value: any): any {
@@ -30,6 +33,14 @@ export enum TargetUsia {
   REMAJA = 'REMAJA',
   DEWASA = 'DEWASA',
   SEMUA_USIA = 'SEMUA_USIA',
+}
+
+export enum PROTStatus {
+  DRAFT = 'DRAFT',
+  DIKURASI = 'DIKURASI',
+  REVISI = 'REVISI',
+  DIVERIFIKASI = 'DIVERIFIKASI',
+  ARSIP_NASIONAL = 'ARSIP_NASIONAL',
 }
 
 export interface Peralatan {
@@ -103,6 +114,44 @@ export class PROT {
     transformer: JsonArrayTransformer,
   })
   videoKegiatan: string[];
+
+  @Column({
+    type: 'enum',
+    enum: PROTStatus,
+    default: PROTStatus.DRAFT,
+  })
+  status: PROTStatus;
+
+  @Column({ type: 'uuid', name: 'created_by' })
+  created_by: string;
+
+  @Column({ type: 'uuid', nullable: true, name: 'verified_by' })
+  verified_by: string | null;
+
+  @Column({ type: 'uuid', nullable: true, name: 'published_by' })
+  published_by: string | null;
+
+  @Column({ type: 'timestamp', nullable: true, name: 'submitted_at' })
+  submitted_at: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true, name: 'verified_at' })
+  verified_at: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true, name: 'published_at' })
+  published_at: Date | null;
+
+  // Relations
+  @ManyToOne(() => User, { nullable: false })
+  @JoinColumn({ name: 'created_by' })
+  createdBy: User;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'verified_by' })
+  verifiedBy: User | null;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'published_by' })
+  publishedBy: User | null;
 
   @CreateDateColumn()
   created_at: Date;

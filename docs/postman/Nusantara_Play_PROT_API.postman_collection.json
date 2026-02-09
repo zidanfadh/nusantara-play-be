@@ -1,9 +1,9 @@
 {
   "info": {
     "name": "Nusantara Play - PROT API",
-    "description": "API Collection for PROT (Permainan Rakyat dan Olahraga Tradisional) Module",
+    "description": "API Collection for PROT (Permainan Rakyat dan Olahraga Tradisional) Module with Verification System",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "1.0.0"
+    "version": "2.0.0"
   },
   "variable": [
     {
@@ -19,6 +19,12 @@
     },
     {
       "key": "protId",
+      "value": "",
+      "type": "string",
+      "disabled": true
+    },
+    {
+      "key": "queueId",
       "value": "",
       "type": "string",
       "disabled": true
@@ -98,45 +104,24 @@
                   "value": "gasing",
                   "description": "Search by nama",
                   "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "ARSIP_NASIONAL",
+                  "description": "Filter by status (DRAFT, DIKURASI, REVISI, DIVERIFIKASI, ARSIP_NASIONAL)",
+                  "disabled": true
+                },
+                {
+                  "key": "created_by",
+                  "value": "",
+                  "description": "Filter by creator UUID",
+                  "disabled": true
                 }
               ]
             },
-            "description": "Get all PROT with pagination and optional filters. Public endpoint - no authentication required."
+            "description": "Get all PROT with pagination and optional filters. Public endpoint - no authentication required. Role-based filtering applies."
           },
-          "response": [
-            {
-              "name": "Success - List PROT",
-              "originalRequest": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{base_url}}/prot?page=1&limit=10",
-                  "host": ["{{base_url}}"],
-                  "path": ["prot"],
-                  "query": [
-                    {
-                      "key": "page",
-                      "value": "1"
-                    },
-                    {
-                      "key": "limit",
-                      "value": "10"
-                    }
-                  ]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "{\n  \"data\": [\n    {\n      \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n      \"nama\": \"Gasing\",\n      \"jenis\": \"PERMAINAN_RAKYAT\",\n      \"statusAsalUsul\": \"Permainan tradisional yang sudah ada sejak zaman kerajaan di Indonesia\",\n      \"provinsiKode\": \"11\",\n      \"kabkotaKode\": \"11.01\",\n      \"kecamatanKode\": null,\n      \"desaKode\": null,\n      \"alamatLengkap\": null,\n      \"caraBermain\": \"Gasing diputar menggunakan tali\",\n      \"nilaiMoral\": \"Melatih kesabaran dan ketelitian\",\n      \"targetUsia\": \"ANAK\",\n      \"peralatan\": [],\n      \"fotoKegiatan\": [],\n      \"videoKegiatan\": [],\n      \"created_at\": \"2024-02-06T10:00:00.000Z\",\n      \"updated_at\": \"2024-02-06T10:00:00.000Z\"\n    }\n  ],\n  \"pagination\": {\n    \"total\": 150,\n    \"page\": 1,\n    \"limit\": 10,\n    \"totalPages\": 15,\n    \"hasNext\": true,\n    \"hasPrev\": false\n  }\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Get PROT by ID",
@@ -157,52 +142,7 @@
             },
             "description": "Get a specific PROT by ID. Public endpoint - no authentication required."
           },
-          "response": [
-            {
-              "name": "Success - Get PROT",
-              "originalRequest": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{base_url}}/prot/550e8400-e29b-41d4-a716-446655440001",
-                  "host": ["{{base_url}}"],
-                  "path": ["prot", "550e8400-e29b-41d4-a716-446655440001"]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "{\n  \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n  \"nama\": \"Gasing\",\n  \"jenis\": \"PERMAINAN_RAKYAT\",\n  \"statusAsalUsul\": \"Permainan tradisional yang sudah ada sejak zaman kerajaan di Indonesia\",\n  \"provinsiKode\": \"11\",\n  \"kabkotaKode\": \"11.01\",\n  \"kecamatanKode\": null,\n  \"desaKode\": null,\n  \"alamatLengkap\": null,\n  \"caraBermain\": \"Gasing diputar menggunakan tali yang dililitkan pada bagian badan gasing\",\n  \"nilaiMoral\": \"Melatih kesabaran, ketelitian, dan motorik halus anak\",\n  \"targetUsia\": \"ANAK\",\n  \"peralatan\": [\n    {\n      \"nama\": \"Gasing\",\n      \"deskripsi\": \"Gasing kayu dengan paku di bagian bawah\",\n      \"kisaranHarga\": \"10.000 - 50.000\",\n      \"fotoAlat\": null\n    }\n  ],\n  \"fotoKegiatan\": [\n    \"https://bucket.s3.region.amazonaws.com/prot/foto-kegiatan/uuid1.jpg\",\n    \"https://bucket.s3.region.amazonaws.com/prot/foto-kegiatan/uuid2.jpg\"\n  ],\n  \"videoKegiatan\": [\n    \"https://bucket.s3.region.amazonaws.com/prot/video-kegiatan/uuid3.mp4\"\n  ],\n  \"created_at\": \"2024-02-06T10:00:00.000Z\",\n  \"updated_at\": \"2024-02-06T10:00:00.000Z\"\n}"
-            },
-            {
-              "name": "Not Found",
-              "originalRequest": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{base_url}}/prot/550e8400-e29b-41d4-a716-446655440999",
-                  "host": ["{{base_url}}"],
-                  "path": ["prot", "550e8400-e29b-41d4-a716-446655440999"]
-                }
-              },
-              "status": "Not Found",
-              "code": 404,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "{\n  \"statusCode\": 404,\n  \"message\": \"PROT with ID 550e8400-e29b-41d4-a716-446655440999 not found\",\n  \"error\": \"Not Found\"\n}"
-            }
-          ]
+          "response": []
         }
       ],
       "description": "Public endpoints - no authentication required"
@@ -229,67 +169,9 @@
               "host": ["{{base_url}}"],
               "path": ["prot"]
             },
-            "description": "Create a new PROT. Requires role: kurator_daerah or admin_kpoti"
+            "description": "Create a new PROT with DRAFT status. Requires role: kurator_daerah or admin_kpoti"
           },
-          "response": [
-            {
-              "name": "Success - Created",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"nama\": \"Gasing\",\n  \"jenis\": \"PERMAINAN_RAKYAT\",\n  \"provinsiKode\": \"11\",\n  \"kabkotaKode\": \"11.01\",\n  \"targetUsia\": \"ANAK\"\n}"
-                },
-                "url": {
-                  "raw": "{{base_url}}/prot",
-                  "host": ["{{base_url}}"],
-                  "path": ["prot"]
-                }
-              },
-              "status": "Created",
-              "code": 201,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "{\n  \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n  \"nama\": \"Gasing\",\n  \"jenis\": \"PERMAINAN_RAKYAT\",\n  \"statusAsalUsul\": \"Permainan tradisional yang sudah ada sejak zaman kerajaan di Indonesia\",\n  \"provinsiKode\": \"11\",\n  \"kabkotaKode\": \"11.01\",\n  \"kecamatanKode\": null,\n  \"desaKode\": null,\n  \"alamatLengkap\": null,\n  \"caraBermain\": \"Gasing diputar menggunakan tali yang dililitkan pada bagian badan gasing\",\n  \"nilaiMoral\": \"Melatih kesabaran, ketelitian, dan motorik halus anak\",\n  \"targetUsia\": \"ANAK\",\n  \"peralatan\": [\n    {\n      \"nama\": \"Gasing\",\n      \"deskripsi\": \"Gasing kayu dengan paku di bagian bawah\",\n      \"kisaranHarga\": \"10.000 - 50.000\",\n      \"fotoAlat\": null\n    }\n  ],\n  \"fotoKegiatan\": [],\n  \"videoKegiatan\": [],\n  \"created_at\": \"2024-02-06T10:00:00.000Z\",\n  \"updated_at\": \"2024-02-06T10:00:00.000Z\"\n}"
-            },
-            {
-              "name": "Validation Error",
-              "originalRequest": {
-                "method": "POST",
-                "header": [],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"nama\": \"Ga\"\n}"
-                },
-                "url": {
-                  "raw": "{{base_url}}/prot",
-                  "host": ["{{base_url}}"],
-                  "path": ["prot"]
-                }
-              },
-              "status": "Bad Request",
-              "code": 400,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "{\n  \"statusCode\": 400,\n  \"message\": [\n    \"nama must be longer than or equal to 3 characters\",\n    \"jenis should not be empty\",\n    \"targetUsia should not be empty\"\n  ],\n  \"error\": \"Bad Request\"\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Update PROT (PATCH)",
@@ -317,41 +199,9 @@
                 }
               ]
             },
-            "description": "Partially update a PROT. Requires role: kurator_daerah or admin_kpoti"
+            "description": "Partially update a PROT (only DRAFT or REVISI status). Kurator can only edit own PROT. Requires role: kurator_daerah or admin_kpoti"
           },
-          "response": [
-            {
-              "name": "Success - Updated",
-              "originalRequest": {
-                "method": "PATCH",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"nama\": \"Gasing Aceh\",\n  \"statusAsalUsul\": \"Permainan tradisional khas Aceh\"\n}"
-                },
-                "url": {
-                  "raw": "{{base_url}}/prot/550e8400-e29b-41d4-a716-446655440001",
-                  "host": ["{{base_url}}"],
-                  "path": ["prot", "550e8400-e29b-41d4-a716-446655440001"]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "{\n  \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n  \"nama\": \"Gasing Aceh\",\n  \"jenis\": \"PERMAINAN_RAKYAT\",\n  \"statusAsalUsul\": \"Permainan tradisional khas Aceh\",\n  \"provinsiKode\": \"11\",\n  \"kabkotaKode\": \"11.01\",\n  \"kecamatanKode\": null,\n  \"desaKode\": null,\n  \"alamatLengkap\": null,\n  \"caraBermain\": \"Gasing diputar menggunakan tali\",\n  \"nilaiMoral\": \"Melatih kesabaran dan ketelitian\",\n  \"targetUsia\": \"ANAK\",\n  \"peralatan\": [],\n  \"fotoKegiatan\": [],\n  \"videoKegiatan\": [],\n  \"created_at\": \"2024-02-06T10:00:00.000Z\",\n  \"updated_at\": \"2024-02-06T12:00:00.000Z\"\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Update PROT (PUT)",
@@ -379,7 +229,58 @@
                 }
               ]
             },
-            "description": "Fully update a PROT. Requires role: kurator_daerah or admin_kpoti"
+            "description": "Fully update a PROT (only DRAFT or REVISI status). Kurator can only edit own PROT. Requires role: kurator_daerah or admin_kpoti"
+          },
+          "response": []
+        },
+        {
+          "name": "Submit for Verification (Kurasi)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"catatan\": \"Silakan verifikasi PROT ini\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/prot/:id/submit-kurasi",
+              "host": ["{{base_url}}"],
+              "path": ["prot", ":id", "submit-kurasi"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{protId}}",
+                  "description": "PROT ID (UUID)"
+                }
+              ]
+            },
+            "description": "Submit PROT for verification. Moves status from DRAFT to DIKURASI and adds to verification queue. Requires role: kurator_daerah"
+          },
+          "response": []
+        },
+        {
+          "name": "Resubmit After Revision",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/prot/:id/resubmit",
+              "host": ["{{base_url}}"],
+              "path": ["prot", ":id", "resubmit"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{protId}}",
+                  "description": "PROT ID (UUID)"
+                }
+              ]
+            },
+            "description": "Resubmit PROT after completing revisions. Moves status from REVISI to DIKURASI and re-adds to verification queue. Requires role: kurator_daerah"
           },
           "response": []
         },
@@ -413,45 +314,7 @@
             },
             "description": "Upload photos for PROT activities. Requires role: kurator_daerah or admin_kpoti"
           },
-          "response": [
-            {
-              "name": "Success - Photos Uploaded",
-              "originalRequest": {
-                "method": "POST",
-                "header": [],
-                "body": {
-                  "mode": "formdata",
-                  "formdata": [
-                    {
-                      "key": "files",
-                      "type": "file",
-                      "src": "/path/to/photo1.jpg"
-                    },
-                    {
-                      "key": "files",
-                      "type": "file",
-                      "src": "/path/to/photo2.jpg"
-                    }
-                  ]
-                },
-                "url": {
-                  "raw": "{{base_url}}/prot/550e8400-e29b-41d4-a716-446655440001/foto-kegiatan",
-                  "host": ["{{base_url}}"],
-                  "path": ["prot", "550e8400-e29b-41d4-a716-446655440001", "foto-kegiatan"]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "{\n  \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n  \"nama\": \"Gasing\",\n  \"jenis\": \"PERMAINAN_RAKYAT\",\n  \"fotoKegiatan\": [\n    \"https://bucket.s3.region.amazonaws.com/prot/foto-kegiatan/uuid1.jpg\",\n    \"https://bucket.s3.region.amazonaws.com/prot/foto-kegiatan/uuid2.jpg\",\n    \"https://bucket.s3.region.amazonaws.com/prot/foto-kegiatan/uuid3.jpg\"\n  ],\n  \"videoKegiatan\": [],\n  \"created_at\": \"2024-02-06T10:00:00.000Z\",\n  \"updated_at\": \"2024-02-06T12:00:00.000Z\"\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Upload Video Kegiatan",
@@ -483,40 +346,7 @@
             },
             "description": "Upload videos for PROT activities. Requires role: kurator_daerah or admin_kpoti"
           },
-          "response": [
-            {
-              "name": "Success - Videos Uploaded",
-              "originalRequest": {
-                "method": "POST",
-                "header": [],
-                "body": {
-                  "mode": "formdata",
-                  "formdata": [
-                    {
-                      "key": "files",
-                      "type": "file",
-                      "src": "/path/to/video1.mp4"
-                    }
-                  ]
-                },
-                "url": {
-                  "raw": "{{base_url}}/prot/550e8400-e29b-41d4-a716-446655440001/video-kegiatan",
-                  "host": ["{{base_url}}"],
-                  "path": ["prot", "550e8400-e29b-41d4-a716-446655440001", "video-kegiatan"]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "{\n  \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n  \"nama\": \"Gasing\",\n  \"jenis\": \"PERMAINAN_RAKYAT\",\n  \"fotoKegiatan\": [],\n  \"videoKegiatan\": [\n    \"https://bucket.s3.region.amazonaws.com/prot/video-kegiatan/uuid1.mp4\"\n  ],\n  \"created_at\": \"2024-02-06T10:00:00.000Z\",\n  \"updated_at\": \"2024-02-06T12:00:00.000Z\"\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Delete Foto Kegiatan",
@@ -542,62 +372,7 @@
             },
             "description": "Remove a photo from fotoKegiatan array by index. Requires role: kurator_daerah or admin_kpoti"
           },
-          "response": [
-            {
-              "name": "Success - Photo Removed",
-              "originalRequest": {
-                "method": "DELETE",
-                "header": [],
-                "url": {
-                  "raw": "{{base_url}}/prot/550e8400-e29b-41d4-a716-446655440001/foto-kegiatan/0",
-                  "host": ["{{base_url}}"],
-                  "path": [
-                    "prot",
-                    "550e8400-e29b-41d4-a716-446655440001",
-                    "foto-kegiatan",
-                    "0"
-                  ]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "{\n  \"id\": \"550e8400-e29b-41d4-a716-446655440001\",\n  \"nama\": \"Gasing\",\n  \"jenis\": \"PERMAINAN_RAKYAT\",\n  \"fotoKegiatan\": [\n    \"https://bucket.s3.region.amazonaws.com/prot/foto-kegiatan/uuid2.jpg\",\n    \"https://bucket.s3.region.amazonaws.com/prot/foto-kegiatan/uuid3.jpg\"\n  ],\n  \"videoKegiatan\": [],\n  \"created_at\": \"2024-02-06T10:00:00.000Z\",\n  \"updated_at\": \"2024-02-06T12:00:00.000Z\"\n}"
-            },
-            {
-              "name": "Invalid Index",
-              "originalRequest": {
-                "method": "DELETE",
-                "header": [],
-                "url": {
-                  "raw": "{{base_url}}/prot/550e8400-e29b-41d4-a716-446655440001/foto-kegiatan/99",
-                  "host": ["{{base_url}}"],
-                  "path": [
-                    "prot",
-                    "550e8400-e29b-41d4-a716-446655440001",
-                    "foto-kegiatan",
-                    "99"
-                  ]
-                }
-              },
-              "status": "Bad Request",
-              "code": 400,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "{\n  \"statusCode\": 400,\n  \"message\": \"Invalid index: 99\",\n  \"error\": \"Bad Request\"\n}"
-            }
-          ]
+          "response": []
         },
         {
           "name": "Delete Video Kegiatan",
@@ -629,6 +404,263 @@
       "description": "Endpoints for Kurator Daerah and Admin KPOTI roles"
     },
     {
+      "name": "Verifikasi - Pakar",
+      "item": [
+        {
+          "name": "Get Available Queue",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/verifikasi/queue?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["verifikasi", "queue"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Get PROT available for verification (not yet assigned). Requires role: pakar"
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Queue (Assigned)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/verifikasi/my-queue?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["verifikasi", "my-queue"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Get PROT assigned to the current pakar. Requires role: pakar"
+          },
+          "response": []
+        },
+        {
+          "name": "Pick PROT from Queue",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/verifikasi/queue/:queueId/pick",
+              "host": ["{{base_url}}"],
+              "path": ["verifikasi", "queue", ":queueId", "pick"],
+              "variable": [
+                {
+                  "key": "queueId",
+                  "value": "{{queueId}}",
+                  "description": "Queue ID (UUID)"
+                }
+              ]
+            },
+            "description": "Assign a PROT from queue to yourself. Requires role: pakar"
+          },
+          "response": []
+        },
+        {
+          "name": "Release Assigned PROT",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/verifikasi/queue/:queueId/release",
+              "host": ["{{base_url}}"],
+              "path": ["verifikasi", "queue", ":queueId", "release"],
+              "variable": [
+                {
+                  "key": "queueId",
+                  "value": "{{queueId}}",
+                  "description": "Queue ID (UUID)"
+                }
+              ]
+            },
+            "description": "Release an assigned PROT back to the queue. Requires role: pakar"
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Review - APPROVED",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"APPROVED\",\n  \"catatan\": \"Dokumentasi lengkap dan akurat\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/verifikasi/:protId/review",
+              "host": ["{{base_url}}"],
+              "path": ["verifikasi", ":protId", "review"],
+              "variable": [
+                {
+                  "key": "protId",
+                  "value": "{{protId}}",
+                  "description": "PROT ID (UUID)"
+                }
+              ]
+            },
+            "description": "Submit APPROVED review. Moves PROT to DIVERIFIKASI status. Requires role: pakar"
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Review - REVISION_NEEDED",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"REVISION_NEEDED\",\n  \"catatan\": \"Perlu dilengkapi\",\n  \"saran_perbaikan\": \"Tambahkan referensi sejarah dan aturan permainan yang lebih detail\",\n  \"dokumen_pendukung\": [\"https://example.com/reference.pdf\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/verifikasi/:protId/review",
+              "host": ["{{base_url}}"],
+              "path": ["verifikasi", ":protId", "review"],
+              "variable": [
+                {
+                  "key": "protId",
+                  "value": "{{protId}}",
+                  "description": "PROT ID (UUID)"
+                }
+              ]
+            },
+            "description": "Submit REVISION_NEEDED review. Moves PROT to REVISI status. Requires saran_perbaikan. Requires role: pakar"
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Review - REJECTED",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"REJECTED\",\n  \"catatan\": \"Data tidak valid atau tidak sesuai kriteria\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/verifikasi/:protId/review",
+              "host": ["{{base_url}}"],
+              "path": ["verifikasi", ":protId", "review"],
+              "variable": [
+                {
+                  "key": "protId",
+                  "value": "{{protId}}",
+                  "description": "PROT ID (UUID)"
+                }
+              ]
+            },
+            "description": "Submit REJECTED review. Moves PROT back to DRAFT status. Requires role: pakar"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Verification History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/verifikasi/:protId/history",
+              "host": ["{{base_url}}"],
+              "path": ["verifikasi", ":protId", "history"],
+              "variable": [
+                {
+                  "key": "protId",
+                  "value": "{{protId}}",
+                  "description": "PROT ID (UUID)"
+                }
+              ]
+            },
+            "description": "Get all verification history for a PROT. Requires role: pakar, admin_kpoti, or kurator_daerah"
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints for Pakar role - verification workflow"
+    },
+    {
+      "name": "Verifikasi - Admin",
+      "item": [
+        {
+          "name": "Publish to National Archive",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"catatan\": \"Dipublikasikan ke arsip nasional\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/verifikasi/prot/:protId/publish",
+              "host": ["{{base_url}}"],
+              "path": ["verifikasi", "prot", ":protId", "publish"],
+              "variable": [
+                {
+                  "key": "protId",
+                  "value": "{{protId}}",
+                  "description": "PROT ID (UUID)"
+                }
+              ]
+            },
+            "description": "Publish PROT to national archive. Moves status from DIVERIFIKASI to ARSIP_NASIONAL. Requires role: admin_kpoti"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Verification Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/verifikasi/stats",
+              "host": ["{{base_url}}"],
+              "path": ["verifikasi", "stats"]
+            },
+            "description": "Get verification statistics including queue counts, approval counts, and PROT counts by status. Requires role: admin_kpoti"
+          },
+          "response": []
+        }
+      ],
+      "description": "Admin-only verification endpoints"
+    },
+    {
       "name": "PROT - Admin KPOTI Only",
       "item": [
         {
@@ -650,57 +682,7 @@
             },
             "description": "Delete a PROT. Requires role: admin_kpoti only"
           },
-          "response": [
-            {
-              "name": "Success - Deleted",
-              "originalRequest": {
-                "method": "DELETE",
-                "header": [],
-                "url": {
-                  "raw": "{{base_url}}/prot/550e8400-e29b-41d4-a716-446655440001",
-                  "host": ["{{base_url}}"],
-                  "path": ["prot", "550e8400-e29b-41d4-a716-446655440001"]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "{\n  \"message\": \"PROT deleted successfully\"\n}"
-            },
-            {
-              "name": "Forbidden",
-              "originalRequest": {
-                "method": "DELETE",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/prot/550e8400-e29b-41d4-a716-446655440001",
-                  "host": ["{{base_url}}"],
-                  "path": ["prot", "550e8400-e29b-41d4-a716-446655440001"]
-                }
-              },
-              "status": "Forbidden",
-              "code": 403,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json"
-                }
-              ],
-              "body": "{\n  \"statusCode\": 403,\n  \"message\": \"Forbidden - insufficient permissions\",\n  \"error\": \"Forbidden\"\n}"
-            }
-          ]
+          "response": []
         }
       ],
       "description": "Endpoints exclusive to Admin KPOTI role"

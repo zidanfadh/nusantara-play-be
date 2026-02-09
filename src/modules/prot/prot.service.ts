@@ -2,34 +2,46 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { PROT, PROTJenis, TargetUsia } from './entities/prot.entity';
+import { PROT, PROTJenis, TargetUsia, PROTStatus } from './entities/prot.entity';
 import { CreatePROTDto } from './dto/create-prot.dto';
 import { UpdatePROTDto } from './dto/update-prot.dto';
 import { QueryPROTDto } from './dto/query-prot.dto';
 import { DaerahService } from '../daerah/daerah.service';
 import { StorageService } from '../storage/storage.service';
+import { VerifikasiQueue } from './entities/verifikasi-queue.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 
 @Injectable()
 export class PROTService {
   constructor(
     @InjectRepository(PROT)
     private protRepository: Repository<PROT>,
+    @InjectRepository(VerifikasiQueue)
+    private queueRepository: Repository<VerifikasiQueue>,
     private daerahService: DaerahService,
     private storageService: StorageService,
   ) {}
 
-  async create(createPROTDto: CreatePROTDto): Promise<PROT> {
+  async create(createPROTDto: CreatePROTDto, createdBy: string): Promise<PROT> {
     // Validate daerah cascade
     await this.validateDaerahKode(createPROTDto);
 
-    const prot = this.protRepository.create(createPROTDto);
+    const prot = this.protRepository.create({
+      ...createPROTDto,
+      created_by: createdBy,
+      status: PROTStatus.DRAFT, // Explicit default
+    });
     return this.protRepository.save(prot);
   }
 
-  async findAll(query: QueryPROTDto): Promise<{
+  async findAll(
+    query: QueryPROTDto,
+    user?: User,
+  ): Promise<{
     data: PROT[];
     pagination: {
       total: number;
@@ -45,6 +57,25 @@ export class PROTService {
     const skip = (page - 1) * limit;
 
     const queryBuilder = this.protRepository.createQueryBuilder('prot');
+
+    // Status filter based on role
+    if (!user || user.role === UserRole.PUBLIK) {
+      // Public users only see published
+      queryBuilder.andWhere('prot.status = :status', { status: PROTStatus.ARSIP_NASIONAL });
+    } else if (user.role === UserRole.KURATOR_DAERAH) {
+      // Kurator see own PROT or published
+      queryBuilder.andWhere(
+        '(prot.created_by = :userId OR prot.status = :arsipStatus)',
+        { userId: user.id, arsipStatus: PROTStatus.ARSIP_NASIONAL },
+      );
+    } else if (user.role === UserRole.PAKAR) {
+      // Pakar see DIKURASI + ARSIP_NASIONAL
+      queryBuilder.andWhere(
+        'prot.status IN (:...pakarStatuses)',
+        { pakarStatuses: [PROTStatus.DIKURASI, PROTStatus.ARSIP_NASIONAL] },
+      );
+    }
+    // Admin sees all (no filter)
 
     if (query.jenis) {
       queryBuilder.andWhere('prot.jenis = :jenis', { jenis: query.jenis });
@@ -84,6 +115,14 @@ export class PROTService {
       });
     }
 
+    if (query.status) {
+      queryBuilder.andWhere('prot.status = :status', { status: query.status });
+    }
+
+    if (query.created_by) {
+      queryBuilder.andWhere('prot.created_by = :created_by', { created_by: query.created_by });
+    }
+
     queryBuilder.skip(skip).take(limit);
 
     const [data, total] = await queryBuilder.getManyAndCount();
@@ -111,8 +150,25 @@ export class PROTService {
     return prot;
   }
 
-  async update(id: string, updatePROTDto: UpdatePROTDto): Promise<PROT> {
+  async update(
+    id: string,
+    updatePROTDto: UpdatePROTDto,
+    userId: string,
+    userRole: UserRole,
+  ): Promise<PROT> {
     const prot = await this.findOne(id);
+
+    // Check ownership (kurator can only edit own PROT, admin can edit all)
+    if (userRole === UserRole.KURATOR_DAERAH && prot.created_by !== userId) {
+      throw new ForbiddenException('Anda tidak memiliki akses untuk edit PROT ini');
+    }
+
+    // Check status (only DRAFT or REVISI can be edited)
+    if (![PROTStatus.DRAFT, PROTStatus.REVISI].includes(prot.status)) {
+      throw new BadRequestException(
+        `PROT dengan status ${prot.status} tidak bisa diedit`,
+      );
+    }
 
     // Validate daerah cascade if provided
     const dto = updatePROTDto as Partial<CreatePROTDto>;
@@ -202,6 +258,106 @@ export class PROTService {
     await this.storageService.deleteFile(prot.videoKegiatan[index]);
 
     prot.videoKegiatan.splice(index, 1);
+    return this.protRepository.save(prot);
+  }
+
+  async submitKurasi(protId: string, userId: string): Promise<PROT> {
+    const prot = await this.protRepository.findOne({
+      where: { id: protId },
+    });
+
+    if (!prot) {
+      throw new NotFoundException('PROT tidak ditemukan');
+    }
+
+    // Check ownership
+    if (prot.created_by !== userId) {
+      throw new ForbiddenException('Anda bukan pemilik PROT ini');
+    }
+
+    // Check status
+    if (prot.status !== PROTStatus.DRAFT) {
+      throw new BadRequestException(
+        `PROT dengan status ${prot.status} tidak bisa di-submit`,
+      );
+    }
+
+    // Update status
+    prot.status = PROTStatus.DIKURASI;
+    prot.submitted_at = new Date();
+
+    await this.protRepository.save(prot);
+
+    // Create queue entry
+    const queue = this.queueRepository.create({
+      prot_id: protId,
+      priority: 0,
+    });
+
+    await this.queueRepository.save(queue);
+
+    return prot;
+  }
+
+  async resubmitAfterRevisi(protId: string, userId: string): Promise<PROT> {
+    const prot = await this.protRepository.findOne({
+      where: { id: protId },
+    });
+
+    if (!prot) {
+      throw new NotFoundException('PROT tidak ditemukan');
+    }
+
+    // Check ownership
+    if (prot.created_by !== userId) {
+      throw new ForbiddenException('Anda bukan pemilik PROT ini');
+    }
+
+    // Check status
+    if (prot.status !== PROTStatus.REVISI) {
+      throw new BadRequestException(
+        `PROT dengan status ${prot.status} tidak bisa di-resubmit`,
+      );
+    }
+
+    // Update status
+    prot.status = PROTStatus.DIKURASI;
+    prot.submitted_at = new Date();
+
+    await this.protRepository.save(prot);
+
+    // Re-create queue entry
+    const queue = this.queueRepository.create({
+      prot_id: protId,
+      priority: 0,
+    });
+
+    await this.queueRepository.save(queue);
+
+    return prot;
+  }
+
+  async publishToArsipNasional(protId: string, adminId: string): Promise<PROT> {
+    const prot = await this.protRepository.findOne({
+      where: { id: protId },
+    });
+
+    if (!prot) {
+      throw new NotFoundException('PROT tidak ditemukan');
+    }
+
+    // Check status
+    if (prot.status !== PROTStatus.DIVERIFIKASI) {
+      throw new BadRequestException(
+        `PROT dengan status ${prot.status} tidak bisa dipublish. Harus DIVERIFIKASI dulu.`,
+      );
+    }
+
+    // Update status
+    prot.status = PROTStatus.ARSIP_NASIONAL;
+    prot.published_by = adminId;
+    prot.published_at = new Date();
+
     return this.protRepository.save(prot);
   }
 
