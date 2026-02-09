@@ -9,19 +9,15 @@ RUN apk add --no-cache python3 make g++
 
 # Copy package files
 COPY package*.json ./
-COPY pnpm-lock.yaml ./
 
-# Install pnpm
-RUN npm install -g pnpm
-
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+# Install dependencies (clean install from lockfile)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
 # Build application
-RUN pnpm build
+RUN npm run build
 
 # Stage 2: Production
 FROM node:23-alpine AS production
@@ -38,13 +34,9 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-COPY pnpm-lock.yaml ./
 
-# Install pnpm
-RUN npm install -g pnpm
-
-# Install only production dependencies
-RUN pnpm install --prod --frozen-lockfile
+# Install only production dependencies (clean install from lockfile)
+RUN npm ci --omit=dev
 
 # Copy built application from builder
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
