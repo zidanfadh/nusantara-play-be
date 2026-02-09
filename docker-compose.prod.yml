@@ -1,11 +1,11 @@
 services:
   backend:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-your-username}/nusantara-play-backend:latest
+    # image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-your-username}/nusantara-play-backend:latest
     container_name: nusantara-play-backend
     # Untuk manual deployment, uncomment build di bawah dan comment image di atas
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
       - "3000:3000"
