@@ -2,11 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PROTService } from './prot.service';
-import { PROT, PROTStatus } from './entities/prot.entity';
+import { PROT, PROTStatus, PROTJenis, TargetUsia } from './entities/prot.entity';
 import { VerifikasiQueue } from './entities/verifikasi-queue.entity';
 import { DaerahService } from '../daerah/daerah.service';
 import { StorageService } from '../storage/storage.service';
 import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { UserRole } from '../users/entities/user.entity';
 
 describe('PROTService', () => {
   let service: PROTService;
@@ -75,10 +76,10 @@ describe('PROTService', () => {
     it('should create PROT with DRAFT status and created_by', async () => {
       const createDto = {
         nama: 'Gasing',
-        jenis: 'PERMAINAN_RAKYAT' as const,
+        jenis: PROTJenis.PERMAINAN_RAKYAT,
         provinsiKode: '11',
         kabkotaKode: '11.01',
-        targetUsia: 'ANAK' as const,
+        targetUsia: TargetUsia.ANAK,
       };
 
       const mockProt = { id: 'prot-1', ...createDto, status: PROTStatus.DRAFT, created_by: 'user-1' };
@@ -242,7 +243,7 @@ describe('PROTService', () => {
       mockDaerahService.findByKode.mockResolvedValue({});
       mockProtRepository.save.mockResolvedValue({ ...mockProt, ...updateDto });
 
-      const result = await service.update('prot-1', updateDto, 'admin-1', 'admin_kpoti');
+      const result = await service.update('prot-1', updateDto, 'admin-1', UserRole.ADMIN_KPOTI);
 
       expect(result).toBeDefined();
     });
@@ -260,7 +261,7 @@ describe('PROTService', () => {
       mockDaerahService.findByKode.mockResolvedValue({});
       mockProtRepository.save.mockResolvedValue({ ...mockProt, ...updateDto });
 
-      const result = await service.update('prot-1', updateDto, 'user-1', 'kurator_daerah');
+      const result = await service.update('prot-1', updateDto, 'user-1', UserRole.KURATOR_DAERAH);
 
       expect(result).toBeDefined();
     });
@@ -275,7 +276,7 @@ describe('PROTService', () => {
       mockProtRepository.findOne.mockResolvedValue(mockProt);
 
       await expect(
-        service.update('prot-1', {}, 'user-1', 'kurator_daerah'),
+        service.update('prot-1', {}, 'user-1', UserRole.KURATOR_DAERAH),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -289,7 +290,7 @@ describe('PROTService', () => {
       mockProtRepository.findOne.mockResolvedValue(mockProt);
 
       await expect(
-        service.update('prot-1', {}, 'user-1', 'kurator_daerah'),
+        service.update('prot-1', {}, 'user-1', UserRole.KURATOR_DAERAH),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -308,8 +309,8 @@ describe('PROTService', () => {
       await service.findAll({ page: 1, limit: 10 });
 
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        'prot.status = :status',
-        { status: PROTStatus.ARSIP_NASIONAL },
+        'prot.status = :roleStatus',
+        { roleStatus: PROTStatus.ARSIP_NASIONAL },
       );
     });
   });
