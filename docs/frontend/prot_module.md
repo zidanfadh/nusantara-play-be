@@ -34,7 +34,7 @@ PROT (Permainan Rakyat dan Olahraga Tradisional) module menangani data permainan
 | fotoKegiatan | jsonb | No | Array of photo URLs |
 | videoKegiatan | jsonb | No | Array of video URLs |
 | created_by | UUID | Auto | User ID yang created |
-| verified_by | UUID | No | User ID (pakar) yang verified |
+| verified_by | UUID | No | User ID (pakar/admin) yang verified |
 | published_by | UUID | No | User ID (admin) yang published |
 | submitted_at | timestamp | No | Tanggal submit untuk verifikasi |
 | verified_at | timestamp | No | Tanggal verifikasi selesai |
@@ -47,9 +47,9 @@ PROT (Permainan Rakyat dan Olahraga Tradisional) module menangani data permainan
 | Value | Description |
 |-------|-------------|
 | `DRAFT` | Kurator sedang mengerjakan (belum di-submit) |
-| `DIKURASI` | Sudah di-submit, menunggu verifikasi pakar |
+| `DIKURASI` | Sudah di-submit, menunggu verifikasi |
 | `REVISI` | Pakar minta perbaikan, kurator sedang revisi |
-| `DIVERIFIKASI` | Sudah di-approve pakar, menunggu publish admin |
+| `DIVERIFIKASI` | Sudah di-approve, menunggu publish admin |
 | `ARSIP_NASIONAL` | Sudah dipublish, tampil ke publik |
 
 ### Status Flow
@@ -106,9 +106,9 @@ PROT (Permainan Rakyat dan Olahraga Tradisional) module menangani data permainan
 |-------|------|-------------|
 | id | UUID | Primary key |
 | prot_id | UUID | ID PROT yang diverifikasi |
-| pakar_id | UUID | ID pakar yang mereview |
+| pakar_id | UUID | ID pakar/admin yang mereview |
 | status | enum | `PENDING`, `APPROVED`, `REJECTED`, `REVISION_NEEDED` |
-| catatan | text | Catatan dari pakar |
+| catatan | text | Catatan dari reviewer |
 | saran_perbaikan | text | Saran perbaikan (required jika REVISION_NEEDED) |
 | dokumen_pendukung | jsonb | Array document URLs |
 | verified_at | timestamp | Tanggal verifikasi |
@@ -121,9 +121,9 @@ PROT (Permainan Rakyat dan Olahraga Tradisional) module menangani data permainan
 |-------|------|-------------|
 | id | UUID | Primary key |
 | prot_id | UUID | ID PROT (unique) |
-| assigned_pakar_id | UUID | ID pakar yang mengambil (nullable) |
+| assigned_pakar_id | UUID | ID pakar/admin yang mengambil (nullable) |
 | priority | integer | Priority queue (default: 0) |
-| assigned_at | timestamp | Tanggal di-assign pakar |
+| assigned_at | timestamp | Tanggal di-assign |
 | created_at | timestamp | Tanggal dibuat |
 | updated_at | timestamp | Tanggal diupdate |
 
@@ -259,7 +259,7 @@ Mengambil data PROT spesifik berdasarkan ID.
 
 ### 4. Update PROT
 
-Update data PROT (partial update). **Hanya bisa edit PROT dengan status DRAFT atau REVISI.** Kurator hanya bisa edit PROT sendiri.
+Update data PROT (partial update). **Hanya bisa edit PROT dengan status DRAFT atau REVISI.** Kurator hanya bisa edit PROT sendiri, Admin bisa edit semua.
 
 **Endpoint:** `PATCH /prot/:id`
 
@@ -319,13 +319,13 @@ Menghapus video kegiatan berdasarkan index.
 
 ## Verification Workflow Endpoints
 
-### 10. Submit PROT for Verification (Kurasi)
+### 10. Submit PROT for Verification
 
 Submit PROT untuk verifikasi. Status berubah dari `DRAFT` ke `DIKURASI` dan masuk queue verifikasi.
 
 **Endpoint:** `POST /prot/:id/submit-kurasi`
 
-**Authentication:** Required (Role: `kurator_daerah`)
+**Authentication:** Required (Role: `kurator_daerah`, `admin_kpoti`)
 
 **Request Body:**
 ```json
@@ -344,7 +344,7 @@ Submit PROT untuk verifikasi. Status berubah dari `DRAFT` ke `DIKURASI` dan masu
 ```
 
 **Error Responses:**
-- `403` - Not the owner of this PROT
+- `403` - Not the owner of this PROT (for Kurator only)
 - `400` - PROT is not in DRAFT status
 
 ---
@@ -355,7 +355,7 @@ Resubmit PROT setelah selesai revisi. Status berubah dari `REVISI` ke `DIKURASI`
 
 **Endpoint:** `POST /prot/:id/resubmit`
 
-**Authentication:** Required (Role: `kurator_daerah`)
+**Authentication:** Required (Role: `kurator_daerah`, `admin_kpoti`)
 
 **Success Response (200 OK):**
 ```json
@@ -366,15 +366,19 @@ Resubmit PROT setelah selesai revisi. Status berubah dari `REVISI` ke `DIKURASI`
 }
 ```
 
+**Error Responses:**
+- `403` - Not the owner of this PROT (for Kurator only)
+- `400` - PROT is not in REVISI status
+
 ---
 
-### 12. Get Available Queue (Pakar)
+### 12. Get Available Queue
 
 Melihat PROT yang tersedia untuk verifikasi (belum di-assign).
 
 **Endpoint:** `GET /verifikasi/queue`
 
-**Authentication:** Required (Role: `pakar`)
+**Authentication:** Required (Role: `pakar`, `admin_kpoti`)
 
 **Query Parameters:**
 | Parameter | Type | Default | Description |
@@ -414,48 +418,48 @@ Melihat PROT yang tersedia untuk verifikasi (belum di-assign).
 
 ---
 
-### 13. Get My Queue (Pakar)
+### 13. Get My Queue
 
 Melihat PROT yang sudah di-assign ke diri sendiri.
 
 **Endpoint:** `GET /verifikasi/my-queue`
 
-**Authentication:** Required (Role: `pakar`)
+**Authentication:** Required (Role: `pakar`, `admin_kpoti`)
 
 **Query Parameters:** Same as above
 
 ---
 
-### 14. Pick PROT from Queue (Pakar)
+### 14. Pick PROT from Queue
 
 Mengambil PROT dari queue untuk diverifikasi.
 
 **Endpoint:** `POST /verifikasi/queue/:queueId/pick`
 
-**Authentication:** Required (Role: `pakar`)
+**Authentication:** Required (Role: `pakar`, `admin_kpoti`)
 
 **Success Response (200 OK):**
 ```json
 {
   "id": "queue-uuid",
-  "assigned_pakar_id": "pakar-uuid",
+  "assigned_pakar_id": "user-uuid",
   "assigned_at": "2024-02-09T10:30:00.000Z"
 }
 ```
 
 **Error Responses:**
 - `404` - Queue item not found
-- `400` - Already assigned to another pakar
+- `400` - Already assigned to another user
 
 ---
 
-### 15. Release Assigned PROT (Pakar)
+### 15. Release Assigned PROT
 
 Melepas PROT yang sudah di-assign kembali ke queue.
 
 **Endpoint:** `POST /verifikasi/queue/:queueId/release`
 
-**Authentication:** Required (Role: `pakar`)
+**Authentication:** Required (Role: `pakar`, `admin_kpoti`)
 
 **Success Response (200 OK):**
 ```json
@@ -468,13 +472,13 @@ Melepas PROT yang sudah di-assign kembali ke queue.
 
 ---
 
-### 16. Submit Review (Pakar)
+### 16. Submit Review
 
-Submit review hasil verifikasi.
+Submit review hasil verifikasi (APPROVE, REJECT, atau REVISION_NEEDED).
 
 **Endpoint:** `POST /verifikasi/:protId/review`
 
-**Authentication:** Required (Role: `pakar`)
+**Authentication:** Required (Role: `pakar`, `admin_kpoti`)
 
 **Request Body:**
 ```json
@@ -496,7 +500,7 @@ Submit review hasil verifikasi.
 {
   "id": "verifikasi-uuid",
   "prot_id": "prot-uuid",
-  "pakar_id": "pakar-uuid",
+  "pakar_id": "user-uuid",
   "status": "APPROVED",
   "catatan": "Dokumentasi lengkap",
   "verified_at": "2024-02-09T11:00:00.000Z"
@@ -522,8 +526,8 @@ Melihat history verifikasi sebuah PROT.
     "catatan": "Perlu dilengkapi",
     "saran_perbaikan": "Tambahkan referensi",
     "pakar": {
-      "id": "pakar-uuid",
-      "full_name": "Pakar Name"
+      "id": "user-uuid",
+      "full_name": "Reviewer Name"
     },
     "verified_at": "2024-02-09T10:00:00.000Z"
   }
@@ -532,7 +536,7 @@ Melihat history verifikasi sebuah PROT.
 
 ---
 
-### 18. Publish to National Archive (Admin)
+### 18. Publish to National Archive (Admin Only)
 
 Publish PROT ke arsip nasional. Status berubah dari `DIVERIFIKASI` ke `ARSIP_NASIONAL`.
 
@@ -559,7 +563,7 @@ Publish PROT ke arsip nasional. Status berubah dari `DIVERIFIKASI` ke `ARSIP_NAS
 
 ---
 
-### 19. Get Verification Statistics (Admin)
+### 19. Get Verification Statistics (Admin Only)
 
 Melihat statistik verifikasi.
 
@@ -618,23 +622,30 @@ provinsi (required if kabkota exists)
 ### Kurator Daerah (KURATOR_DAERAH)
 - Create: PROT (status = DRAFT)
 - Edit: PROT sendiri (hanya status DRAFT atau REVISI)
+- Upload: Foto/video kegiatan
 - Submit: PROT untuk verifikasi (DRAFT → DIKURASI)
 - Resubmit: Setelah revisi (REVISI → DIKURASI)
+- Delete: Foto/video kegiatan
 - View: PROT sendiri (semua status) + ARSIP_NASIONAL
 
 ### Pakar (PAKAR)
-- View: Queue verifikasi (DIKURASI) + ARSIP_NASIONAL
+- View: Queue verifikasi (DIKURASI) + ARSIP_NASIONAL + My Queue
 - Pick: PROT dari queue
 - Release: PROT kembali ke queue
 - Review: APPROVE, REJECT, atau REVISION_NEEDED
 - View: History verifikasi
 
 ### Admin KPOTI (ADMIN_KPOTI)
-- All Kurator permissions
+**Full access - All Kurator + Pakar permissions:**
+- Create, edit, delete PROT (tanpa batasan ownership)
+- Upload/delete foto/video kegiatan
+- Submit, resubmit PROT untuk verifikasi
+- **Verifikasi:** View queue, pick, release, submit review
 - Publish: PROT (DIVERIFIKASI → ARSIP_NASIONAL)
 - View: Semua PROT (semua status)
-- Delete: PROT
 - View: Statistik verifikasi
+
+> **Note:** Admin memiliki akses penuh untuk memfasilitasi workflow manajemen, termasuk melakukan tugas Kurator dan Pakar jika diperlukan.
 
 ---
 
@@ -645,18 +656,23 @@ provinsi (required if kabkota exists)
 ```typescript
 // 1. Create PROT (DRAFT)
 POST /prot
+Authorization: Bearer <kurator-token>
 { nama: "Gasing", ... }
 
 // 2. Upload photos
 POST /prot/:id/foto-kegiatan
+Authorization: Bearer <kurator-token>
 [files]
 
 // 3. Submit for verification
 POST /prot/:id/submit-kurasi
+Authorization: Bearer <kurator-token>
 
 // 4. If revision needed, update and resubmit
 PATCH /prot/:id { ... }
+Authorization: Bearer <kurator-token>
 POST /prot/:id/resubmit
+Authorization: Bearer <kurator-token>
 ```
 
 ### 2. Pakar Workflow
@@ -664,16 +680,20 @@ POST /prot/:id/resubmit
 ```typescript
 // 1. View available queue
 GET /verifikasi/queue
+Authorization: Bearer <pakar-token>
 
 // 2. Pick a PROT
 POST /verifikasi/queue/:queueId/pick
+Authorization: Bearer <pakar-token>
 
 // 3. Submit review
 POST /verifikasi/:protId/review
+Authorization: Bearer <pakar-token>
 { status: "APPROVED", catatan: "..." }
 
 // OR release back to queue
 POST /verifikasi/queue/:queueId/release
+Authorization: Bearer <pakar-token>
 ```
 
 ### 3. Admin Workflow
@@ -681,9 +701,22 @@ POST /verifikasi/queue/:queueId/release
 ```typescript
 // 1. View statistics
 GET /verifikasi/stats
+Authorization: Bearer <admin-token>
 
-// 2. Publish verified PROT
+// 2. View queue (can also assist in verification)
+GET /verifikasi/queue
+Authorization: Bearer <admin-token>
+
+// 3. Pick and review (can also verify as pakar)
+POST /verifikasi/queue/:queueId/pick
+Authorization: Bearer <admin-token>
+
+POST /verifikasi/:protId/review
+Authorization: Bearer <admin-token>
+
+// 4. Publish verified PROT
 POST /verifikasi/prot/:protId/publish
+Authorization: Bearer <admin-token>
 ```
 
 ---
