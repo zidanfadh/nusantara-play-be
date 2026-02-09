@@ -1,0 +1,38 @@
+services:
+  backend:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-your-username}/nusantara-play-backend:latest
+    container_name: nusantara-play-backend
+    # Untuk manual deployment, uncomment build di bawah dan comment image di atas
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      APP_NAME: Nusantara Play
+    env_file:
+      - .env
+    networks:
+      - nusantara-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  nusantara-network:
+    driver: bridge
+
+volumes:
+  logs:
+    driver: local
