@@ -3,7 +3,7 @@
     "name": "Nusantara Play - PROT API",
     "description": "API Collection for PROT (Permainan Rakyat dan Olahraga Tradisional) Module with Verification System",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "2.0.0"
+    "version": "2.1.0"
   },
   "variable": [
     {
@@ -15,7 +15,7 @@
       "key": "token",
       "value": "",
       "type": "string",
-      "disabled": true
+      "description": "JWT Access Token - Get from /api/auth/login"
     },
     {
       "key": "protId",
@@ -28,27 +28,6 @@
       "value": "",
       "type": "string",
       "disabled": true
-    }
-  ],
-  "auth": {
-    "type": "bearer",
-    "bearer": [
-      {
-        "key": "token",
-        "value": "{{token}}",
-        "type": "string"
-      }
-    ]
-  },
-  "event": [
-    {
-      "listen": "prerequest",
-      "script": {
-        "type": "text/javascript",
-        "exec": [
-          ""
-        ]
-      }
     }
   ],
   "item": [
@@ -158,6 +137,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
             "body": {
@@ -181,6 +164,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
             "body": {
@@ -211,6 +198,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
             "body": {
@@ -241,6 +232,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
             "body": {
@@ -267,7 +262,20 @@
           "name": "Resubmit After Revision",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"catatan\": \"Revisi telah selesai\"\n}"
+            },
             "url": {
               "raw": "{{base_url}}/prot/:id/resubmit",
               "host": ["{{base_url}}"],
@@ -288,7 +296,12 @@
           "name": "Upload Foto Kegiatan",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -320,7 +333,12 @@
           "name": "Upload Video Kegiatan",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -352,7 +370,12 @@
           "name": "Delete Foto Kegiatan",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/prot/:id/foto-kegiatan/:index",
               "host": ["{{base_url}}"],
@@ -378,7 +401,12 @@
           "name": "Delete Video Kegiatan",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/prot/:id/video-kegiatan/:index",
               "host": ["{{base_url}}"],
@@ -410,7 +438,12 @@
           "name": "Get Available Queue",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/verifikasi/queue?page=1&limit=20",
               "host": ["{{base_url}}"],
@@ -434,7 +467,12 @@
           "name": "Get My Queue (Assigned)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/verifikasi/my-queue?page=1&limit=20",
               "host": ["{{base_url}}"],
@@ -458,7 +496,12 @@
           "name": "Pick PROT from Queue",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/verifikasi/queue/:queueId/pick",
               "host": ["{{base_url}}"],
@@ -479,7 +522,12 @@
           "name": "Release Assigned PROT",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/verifikasi/queue/:queueId/release",
               "host": ["{{base_url}}"],
@@ -504,6 +552,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
             "body": {
@@ -534,6 +586,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
             "body": {
@@ -564,6 +620,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
             "body": {
@@ -590,7 +650,12 @@
           "name": "Get Verification History",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/verifikasi/:protId/history",
               "host": ["{{base_url}}"],
@@ -621,6 +686,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
               }
             ],
             "body": {
@@ -647,7 +716,12 @@
           "name": "Get Verification Statistics",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/verifikasi/stats",
               "host": ["{{base_url}}"],
@@ -667,7 +741,12 @@
           "name": "Delete PROT",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/prot/:id",
               "host": ["{{base_url}}"],
