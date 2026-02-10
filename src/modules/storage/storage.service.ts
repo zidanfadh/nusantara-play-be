@@ -55,7 +55,7 @@ export class StorageService {
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
-      ACL: folder === 'images' ? 'public-read' : 'private',
+      ACL: 'public-read', // All uploads are public
     });
 
     await this.s3Client.send(command);
