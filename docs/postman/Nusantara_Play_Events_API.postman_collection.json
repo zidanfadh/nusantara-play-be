@@ -1,0 +1,542 @@
+{
+  "info": {
+    "name": "Nusantara Play - Events API",
+    "description": "API Collection for Events Module - CRUD events, registration, and check-in system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "2.1.0"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string",
+      "description": "JWT Access Token - Get from /api/auth/login"
+    },
+    {
+      "key": "eventId",
+      "value": "",
+      "type": "string",
+      "disabled": true
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string",
+      "disabled": true
+    },
+    {
+      "key": "daerahId",
+      "value": "",
+      "type": "string",
+      "disabled": true
+    }
+  ],
+  "item": [
+    {
+      "name": "Events - Public",
+      "item": [
+        {
+          "name": "List All Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/events?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["events"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Items per page"
+                },
+                {
+                  "key": "jenis",
+                  "value": "teras_bermain",
+                  "description": "Filter by event type: teras_bermain, workshop, festival",
+                  "disabled": true
+                },
+                {
+                  "key": "daerah_id",
+                  "value": "{{daerahId}}",
+                  "description": "Filter by region",
+                  "disabled": true
+                },
+                {
+                  "key": "startDate",
+                  "value": "2026-03-01",
+                  "description": "Filter events after this date",
+                  "disabled": true
+                },
+                {
+                  "key": "endDate",
+                  "value": "2026-12-31",
+                  "description": "Filter events before this date",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "published",
+                  "description": "Filter by status: draft, published, ongoing, completed, cancelled",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "congklak",
+                  "description": "Search in nama/deskripsi",
+                  "disabled": true
+                },
+                {
+                  "key": "sortBy",
+                  "value": "tanggal_mulai",
+                  "description": "Sort by: tanggal_mulai, created_at, jumlah_peserta",
+                  "disabled": true
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "ASC",
+                  "description": "Sort order: ASC, DESC",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            },
+            "description": "Get list of events with pagination and filters"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Featured Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/events/featured",
+              "host": ["{{base_url}}"],
+              "path": ["events", "featured"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of featured events"
+                }
+              ],
+              "variable": []
+            },
+            "description": "Get featured events sorted by creation date"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Event by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/events/:id",
+              "host": ["{{base_url}}"],
+              "path": ["events", ":id"],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{eventId}}",
+                  "description": "Event UUID"
+                }
+              ]
+            },
+            "description": "Get single event details"
+          },
+          "response": []
+        }
+      ],
+      "description": "Public endpoints - no authentication required"
+    },
+    {
+      "name": "Events - Authenticated",
+      "item": [
+        {
+          "name": "Get My Registrations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/events/my-registrations",
+              "host": ["{{base_url}}"],
+              "path": ["events", "my-registrations"],
+              "query": [],
+              "variable": []
+            },
+            "description": "Get current user's event registrations"
+          },
+          "response": []
+        },
+        {
+          "name": "Register for Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data_pendaftaran\": {\n    \"nama\": \"Peserta\",\n    \"email\": \"peserta@example.com\",\n    \"telepon\": \"08123456789\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/events/:id/register",
+              "host": ["{{base_url}}"],
+              "path": ["events", ":id", "register"],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{eventId}}",
+                  "description": "Event UUID"
+                }
+              ]
+            },
+            "description": "Register current user for an event"
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Registration",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/events/:id/register",
+              "host": ["{{base_url}}"],
+              "path": ["events", ":id", "register"],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{eventId}}",
+                  "description": "Event UUID"
+                }
+              ]
+            },
+            "description": "Cancel current user's registration"
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints requiring user authentication"
+    },
+    {
+      "name": "Events - Kurator/Admin",
+      "item": [
+        {
+          "name": "Create Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nama\": \"Teras Bermain Congklak\",\n  \"deskripsi\": \"Belajar congklak bersama komunitas\",\n  \"jenis\": \"teras_bermain\",\n  \"tanggal_mulai\": \"2026-03-01T10:00:00Z\",\n  \"tanggal_selesai\": \"2026-03-01T12:00:00Z\",\n  \"lokasi\": \"Taman Budaya Jakarta\",\n  \"daerah_id\": \"{{daerahId}}\",\n  \"kuota_peserta\": 30,\n  \"persyaratan\": \"Membawa minat dan semangat belajar\",\n  \"contact_person\": \"Budi Santoso\",\n  \"contact_phone\": \"08123456789\",\n  \"contact_email\": \"budi@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/events",
+              "host": ["{{base_url}}"],
+              "path": ["events"],
+              "query": [],
+              "variable": []
+            },
+            "description": "Create new event (status: draft)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Events",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/events/my-events?page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["events", "my-events"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ],
+              "variable": []
+            },
+            "description": "Get events created by current user"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Event",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nama\": \"Updated Event Name\",\n  \"kuota_peserta\": 50\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/events/:id",
+              "host": ["{{base_url}}"],
+              "path": ["events", ":id"],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{eventId}}",
+                  "description": "Event UUID"
+                }
+              ]
+            },
+            "description": "Update event (only draft status)"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Event",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/events/:id",
+              "host": ["{{base_url}}"],
+              "path": ["events", ":id"],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{eventId}}",
+                  "description": "Event UUID"
+                }
+              ]
+            },
+            "description": "Delete event"
+          },
+          "response": []
+        },
+        {
+          "name": "Publish Event",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/events/:id/publish",
+              "host": ["{{base_url}}"],
+              "path": ["events", ":id", "publish"],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{eventId}}",
+                  "description": "Event UUID"
+                }
+              ]
+            },
+            "description": "Publish draft event (status: draft → published)"
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Event",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/events/:id/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["events", ":id", "cancel"],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{eventId}}",
+                  "description": "Event UUID"
+                }
+              ]
+            },
+            "description": "Cancel event"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Event Registrations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/events/:id/registrations",
+              "host": ["{{base_url}}"],
+              "path": ["events", ":id", "registrations"],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{eventId}}",
+                  "description": "Event UUID"
+                }
+              ]
+            },
+            "description": "Get list of event attendees (organizer only)"
+          },
+          "response": []
+        },
+        {
+          "name": "Check-in Attendee",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/events/:id/registrations/:userId/check-in",
+              "host": ["{{base_url}}"],
+              "path": ["events", ":id", "registrations", ":userId", "check-in"],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{eventId}}",
+                  "description": "Event UUID"
+                },
+                {
+                  "key": "userId",
+                  "value": "{{userId}}",
+                  "description": "User UUID to check-in"
+                }
+              ]
+            },
+            "description": "Check-in attendee"
+          },
+          "response": []
+        },
+        {
+          "name": "Undo Check-in",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/events/:id/registrations/:userId/undo-check-in",
+              "host": ["{{base_url}}"],
+              "path": ["events", ":id", "registrations", ":userId", "undo-check-in"],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{eventId}}",
+                  "description": "Event UUID"
+                },
+                {
+                  "key": "userId",
+                  "value": "{{userId}}",
+                  "description": "User UUID to undo check-in"
+                }
+              ]
+            },
+            "description": "Undo attendee check-in"
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints requiring Kurator or Admin role"
+    }
+  ]
+}
