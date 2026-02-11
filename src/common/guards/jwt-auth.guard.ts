@@ -14,28 +14,52 @@ export class JwtAuthGuard extends AuthGuard('jwt') implements CanActivate {
     super();
   }
 
-  canActivate(context: ExecutionContext) {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
     if (isPublic) {
-      // For public routes, activate auth but don't require it
-      // This allows optional authentication
-      return super.canActivate(context);
+      // For public routes, try to authenticate but don't require it
+      try {
+        await super.canActivate(context);
+      } catch (err) {
+        // Ignore auth errors for public routes
+        // User will be undefined in the request
+      }
+      return true; // Always allow access
     }
 
-    return super.canActivate(context);
+    return super.canActivate(context) as Promise<boolean>;
   }
 
-  handleRequest(err, user, info) {
-    // For public routes or valid auth, allow the request
-    // user will be undefined if no token provided
-    console.log('[JwtAuthGuard] handleRequest - err:', err?.message, 'user:', user?.id, user?.role, 'info:', info?.message);
+  handleRequest(err, user, info, context) {
+    const request = context?.switchToHttp?.()?.getRequest?.();
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    // Only log errors on protected routes in non-production
+    if (process.env.NODE_ENV !== 'production' && !isPublic && (err || !user)) {
+      console.log('[JwtAuthGuard] handleRequest - err:', err?.message, 'user:', user?.id, user?.role, 'info:', info?.message);
+    }
+
+    // For public routes, return user if available (can be undefined)
+    if (isPublic) {
+      return user; // undefined jika tidak ada token, atau user object jika ada
+    }
+
+    // For protected routes, user must exist
     if (err) {
       throw err;
     }
+
+    if (!user) {
+      throw new UnauthorizedException('Authentication required');
+    }
+
     return user;
   }
 }
