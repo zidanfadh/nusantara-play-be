@@ -22,7 +22,6 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User, UserRole } from '../users/entities/user.entity';
-import { AuditInterceptor } from '../audit/audit.interceptor';
 
 @Controller('events')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -34,7 +33,6 @@ export class EventsController {
 
   @Post()
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
-  @UseInterceptors(AuditInterceptor)
   async create(@Body() createEventDto: CreateEventDto, @CurrentUser() user: User) {
     return this.eventsService.create(createEventDto, user.id);
   }
@@ -75,7 +73,6 @@ export class EventsController {
 
   @Patch(':id')
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
-  @UseInterceptors(AuditInterceptor)
   async update(
     @Param('id') id: string,
     @Body() updateEventDto: UpdateEventDto,
@@ -86,7 +83,6 @@ export class EventsController {
 
   @Delete(':id')
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
-  @UseInterceptors(AuditInterceptor)
   async remove(@Param('id') id: string, @CurrentUser() user: User) {
     await this.eventsService.remove(id, user.id, user.role);
     return { message: 'Event deleted successfully' };
@@ -94,14 +90,12 @@ export class EventsController {
 
   @Patch(':id/publish')
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
-  @UseInterceptors(AuditInterceptor)
   async publish(@Param('id') id: string, @CurrentUser() user: User) {
     return this.eventsService.publish(id, user.id, user.role);
   }
 
   @Patch(':id/cancel')
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
-  @UseInterceptors(AuditInterceptor)
   async cancel(@Param('id') id: string, @CurrentUser() user: User) {
     return this.eventsService.cancel(id, user.id, user.role);
   }
@@ -129,7 +123,6 @@ export class EventsController {
 
   @Patch(':id/registrations/:userId/check-in')
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
-  @UseInterceptors(AuditInterceptor)
   async checkIn(
     @Param('id') id: string,
     @Param('userId') userId: string,
@@ -140,7 +133,6 @@ export class EventsController {
 
   @Patch(':id/registrations/:userId/undo-check-in')
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
-  @UseInterceptors(AuditInterceptor)
   async undoCheckIn(
     @Param('id') id: string,
     @Param('userId') userId: string,
