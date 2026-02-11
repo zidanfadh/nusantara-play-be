@@ -1,3 +1,4 @@
+import { IsOptional, IsObject } from 'class-validator';
 import { EventJenis, EventStatus } from '../entities/event.entity';
 
 export class EventDto {
@@ -47,5 +48,7 @@ export class EventRegistrationDto {
 }
 
 export class RegisterEventDto {
+  @IsOptional()
+  @IsObject()
   data_pendaftaran?: Record<string, any>;
 }
