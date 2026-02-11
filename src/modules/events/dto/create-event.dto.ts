@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsOptional, IsInt, IsEmail, IsObject, IsArray, MinDate, validateSync } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsInt, IsEmail, IsObject, IsArray, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 import { EventJenis } from '../entities/event.entity';
 
@@ -35,9 +35,11 @@ export class CreateEventDto {
   type?: EventJenis; // Alias for jenis (API compatibility)
 
   @Type(() => Date)
+  @IsDate()
   tanggal_mulai: Date;
 
   @Type(() => Date)
+  @IsDate()
   tanggal_selesai: Date;
 
   @IsString()

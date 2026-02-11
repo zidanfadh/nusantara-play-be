@@ -12,7 +12,7 @@
       "type": "string"
     },
     {
-      "key": "accessToken",
+      "key": "ACCESS_TOKEN",
       "value": "",
       "type": "string",
       "description": "JWT Access Token - Get from /api/auth/login"
@@ -172,7 +172,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{ACCESS_TOKEN}}"
               }
             ],
             "url": {
@@ -193,7 +193,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{ACCESS_TOKEN}}"
               },
               {
                 "key": "Content-Type",
@@ -233,7 +233,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{ACCESS_TOKEN}}"
               }
             ],
             "url": {
@@ -266,7 +266,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{ACCESS_TOKEN}}"
               },
               {
                 "key": "Content-Type",
@@ -300,7 +300,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{ACCESS_TOKEN}}"
               }
             ],
             "url": {
@@ -330,7 +330,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{ACCESS_TOKEN}}"
               },
               {
                 "key": "Content-Type",
@@ -370,7 +370,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{ACCESS_TOKEN}}"
               }
             ],
             "url": {
@@ -397,7 +397,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{ACCESS_TOKEN}}"
               }
             ],
             "url": {
@@ -424,7 +424,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{ACCESS_TOKEN}}"
               }
             ],
             "url": {
@@ -451,7 +451,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{ACCESS_TOKEN}}"
               }
             ],
             "url": {
@@ -478,7 +478,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{ACCESS_TOKEN}}"
               }
             ],
             "url": {
@@ -510,7 +510,7 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
+                "value": "Bearer {{ACCESS_TOKEN}}"
               }
             ],
             "url": {
