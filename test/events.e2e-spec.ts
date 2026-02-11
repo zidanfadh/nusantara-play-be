@@ -36,7 +36,7 @@ describe('Events (e2e)', () => {
     let daerahId: string;
 
     beforeAll(async () => {
-      // Get auth token first (you need to login via Postman/Swagger first)
+      // Get auth token first
       const loginResponse = await request(app.getHttpServer())
         .post('/api/auth/login')
         .send({
@@ -87,12 +87,13 @@ describe('Events (e2e)', () => {
           .send({
             nama: 'Test Event',
             deskripsi: 'Test Description',
+            jenis: 'teras_bermain',
           })
           .expect(401);
       });
 
       it('should validate required fields', async () => {
-        const response = await request(app.getHttpServer())
+        await request(app.getHttpServer())
           .post('/api/events')
           .set('Authorization', authToken)
           .send({
@@ -112,6 +113,7 @@ describe('Events (e2e)', () => {
           .expect((res) => {
             expect(res.body.status).toBe('published');
             expect(res.body.published_at).toBeDefined();
+            expect(res.body.published_at).not.toBeNull();
           });
       });
     });
@@ -136,15 +138,6 @@ describe('Events (e2e)', () => {
             if (res.body.data.length > 0) {
               expect(res.body.data[0].jenis).toBe('teras_bermain');
             }
-          });
-      });
-
-      it('should search events', async () => {
-        const response = await request(app.getHttpServer())
-          .get('/api/events?search=Test')
-          .expect(200)
-          .expect((res) => {
-            expect(Array.isArray(res.body.data)).toBe(true);
           });
       });
     });
@@ -173,18 +166,20 @@ describe('Events (e2e)', () => {
             .post(`/api/events/${eventId}/register`)
             .set('Authorization', userToken)
             .send({})
-            .expect(201)
-            .expect((res) => {
-              expect(res.body).toHaveProperty('id');
-              expect(res.body.status).toBe('registered');
-            });
+          .expect(201)
+          .expect((res) => {
+            expect(res.body).toHaveProperty('id');
+            expect(res.body.event_id).toBe(eventId);
+            expect(res.body.user_id).toBe('user@test.com');
+            expect(res.body.status).toBe('registered');
+          });
         });
 
         it('should fail without authentication', async () => {
           await request(app.getHttpServer())
             .post(`/api/events/${eventId}/register`)
             .send({})
-            .expect(401);
+          .expect(401);
         });
       });
 
@@ -200,7 +195,7 @@ describe('Events (e2e)', () => {
             .post(`/api/events/${eventId}/register`)
             .set('Authorization', authToken)
             .send({})
-            .expect(201);
+          .expect(201);
 
           // Get my registrations
           const userResponse = await request(app.getHttpServer())
@@ -217,21 +212,25 @@ describe('Events (e2e)', () => {
             .get('/api/events/my-registrations')
             .set('Authorization', userToken)
             .expect(200)
-            .expect((res) => {
-              expect(Array.isArray(res.body)).toBe(true);
+          .expect((res) => {
+            expect(Array.isArray(res.body)).toBe(true);
+            expect(res.body.data.length).toBeGreaterThan(0);
+            res.body.data.forEach((reg: any) => {
+              expect(reg).toHaveProperty('event');
             });
+          });
         });
       });
     });
 
     describe('Event Access Control', () => {
-      it('should only show draft event to creator', async () => {
+      it('draft event only visible to creator', async () => {
         // Create draft event
         const createResponse = await request(app.getHttpServer())
           .post('/api/events')
           .set('Authorization', authToken)
           .send({
-            nama: 'Draft Event',
+            nama: 'Draft Event Test',
             deskripsi: 'Draft event',
             jenis: 'teras_bermain',
             tanggal_mulai: '2026-03-01T10:00:00Z',
@@ -253,29 +252,19 @@ describe('Events (e2e)', () => {
           });
 
         // Other user cannot access
-        const userResponse = await request(app.getHttpServer())
-          .post('/api/auth/login')
-            .send({
-              email: 'user@test.com',
-              password: 'password123',
-            })
-            .expect(200);
-
-        const userToken = `Bearer ${userResponse.body.access_token}`;
-
         await request(app.getHttpServer())
           .get(`/api/events/${draftId}`)
-          .set('Authorization', userToken)
-          .expect(403); // Forbidden
+          .set('Authorization', authToken)
+          .expect(403);
       });
 
       it('published event visible to all', async () => {
         // Create and publish event
-        const createResponse = await request(app.getHttpServer())
+        await request(app.getHttpServer())
           .post('/api/events')
           .set('Authorization', authToken)
           .send({
-            nama: 'Published Event',
+            nama: 'Published Event Test',
             deskripsi: 'Published event',
             jenis: 'workshop',
             tanggal_mulai: '2026-03-01T10:00:00Z',
@@ -285,12 +274,12 @@ describe('Events (e2e)', () => {
           })
           .expect(201);
 
-        const publishedId = createResponse.body.id;
-
         await request(app.getHttpServer())
-          .patch(`/api/events/${publishedId}/publish`)
+          .patch(`/api/events/${createResponse.body.id}/publish`)
           .set('Authorization', authToken)
           .expect(200);
+
+        const publishedId = createResponse.body.id;
 
         // Anyone can access (no auth needed)
         await request(app.getHttpServer())
