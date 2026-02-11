@@ -16,6 +16,7 @@ import { StorageModule } from './modules/storage/storage.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { SupabaseModule } from './modules/supabase/supabase.module';
 import { PROTModule } from './modules/prot/prot.module';
+import { EventsModule } from './modules/events/events.module';
 
 // Guards
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -42,6 +43,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     AuditModule,
     SupabaseModule,
     PROTModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [
