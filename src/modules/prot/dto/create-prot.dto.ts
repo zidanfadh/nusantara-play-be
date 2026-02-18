@@ -61,4 +61,9 @@ export class CreatePROTDto {
   @IsString({ each: true })
   @IsOptional()
   videoKegiatan?: string[];
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  dokumenKurikulum?: string[];
 }

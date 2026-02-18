@@ -31,7 +31,7 @@ import { AuditInterceptor } from '../audit/audit.interceptor';
 @Controller('prot')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PROTController {
-  constructor(private readonly protService: PROTService) {}
+  constructor(private readonly protService: PROTService) { }
 
   @Post()
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
@@ -129,6 +129,52 @@ export class PROTController {
     @Param('index', ParseIntPipe) index: number,
   ) {
     return this.protService.removeVideoKegiatan(id, index);
+  }
+
+  @Post(':id/dokumen-kurikulum')
+  @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
+  @UseInterceptors(FilesInterceptor('files', 10))
+  async addDokumenKurikulum(
+    @Param('id') id: string,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files provided');
+    }
+    return this.protService.addDokumenKurikulum(id, files);
+  }
+
+  @Delete(':id/dokumen-kurikulum/:index')
+  @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
+  async removeDokumenKurikulum(
+    @Param('id') id: string,
+    @Param('index', ParseIntPipe) index: number,
+  ) {
+    return this.protService.removeDokumenKurikulum(id, index);
+  }
+
+  @Post(':id/peralatan/:peralatanIndex/foto-alat')
+  @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
+  @UseInterceptors(FilesInterceptor('files', 10))
+  async addFotoAlat(
+    @Param('id') id: string,
+    @Param('peralatanIndex', ParseIntPipe) peralatanIndex: number,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files provided');
+    }
+    return this.protService.addFotoAlat(id, peralatanIndex, files);
+  }
+
+  @Delete(':id/peralatan/:peralatanIndex/foto-alat/:fotoIndex')
+  @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
+  async removeFotoAlat(
+    @Param('id') id: string,
+    @Param('peralatanIndex', ParseIntPipe) peralatanIndex: number,
+    @Param('fotoIndex', ParseIntPipe) fotoIndex: number,
+  ) {
+    return this.protService.removeFotoAlat(id, peralatanIndex, fotoIndex);
   }
 
   @Post(':id/submit-kurasi')

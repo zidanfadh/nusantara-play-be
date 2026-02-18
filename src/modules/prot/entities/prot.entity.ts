@@ -48,6 +48,7 @@ export interface Peralatan {
   deskripsi?: string;
   kisaranHarga?: string;
   fotoAlat?: string[];
+  urlPembelian?: string[];
 }
 
 @Entity('prot')
@@ -114,6 +115,14 @@ export class PROT {
     transformer: JsonArrayTransformer,
   })
   videoKegiatan: string[];
+
+  @Column({
+    name: 'dokumen_kurikulum',
+    type: 'jsonb',
+    nullable: true,
+    transformer: JsonArrayTransformer,
+  })
+  dokumenKurikulum: string[];
 
   @Column({
     type: 'enum',

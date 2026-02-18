@@ -16,4 +16,9 @@ export class PeralatanDto {
   @IsString({ each: true })
   @IsOptional()
   fotoAlat?: string[];
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  urlPembelian?: string[];
 }

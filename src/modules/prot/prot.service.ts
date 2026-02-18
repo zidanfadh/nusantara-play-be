@@ -24,7 +24,7 @@ export class PROTService {
     private queueRepository: Repository<VerifikasiQueue>,
     private daerahService: DaerahService,
     private storageService: StorageService,
-  ) {}
+  ) { }
 
   async create(createPROTDto: CreatePROTDto, createdBy: string): Promise<PROT> {
     // Validate daerah cascade
@@ -266,6 +266,86 @@ export class PROTService {
     await this.storageService.deleteFile(prot.videoKegiatan[index]);
 
     prot.videoKegiatan.splice(index, 1);
+    return this.protRepository.save(prot);
+  }
+
+  async addDokumenKurikulum(
+    id: string,
+    files: Express.Multer.File[],
+  ): Promise<PROT> {
+    const prot = await this.findOne(id);
+
+    const urls = await Promise.all(
+      files.map((file) => this.storageService.uploadFile(file, 'prot/dokumen-kurikulum')),
+    );
+
+    prot.dokumenKurikulum = prot.dokumenKurikulum || [];
+    prot.dokumenKurikulum.push(...urls);
+
+    return this.protRepository.save(prot);
+  }
+
+  async removeDokumenKurikulum(id: string, index: number): Promise<PROT> {
+    const prot = await this.findOne(id);
+
+    if (!prot.dokumenKurikulum || prot.dokumenKurikulum.length === 0) {
+      throw new BadRequestException('No dokumen kurikulum to remove');
+    }
+
+    if (index < 0 || index >= prot.dokumenKurikulum.length) {
+      throw new BadRequestException(`Invalid index: ${index}`);
+    }
+
+    await this.storageService.deleteFile(prot.dokumenKurikulum[index]);
+
+    prot.dokumenKurikulum.splice(index, 1);
+    return this.protRepository.save(prot);
+  }
+
+  async addFotoAlat(
+    id: string,
+    peralatanIndex: number,
+    files: Express.Multer.File[],
+  ): Promise<PROT> {
+    const prot = await this.findOne(id);
+
+    if (!prot.peralatan || peralatanIndex < 0 || peralatanIndex >= prot.peralatan.length) {
+      throw new BadRequestException(`Invalid peralatan index: ${peralatanIndex}`);
+    }
+
+    const urls = await Promise.all(
+      files.map((file) => this.storageService.uploadFile(file, 'prot/peralatan')),
+    );
+
+    prot.peralatan[peralatanIndex].fotoAlat = prot.peralatan[peralatanIndex].fotoAlat || [];
+    prot.peralatan[peralatanIndex].fotoAlat.push(...urls);
+
+    return this.protRepository.save(prot);
+  }
+
+  async removeFotoAlat(
+    id: string,
+    peralatanIndex: number,
+    fotoIndex: number,
+  ): Promise<PROT> {
+    const prot = await this.findOne(id);
+
+    if (!prot.peralatan || peralatanIndex < 0 || peralatanIndex >= prot.peralatan.length) {
+      throw new BadRequestException(`Invalid peralatan index: ${peralatanIndex}`);
+    }
+
+    const fotoAlat = prot.peralatan[peralatanIndex].fotoAlat;
+    if (!fotoAlat || fotoAlat.length === 0) {
+      throw new BadRequestException('No foto alat to remove');
+    }
+
+    if (fotoIndex < 0 || fotoIndex >= fotoAlat.length) {
+      throw new BadRequestException(`Invalid foto index: ${fotoIndex}`);
+    }
+
+    await this.storageService.deleteFile(fotoAlat[fotoIndex]);
+
+    fotoAlat.splice(fotoIndex, 1);
     return this.protRepository.save(prot);
   }
 
