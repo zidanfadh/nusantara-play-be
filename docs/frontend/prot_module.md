@@ -1,9 +1,11 @@
 # PROT Module Documentation
 
 ## Overview
+
 PROT (Permainan Rakyat dan Olahraga Tradisional) module menangani data permainan rakyat dan olahraga tradisional Indonesia. Module ini menyediakan endpoint untuk CRUD data PROT, upload foto/video kegiatan, filter berdasarkan lokasi dan kategori, serta sistem verifikasi workflow 4 tahap.
 
 ## Base URL
+
 ```
 /prot
 /verifikasi
@@ -15,42 +17,43 @@ PROT (Permainan Rakyat dan Olahraga Tradisional) module menangani data permainan
 
 ### PROT Entity
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| id | UUID | Auto | Primary key |
-| nama | string | Yes | Nama permainan/olahraga |
-| jenis | enum | Yes | `PERMAINAN_RAKYAT`, `OLAHRAGA_TRADISIONAL` |
-| status | enum | Auto | `DRAFT`, `DIKURASI`, `REVISI`, `DIVERIFIKASI`, `ARSIP_NASIONAL` (default: DRAFT) |
-| statusAsalUsul | text | No | Sejarah/asal usul permainan |
-| provinsiKode | string | No | Kode provinsi (cascade validation) |
-| kabkotaKode | string | No | Kode kabupaten/kota (requires provinsiKode) |
-| kecamatanKode | string | No | Kode kecamatan (requires kabkotaKode) |
-| desaKode | string | No | Kode desa (requires kecamatanKode) |
-| alamatLengkap | string | No | Alamat lengkap lokasi |
-| caraBermain | text | No | Cara memainkan |
-| nilaiMoral | text | No | Nilai moral/pendidikan |
-| targetUsia | enum | Yes | `ANAK`, `REMAJA`, `DEWASA`, `SEMUA_USIA` |
-| peralatan | jsonb | No | Array of equipment data |
-| fotoKegiatan | jsonb | No | Array of photo URLs |
-| videoKegiatan | jsonb | No | Array of video URLs |
-| created_by | UUID | Auto | User ID yang created |
-| verified_by | UUID | No | User ID (pakar/admin) yang verified |
-| published_by | UUID | No | User ID (admin) yang published |
-| submitted_at | timestamp | No | Tanggal submit untuk verifikasi |
-| verified_at | timestamp | No | Tanggal verifikasi selesai |
-| published_at | timestamp | No | Tanggal publish ke arsip nasional |
-| created_at | timestamp | Auto | Tanggal dibuat |
-| updated_at | timestamp | Auto | Tanggal diupdate |
+| Field            | Type      | Required | Description                                                                      |
+| ---------------- | --------- | -------- | -------------------------------------------------------------------------------- |
+| id               | UUID      | Auto     | Primary key                                                                      |
+| nama             | string    | Yes      | Nama permainan/olahraga                                                          |
+| jenis            | enum      | Yes      | `PERMAINAN_RAKYAT`, `OLAHRAGA_TRADISIONAL`                                       |
+| status           | enum      | Auto     | `DRAFT`, `DIKURASI`, `REVISI`, `DIVERIFIKASI`, `ARSIP_NASIONAL` (default: DRAFT) |
+| statusAsalUsul   | text      | No       | Sejarah/asal usul permainan                                                      |
+| provinsiKode     | string    | No       | Kode provinsi (cascade validation)                                               |
+| kabkotaKode      | string    | No       | Kode kabupaten/kota (requires provinsiKode)                                      |
+| kecamatanKode    | string    | No       | Kode kecamatan (requires kabkotaKode)                                            |
+| desaKode         | string    | No       | Kode desa (requires kecamatanKode)                                               |
+| alamatLengkap    | string    | No       | Alamat lengkap lokasi                                                            |
+| caraBermain      | text      | No       | Cara memainkan                                                                   |
+| nilaiMoral       | text      | No       | Nilai moral/pendidikan                                                           |
+| targetUsia       | enum      | Yes      | `ANAK`, `REMAJA`, `DEWASA`, `SEMUA_USIA`                                         |
+| peralatan        | jsonb     | No       | Array of equipment data                                                          |
+| fotoKegiatan     | jsonb     | No       | Array of photo URLs                                                              |
+| videoKegiatan    | jsonb     | No       | Array of video URLs                                                              |
+| dokumenKurikulum | jsonb     | No       | Array of curriculum document URLs                                                |
+| created_by       | UUID      | Auto     | User ID yang created                                                             |
+| verified_by      | UUID      | No       | User ID (pakar/admin) yang verified                                              |
+| published_by     | UUID      | No       | User ID (admin) yang published                                                   |
+| submitted_at     | timestamp | No       | Tanggal submit untuk verifikasi                                                  |
+| verified_at      | timestamp | No       | Tanggal verifikasi selesai                                                       |
+| published_at     | timestamp | No       | Tanggal publish ke arsip nasional                                                |
+| created_at       | timestamp | Auto     | Tanggal dibuat                                                                   |
+| updated_at       | timestamp | Auto     | Tanggal diupdate                                                                 |
 
 ### PROTStatus Enum
 
-| Value | Description |
-|-------|-------------|
-| `DRAFT` | Kurator sedang mengerjakan (belum di-submit) |
-| `DIKURASI` | Sudah di-submit, menunggu verifikasi |
-| `REVISI` | Pakar minta perbaikan, kurator sedang revisi |
-| `DIVERIFIKASI` | Sudah di-approve, menunggu publish admin |
-| `ARSIP_NASIONAL` | Sudah dipublish, tampil ke publik |
+| Value            | Description                                  |
+| ---------------- | -------------------------------------------- |
+| `DRAFT`          | Kurator sedang mengerjakan (belum di-submit) |
+| `DIKURASI`       | Sudah di-submit, menunggu verifikasi         |
+| `REVISI`         | Pakar minta perbaikan, kurator sedang revisi |
+| `DIVERIFIKASI`   | Sudah di-approve, menunggu publish admin     |
+| `ARSIP_NASIONAL` | Sudah dipublish, tampil ke publik            |
 
 ### Status Flow
 
@@ -77,55 +80,56 @@ PROT (Permainan Rakyat dan Olahraga Tradisional) module menangani data permainan
 
 ### PROTJenis Enum
 
-| Value | Description |
-|-------|-------------|
-| `PERMAINAN_RAKYAT` | Permainan rakyat tradisional |
-| `OLAHRAGA_TRADISIONAL` | Olahraga tradisional |
+| Value                  | Description                  |
+| ---------------------- | ---------------------------- |
+| `PERMAINAN_RAKYAT`     | Permainan rakyat tradisional |
+| `OLAHRAGA_TRADISIONAL` | Olahraga tradisional         |
 
 ### TargetUsia Enum
 
-| Value | Description |
-|-------|-------------|
-| `ANAK` | Untuk anak-anak |
-| `REMAJA` | Untuk remaja |
-| `DEWASA` | Untuk dewasa |
+| Value        | Description      |
+| ------------ | ---------------- |
+| `ANAK`       | Untuk anak-anak  |
+| `REMAJA`     | Untuk remaja     |
+| `DEWASA`     | Untuk dewasa     |
 | `SEMUA_USIA` | Untuk semua usia |
 
 ### Peralatan Interface (jsonb)
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| nama | string | Yes | Nama peralatan |
-| deskripsi | string | No | Deskripsi peralatan |
-| kisaranHarga | string | No | Kisaran harga |
-| fotoAlat | string[] | No | Array of photo URLs |
+| Field        | Type     | Required | Description                                              |
+| ------------ | -------- | -------- | -------------------------------------------------------- |
+| nama         | string   | Yes      | Nama peralatan                                           |
+| deskripsi    | string   | No       | Deskripsi peralatan                                      |
+| kisaranHarga | string   | No       | Kisaran harga                                            |
+| fotoAlat     | string[] | No       | Array of photo URLs                                      |
+| urlPembelian | string[] | No       | Array of purchase/shopping URLs (Tokopedia, Shopee, etc) |
 
 ### Verifikasi Entity
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | UUID | Primary key |
-| prot_id | UUID | ID PROT yang diverifikasi |
-| pakar_id | UUID | ID pakar/admin yang mereview |
-| status | enum | `PENDING`, `APPROVED`, `REJECTED`, `REVISION_NEEDED` |
-| catatan | text | Catatan dari reviewer |
-| saran_perbaikan | text | Saran perbaikan (required jika REVISION_NEEDED) |
-| dokumen_pendukung | jsonb | Array document URLs |
-| verified_at | timestamp | Tanggal verifikasi |
-| created_at | timestamp | Tanggal dibuat |
-| updated_at | timestamp | Tanggal diupdate |
+| Field             | Type      | Description                                          |
+| ----------------- | --------- | ---------------------------------------------------- |
+| id                | UUID      | Primary key                                          |
+| prot_id           | UUID      | ID PROT yang diverifikasi                            |
+| pakar_id          | UUID      | ID pakar/admin yang mereview                         |
+| status            | enum      | `PENDING`, `APPROVED`, `REJECTED`, `REVISION_NEEDED` |
+| catatan           | text      | Catatan dari reviewer                                |
+| saran_perbaikan   | text      | Saran perbaikan (required jika REVISION_NEEDED)      |
+| dokumen_pendukung | jsonb     | Array document URLs                                  |
+| verified_at       | timestamp | Tanggal verifikasi                                   |
+| created_at        | timestamp | Tanggal dibuat                                       |
+| updated_at        | timestamp | Tanggal diupdate                                     |
 
 ### VerifikasiQueue Entity
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | UUID | Primary key |
-| prot_id | UUID | ID PROT (unique) |
-| assigned_pakar_id | UUID | ID pakar/admin yang mengambil (nullable) |
-| priority | integer | Priority queue (default: 0) |
-| assigned_at | timestamp | Tanggal di-assign |
-| created_at | timestamp | Tanggal dibuat |
-| updated_at | timestamp | Tanggal diupdate |
+| Field             | Type      | Description                              |
+| ----------------- | --------- | ---------------------------------------- |
+| id                | UUID      | Primary key                              |
+| prot_id           | UUID      | ID PROT (unique)                         |
+| assigned_pakar_id | UUID      | ID pakar/admin yang mengambil (nullable) |
+| priority          | integer   | Priority queue (default: 0)              |
+| assigned_at       | timestamp | Tanggal di-assign                        |
+| created_at        | timestamp | Tanggal dibuat                           |
+| updated_at        | timestamp | Tanggal diupdate                         |
 
 ---
 
@@ -166,6 +170,7 @@ Membuat data PROT baru dengan status DRAFT.
 ```
 
 **Request Example:**
+
 ```json
 POST /prot
 Authorization: Bearer <token>
@@ -191,6 +196,7 @@ Content-Type: application/json
 ```
 
 **Success Response (201 Created):**
+
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440001",
@@ -212,6 +218,7 @@ Content-Type: application/json
 ### 2. List All PROT
 
 Mengambil semua data PROT dengan pagination dan filter. **Role-based filtering applies:**
+
 - Public/PUBLIK: Hanya lihat `ARSIP_NASIONAL`
 - KURATOR_DAERAH: Lihat PROT sendiri (semua status) + `ARSIP_NASIONAL`
 - PAKAR: Lihat `DIKURASI` + `ARSIP_NASIONAL`
@@ -223,21 +230,22 @@ Mengambil semua data PROT dengan pagination dan filter. **Role-based filtering a
 
 **Query Parameters:**
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| page | number | No | 1 | Halaman yang ingin diambil |
-| limit | number | No | 10 | Jumlah items per halaman |
-| jenis | enum | No | - | Filter by jenis |
-| provinsi | string | No | - | Filter by kode provinsi |
-| kabkota | string | No | - | Filter by kode kabupaten/kota |
-| kecamatan | string | No | - | Filter by kode kecamatan |
-| desa | string | No | - | Filter by kode desa |
-| targetUsia | enum | No | - | Filter by target usia |
-| search | string | No | - | Search by nama |
-| status | enum | No | - | Filter by status: `DRAFT`, `DIKURASI`, `REVISI`, `DIVERIFIKASI`, `ARSIP_NASIONAL` |
-| created_by | string (UUID) | No | - | Filter by creator UUID |
+| Parameter  | Type          | Required | Default | Description                                                                       |
+| ---------- | ------------- | -------- | ------- | --------------------------------------------------------------------------------- |
+| page       | number        | No       | 1       | Halaman yang ingin diambil                                                        |
+| limit      | number        | No       | 10      | Jumlah items per halaman                                                          |
+| jenis      | enum          | No       | -       | Filter by jenis                                                                   |
+| provinsi   | string        | No       | -       | Filter by kode provinsi                                                           |
+| kabkota    | string        | No       | -       | Filter by kode kabupaten/kota                                                     |
+| kecamatan  | string        | No       | -       | Filter by kode kecamatan                                                          |
+| desa       | string        | No       | -       | Filter by kode desa                                                               |
+| targetUsia | enum          | No       | -       | Filter by target usia                                                             |
+| search     | string        | No       | -       | Search by nama                                                                    |
+| status     | enum          | No       | -       | Filter by status: `DRAFT`, `DIKURASI`, `REVISI`, `DIVERIFIKASI`, `ARSIP_NASIONAL` |
+| created_by | string (UUID) | No       | -       | Filter by creator UUID                                                            |
 
 **Request Examples:**
+
 ```
 GET /prot?page=1&limit=20
 GET /prot?jenis=PERMAINAN_RAKYAT
@@ -317,9 +325,129 @@ Menghapus video kegiatan berdasarkan index.
 
 ---
 
+### 10. Upload Dokumen Kurikulum
+
+Upload dokumen kurikulum/panduan permainan untuk PROT tertentu.
+
+**Endpoint:** `POST /prot/:id/dokumen-kurikulum`
+
+**Authentication:** Required (Role: `kurator_daerah`, `admin_kpoti`)
+
+**Request:** `multipart/form-data` dengan field `files` (multiple files accepted, max 10)
+
+**Accepted File Types:** PDF, DOC, DOCX
+
+**Success Response (200 OK):**
+
+```json
+{
+  "id": "prot-uuid",
+  "dokumenKurikulum": [
+    "https://bucket.s3.region.amazonaws.com/prot/dokumen-kurikulum/uuid1.pdf",
+    "https://bucket.s3.region.amazonaws.com/prot/dokumen-kurikulum/uuid2.pdf"
+  ]
+}
+```
+
+---
+
+### 11. Delete Dokumen Kurikulum
+
+Menghapus dokumen kurikulum berdasarkan index.
+
+**Endpoint:** `DELETE /prot/:id/dokumen-kurikulum/:index`
+
+**Authentication:** Required (Role: `kurator_daerah`, `admin_kpoti`)
+
+**Success Response (200 OK):**
+
+```json
+{
+  "id": "prot-uuid",
+  "dokumenKurikulum": [
+    "https://bucket.s3.region.amazonaws.com/prot/dokumen-kurikulum/uuid1.pdf"
+  ]
+}
+```
+
+---
+
+### 12. Upload Foto Alat (Peralatan)
+
+Upload foto untuk salah satu peralatan dalam PROT.
+
+**Endpoint:** `POST /prot/:id/peralatan/:peralatanIndex/foto-alat`
+
+**Authentication:** Required (Role: `kurator_daerah`, `admin_kpoti`)
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| id | UUID | PROT ID |
+| peralatanIndex | number | Index peralatan dalam array (0-based) |
+
+**Request:** `multipart/form-data` dengan field `files` (multiple files accepted, max 10)
+
+**Accepted File Types:** JPEG, PNG, WebP
+
+**Success Response (200 OK):**
+
+```json
+{
+  "id": "prot-uuid",
+  "peralatan": [
+    {
+      "nama": "Gasing",
+      "deskripsi": "Gasing kayu dengan paku",
+      "kisaranHarga": "10.000 - 50.000",
+      "fotoAlat": [
+        "https://bucket.s3.region.amazonaws.com/prot/peralatan/uuid1.jpg",
+        "https://bucket.s3.region.amazonaws.com/prot/peralatan/uuid2.jpg"
+      ],
+      "urlPembelian": ["https://tokopedia.com/...", "https://shopee.co.id/..."]
+    }
+  ]
+}
+```
+
+---
+
+### 13. Delete Foto Alat
+
+Menghapus foto alat berdasarkan peralatan index dan foto index.
+
+**Endpoint:** `DELETE /prot/:id/peralatan/:peralatanIndex/foto-alat/:fotoIndex`
+
+**Authentication:** Required (Role: `kurator_daerah`, `admin_kpoti`)
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| id | UUID | PROT ID |
+| peralatanIndex | number | Index peralatan dalam array (0-based) |
+| fotoIndex | number | Index foto dalam array peralatan (0-based) |
+
+**Success Response (200 OK):**
+
+```json
+{
+  "id": "prot-uuid",
+  "peralatan": [
+    {
+      "nama": "Gasing",
+      "fotoAlat": [
+        "https://bucket.s3.region.amazonaws.com/prot/peralatan/uuid1.jpg"
+      ]
+    }
+  ]
+}
+```
+
+---
+
 ## Verification Workflow Endpoints
 
-### 10. Submit PROT for Verification
+### 14. Submit PROT for Verification
 
 Submit PROT untuk verifikasi. Status berubah dari `DRAFT` ke `DIKURASI` dan masuk queue verifikasi.
 
@@ -328,6 +456,7 @@ Submit PROT untuk verifikasi. Status berubah dari `DRAFT` ke `DIKURASI` dan masu
 **Authentication:** Required (Role: `kurator_daerah`, `admin_kpoti`)
 
 **Request Body:**
+
 ```json
 {
   "catatan": "Silakan verifikasi PROT ini"
@@ -335,6 +464,7 @@ Submit PROT untuk verifikasi. Status berubah dari `DRAFT` ke `DIKURASI` dan masu
 ```
 
 **Success Response (200 OK):**
+
 ```json
 {
   "id": "prot-uuid",
@@ -344,12 +474,13 @@ Submit PROT untuk verifikasi. Status berubah dari `DRAFT` ke `DIKURASI` dan masu
 ```
 
 **Error Responses:**
+
 - `403` - Not the owner of this PROT (for Kurator only)
 - `400` - PROT is not in DRAFT status
 
 ---
 
-### 11. Resubmit After Revision
+### 15. Resubmit After Revision
 
 Resubmit PROT setelah selesai revisi. Status berubah dari `REVISI` ke `DIKURASI` dan kembali masuk queue.
 
@@ -358,6 +489,7 @@ Resubmit PROT setelah selesai revisi. Status berubah dari `REVISI` ke `DIKURASI`
 **Authentication:** Required (Role: `kurator_daerah`, `admin_kpoti`)
 
 **Success Response (200 OK):**
+
 ```json
 {
   "id": "prot-uuid",
@@ -367,12 +499,13 @@ Resubmit PROT setelah selesai revisi. Status berubah dari `REVISI` ke `DIKURASI`
 ```
 
 **Error Responses:**
+
 - `403` - Not the owner of this PROT (for Kurator only)
 - `400` - PROT is not in REVISI status
 
 ---
 
-### 12. Get Available Queue
+### 16. Get Available Queue
 
 Melihat PROT yang tersedia untuk verifikasi (belum di-assign).
 
@@ -387,6 +520,7 @@ Melihat PROT yang tersedia untuk verifikasi (belum di-assign).
 | limit | number | 20 | Items per page |
 
 **Success Response (200 OK):**
+
 ```json
 {
   "data": [
@@ -418,7 +552,7 @@ Melihat PROT yang tersedia untuk verifikasi (belum di-assign).
 
 ---
 
-### 13. Get My Queue
+### 17. Get My Queue
 
 Melihat PROT yang sudah di-assign ke diri sendiri.
 
@@ -430,7 +564,7 @@ Melihat PROT yang sudah di-assign ke diri sendiri.
 
 ---
 
-### 14. Pick PROT from Queue
+### 18. Pick PROT from Queue
 
 Mengambil PROT dari queue untuk diverifikasi.
 
@@ -439,6 +573,7 @@ Mengambil PROT dari queue untuk diverifikasi.
 **Authentication:** Required (Role: `pakar`, `admin_kpoti`)
 
 **Success Response (200 OK):**
+
 ```json
 {
   "id": "queue-uuid",
@@ -448,12 +583,13 @@ Mengambil PROT dari queue untuk diverifikasi.
 ```
 
 **Error Responses:**
+
 - `404` - Queue item not found
 - `400` - Already assigned to another user
 
 ---
 
-### 15. Release Assigned PROT
+### 19. Release Assigned PROT
 
 Melepas PROT yang sudah di-assign kembali ke queue.
 
@@ -462,6 +598,7 @@ Melepas PROT yang sudah di-assign kembali ke queue.
 **Authentication:** Required (Role: `pakar`, `admin_kpoti`)
 
 **Success Response (200 OK):**
+
 ```json
 {
   "id": "queue-uuid",
@@ -472,7 +609,7 @@ Melepas PROT yang sudah di-assign kembali ke queue.
 
 ---
 
-### 16. Submit Review
+### 20. Submit Review
 
 Submit review hasil verifikasi (APPROVE, REJECT, atau REVISION_NEEDED).
 
@@ -481,6 +618,7 @@ Submit review hasil verifikasi (APPROVE, REJECT, atau REVISION_NEEDED).
 **Authentication:** Required (Role: `pakar`, `admin_kpoti`)
 
 **Request Body:**
+
 ```json
 {
   "status": "APPROVED",
@@ -491,11 +629,13 @@ Submit review hasil verifikasi (APPROVE, REJECT, atau REVISION_NEEDED).
 ```
 
 **Status Options:**
+
 - `APPROVED` - PROT status → `DIVERIFIKASI`
 - `REJECTED` - PROT status → `DRAFT`
 - `REVISION_NEEDED` - PROT status → `REVISI` (wajib isi `saran_perbaikan`)
 
 **Success Response (201 Created):**
+
 ```json
 {
   "id": "verifikasi-uuid",
@@ -509,7 +649,7 @@ Submit review hasil verifikasi (APPROVE, REJECT, atau REVISION_NEEDED).
 
 ---
 
-### 17. Get Verification History
+### 21. Get Verification History
 
 Melihat history verifikasi sebuah PROT.
 
@@ -518,6 +658,7 @@ Melihat history verifikasi sebuah PROT.
 **Authentication:** Required (Role: `pakar`, `admin_kpoti`, `kurator_daerah`)
 
 **Success Response (200 OK):**
+
 ```json
 [
   {
@@ -536,7 +677,7 @@ Melihat history verifikasi sebuah PROT.
 
 ---
 
-### 18. Publish to National Archive (Admin Only)
+### 22. Publish to National Archive (Admin Only)
 
 Publish PROT ke arsip nasional. Status berubah dari `DIVERIFIKASI` ke `ARSIP_NASIONAL`.
 
@@ -545,6 +686,7 @@ Publish PROT ke arsip nasional. Status berubah dari `DIVERIFIKASI` ke `ARSIP_NAS
 **Authentication:** Required (Role: `admin_kpoti`)
 
 **Request Body:**
+
 ```json
 {
   "catatan": "Dipublikasikan ke arsip nasional"
@@ -552,6 +694,7 @@ Publish PROT ke arsip nasional. Status berubah dari `DIVERIFIKASI` ke `ARSIP_NAS
 ```
 
 **Success Response (200 OK):**
+
 ```json
 {
   "id": "prot-uuid",
@@ -563,7 +706,7 @@ Publish PROT ke arsip nasional. Status berubah dari `DIVERIFIKASI` ke `ARSIP_NAS
 
 ---
 
-### 19. Get Verification Statistics (Admin Only)
+### 23. Get Verification Statistics (Admin Only)
 
 Melihat statistik verifikasi.
 
@@ -572,6 +715,7 @@ Melihat statistik verifikasi.
 **Authentication:** Required (Role: `admin_kpoti`)
 
 **Success Response (200 OK):**
+
 ```json
 {
   "queue": {
@@ -607,6 +751,7 @@ provinsi (required if kabkota exists)
 ```
 
 **Rules:**
+
 1. Jika `desaKode` diberikan, `kecamatanKode` wajib ada
 2. Jika `kecamatanKode` diberikan, `kabkotaKode` wajib ada
 3. Jika `kabkotaKode` diberikan, `provinsiKode` wajib ada
@@ -617,9 +762,11 @@ provinsi (required if kabkota exists)
 ## Role-Based Access Control
 
 ### Public (PUBLIK)
+
 - View: Hanya PROT dengan status `ARSIP_NASIONAL`
 
 ### Kurator Daerah (KURATOR_DAERAH)
+
 - Create: PROT (status = DRAFT)
 - Edit: PROT sendiri (hanya status DRAFT atau REVISI)
 - Upload: Foto/video kegiatan
@@ -629,6 +776,7 @@ provinsi (required if kabkota exists)
 - View: PROT sendiri (semua status) + ARSIP_NASIONAL
 
 ### Pakar (PAKAR)
+
 - View: Queue verifikasi (DIKURASI) + ARSIP_NASIONAL + My Queue
 - Pick: PROT dari queue
 - Release: PROT kembali ke queue
@@ -636,7 +784,9 @@ provinsi (required if kabkota exists)
 - View: History verifikasi
 
 ### Admin KPOTI (ADMIN_KPOTI)
+
 **Full access - All Kurator + Pakar permissions:**
+
 - Create, edit, delete PROT (tanpa batasan ownership)
 - Upload/delete foto/video kegiatan
 - Submit, resubmit PROT untuk verifikasi
@@ -723,17 +873,17 @@ Authorization: Bearer <admin-token>
 
 ## Error Codes
 
-| Status Code | Description |
-|-------------|-------------|
-| 200 | Success |
-| 201 | Created |
-| 400 | Bad Request (validation error, invalid state transition) |
-| 401 | Unauthorized (missing/invalid token) |
-| 403 | Forbidden (insufficient permissions, not owner) |
-| 404 | Not Found (PROT/queue not found) |
-| 413 | Payload Too Large (file > 100MB) |
-| 415 | Unsupported Media Type (invalid file type) |
-| 500 | Internal Server Error |
+| Status Code | Description                                              |
+| ----------- | -------------------------------------------------------- |
+| 200         | Success                                                  |
+| 201         | Created                                                  |
+| 400         | Bad Request (validation error, invalid state transition) |
+| 401         | Unauthorized (missing/invalid token)                     |
+| 403         | Forbidden (insufficient permissions, not owner)          |
+| 404         | Not Found (PROT/queue not found)                         |
+| 413         | Payload Too Large (file > 100MB)                         |
+| 415         | Unsupported Media Type (invalid file type)               |
+| 500         | Internal Server Error                                    |
 
 ---
 
@@ -746,6 +896,7 @@ npm run migration:run
 ```
 
 To rollback:
+
 ```bash
 npm run migration:revert
 ```
