@@ -134,7 +134,7 @@ export class EventsService {
     };
   }
 
-  async findOne(id: string, user?: User): Promise<Event> {
+  async findOne(id: string, user?: User): Promise<Event & { is_registered: boolean }> {
     const event = await this.eventRepository
       .createQueryBuilder('event')
       .leftJoinAndSelect('event.daerah', 'daerah')
@@ -151,7 +151,15 @@ export class EventsService {
       throw new ForbiddenException('You do not have access to this event');
     }
 
-    return event;
+    let is_registered = false;
+    if (user) {
+      const registration = await this.registrationRepository.findOne({
+        where: { event_id: id, user_id: user.id },
+      });
+      is_registered = !!registration;
+    }
+
+    return { ...event, is_registered };
   }
 
   async update(
