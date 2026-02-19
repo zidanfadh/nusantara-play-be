@@ -84,6 +84,9 @@ export class PROT {
   alamatLengkap: string;
 
   @Column({ type: 'text', nullable: true })
+  deskripsi: string;
+
+  @Column({ type: 'text', nullable: true })
   caraBermain: string;
 
   @Column({ type: 'text', nullable: true })

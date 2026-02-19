@@ -37,6 +37,10 @@ export class CreatePROTDto {
 
   @IsString()
   @IsOptional()
+  deskripsi?: string;
+
+  @IsString()
+  @IsOptional()
   caraBermain?: string;
 
   @IsString()
