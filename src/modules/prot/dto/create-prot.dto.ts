@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsOptional, IsArray, MinLength, ValidateNested } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsArray, IsInt, Min, MinLength, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PROTJenis, TargetUsia } from '../entities/prot.entity';
 import { PeralatanDto } from './peralatan.dto';
@@ -66,4 +66,9 @@ export class CreatePROTDto {
   @IsString({ each: true })
   @IsOptional()
   dokumenKurikulum?: string[];
+
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  jumlahPemain?: number;
 }

@@ -124,6 +124,9 @@ export class PROT {
   })
   dokumenKurikulum: string[];
 
+  @Column({ type: 'int', nullable: true, name: 'jumlah_pemain' })
+  jumlahPemain: number | null;
+
   @Column({
     type: 'enum',
     enum: PROTStatus,
