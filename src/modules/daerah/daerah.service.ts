@@ -119,6 +119,18 @@ export class DaerahService {
     return daerah;
   }
 
+  /**
+   * Get children of a daerah identified by its kode (useful for cascading dropdowns).
+   */
+  async findChildrenByKode(
+    kode: string,
+    page: number = 1,
+    limit: number = 50,
+  ) {
+    const parent = await this.findByKode(kode);
+    return this.findChildren(parent.id, page, limit);
+  }
+
   async count(): Promise<number> {
     return this.daerahRepository.count();
   }

@@ -10,6 +10,9 @@ export enum DaerahLevel {
   PROVINSI = 'provinsi',
   KABUPATEN = 'kabupaten',
   KOTA = 'kota',
+  KECAMATAN = 'kecamatan',
+  KELURAHAN = 'kelurahan',
+  DESA = 'desa',
 }
 
 @Entity('daerah')
@@ -20,7 +23,7 @@ export class Daerah {
   @Column()
   nama: string;
 
-  @Column({ unique: true })
+  @Column({ type: 'varchar', length: 15, unique: true })
   kode: string;
 
   @Column()
@@ -34,6 +37,9 @@ export class Daerah {
 
   @Column({ type: 'uuid', nullable: true })
   parent_id: string;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  prefix: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 8, nullable: true })
   latitude: number;

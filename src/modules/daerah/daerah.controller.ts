@@ -43,12 +43,22 @@ export class DaerahController {
       DaerahLevel.KABUPATEN,
     );
     const kota = await this.daerahService.countByLevel(DaerahLevel.KOTA);
+    const kecamatan = await this.daerahService.countByLevel(
+      DaerahLevel.KECAMATAN,
+    );
+    const kelurahan = await this.daerahService.countByLevel(
+      DaerahLevel.KELURAHAN,
+    );
+    const desa = await this.daerahService.countByLevel(DaerahLevel.DESA);
 
     return {
       total,
       provinces,
       kabupaten,
       kota,
+      kecamatan,
+      kelurahan,
+      desa,
     };
   }
 
@@ -68,7 +78,21 @@ export class DaerahController {
     return this.daerahService.findChildren(
       id,
       page ? parseInt(page, 10) : 1,
-      limit ? parseInt(limit, 10) : 10,
+      limit ? parseInt(limit, 10) : 50,
+    );
+  }
+
+  @Get('by-kode/:kode/children')
+  @Public()
+  getChildrenByKode(
+    @Param('kode') kode: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.daerahService.findChildrenByKode(
+      kode,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 50,
     );
   }
 }
