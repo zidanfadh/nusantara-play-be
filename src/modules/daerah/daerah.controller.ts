@@ -5,19 +5,21 @@ import { DaerahLevel } from './entities/daerah.entity';
 
 @Controller('daerah')
 export class DaerahController {
-  constructor(private readonly daerahService: DaerahService) {}
+  constructor(private readonly daerahService: DaerahService) { }
 
   @Get()
   @Public()
   findAll(
     @Query('level') level?: DaerahLevel,
     @Query('provinsi') provinsi?: string,
+    @Query('parent_id') parentId?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
     return this.daerahService.findAll({
       level,
       provinsi,
+      parentId,
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 10,
     });
@@ -29,6 +31,21 @@ export class DaerahController {
     return this.daerahService.findProvinces({
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 10,
+    });
+  }
+
+  @Get('search')
+  @Public()
+  search(
+    @Query('q') q: string,
+    @Query('level') level?: DaerahLevel,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.daerahService.search(q || '', {
+      level,
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 20,
     });
   }
 
@@ -62,6 +79,32 @@ export class DaerahController {
     };
   }
 
+  @Get('by-kode/:kode')
+  @Public()
+  findByKode(@Param('kode') kode: string) {
+    return this.daerahService.findByKode(kode);
+  }
+
+  @Get('by-kode/:kode/children')
+  @Public()
+  getChildrenByKode(
+    @Param('kode') kode: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.daerahService.findChildrenByKode(
+      kode,
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 50,
+    );
+  }
+
+  @Get('by-kode/:kode/ancestors')
+  @Public()
+  getAncestorsByKode(@Param('kode') kode: string) {
+    return this.daerahService.findAncestorsByKode(kode);
+  }
+
   @Get(':id')
   @Public()
   findOne(@Param('id') id: string) {
@@ -82,17 +125,9 @@ export class DaerahController {
     );
   }
 
-  @Get('by-kode/:kode/children')
+  @Get(':id/ancestors')
   @Public()
-  getChildrenByKode(
-    @Param('kode') kode: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    return this.daerahService.findChildrenByKode(
-      kode,
-      page ? parseInt(page, 10) : 1,
-      limit ? parseInt(limit, 10) : 50,
-    );
+  getAncestors(@Param('id') id: string) {
+    return this.daerahService.findAncestors(id);
   }
 }

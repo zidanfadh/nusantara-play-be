@@ -2,6 +2,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddKecamatanKelurahanDesa1740500000000 implements MigrationInterface {
   name = 'AddKecamatanKelurahanDesa1740500000000';
+  transaction = false as const;
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 1. Extend daerah_level enum with new values
