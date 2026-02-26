@@ -17,6 +17,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { SupabaseModule } from './modules/supabase/supabase.module';
 import { PROTModule } from './modules/prot/prot.module';
 import { EventsModule } from './modules/events/events.module';
+import { CalendarModule } from './modules/calendar/calendar.module';
 
 // Guards
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -44,6 +45,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     SupabaseModule,
     PROTModule,
     EventsModule,
+    CalendarModule,
   ],
   controllers: [AppController],
   providers: [
@@ -60,4 +62,4 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }
