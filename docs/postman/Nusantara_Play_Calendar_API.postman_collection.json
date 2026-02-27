@@ -1,0 +1,1266 @@
+{
+    "info": {
+        "name": "Nusantara Play - Calendar API",
+        "description": "API Collection for Calendar Module - Important dates, personal schedules, public events integration, and invite system",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "version": "2.1.0"
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:3000/api",
+            "type": "string"
+        },
+        {
+            "key": "ACCESS_TOKEN",
+            "value": "",
+            "type": "string",
+            "description": "JWT Access Token - Get from /api/auth/login"
+        },
+        {
+            "key": "calendarItemId",
+            "value": "",
+            "type": "string",
+            "description": "UUID of a calendar item",
+            "disabled": true
+        },
+        {
+            "key": "inviteId",
+            "value": "",
+            "type": "string",
+            "description": "UUID of an invite",
+            "disabled": true
+        },
+        {
+            "key": "daerahId",
+            "value": "",
+            "type": "string",
+            "description": "UUID of a daerah",
+            "disabled": true
+        },
+        {
+            "key": "targetUserId",
+            "value": "",
+            "type": "string",
+            "description": "UUID of user to invite",
+            "disabled": true
+        }
+    ],
+    "item": [
+        {
+            "name": "Calendar - Views (Public)",
+            "description": "Endpoints for viewing calendar data. No authentication required for public content; authentication gives access to internal and private items.",
+            "item": [
+                {
+                    "name": "Get Calendar - Monthly View",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}",
+                                "description": "Optional - omit for public-only content",
+                                "disabled": true
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/calendar?year=2026&month=3&view=monthly",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar"
+                            ],
+                            "query": [
+                                {
+                                    "key": "year",
+                                    "value": "2026",
+                                    "description": "Year (2020-2100) — REQUIRED"
+                                },
+                                {
+                                    "key": "month",
+                                    "value": "3",
+                                    "description": "Month 1-12 — REQUIRED"
+                                },
+                                {
+                                    "key": "view",
+                                    "value": "monthly",
+                                    "description": "View type: monthly, weekly, agenda"
+                                },
+                                {
+                                    "key": "source",
+                                    "value": "important_date",
+                                    "description": "Filter source: important_date, personal_schedule, event",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "visibility",
+                                    "value": "public",
+                                    "description": "Filter visibility: public, internal, private",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "daerah_id",
+                                    "value": "{{daerahId}}",
+                                    "description": "Filter by daerah UUID",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "include_events",
+                                    "value": "true",
+                                    "description": "Include public events from Events module (default: true)",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "search",
+                                    "value": "festival",
+                                    "description": "Search in title and description",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "Get calendar grouped by date for a full month. Returns all days in the month, each with an array of entries. Entries include calendar items + public events.\n\nVisibility:\n- Unauthenticated / publik role: public items + public events only\n- pakar / kurator_daerah / admin_kpoti: + internal items\n- All authenticated: + own private items + invited private items"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Calendar - Weekly View",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}",
+                                "description": "Optional",
+                                "disabled": true
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/calendar?year=2026&month=3&view=weekly&week=2",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar"
+                            ],
+                            "query": [
+                                {
+                                    "key": "year",
+                                    "value": "2026",
+                                    "description": "Year — REQUIRED"
+                                },
+                                {
+                                    "key": "month",
+                                    "value": "3",
+                                    "description": "Month 1-12 — REQUIRED"
+                                },
+                                {
+                                    "key": "view",
+                                    "value": "weekly",
+                                    "description": "View type: weekly"
+                                },
+                                {
+                                    "key": "week",
+                                    "value": "2",
+                                    "description": "Week number within the month (1-6)"
+                                },
+                                {
+                                    "key": "include_events",
+                                    "value": "true",
+                                    "description": "Include public events (default: true)",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "daerah_id",
+                                    "value": "{{daerahId}}",
+                                    "description": "Filter by daerah UUID",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "search",
+                                    "value": "",
+                                    "description": "Search in title and description",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "Get calendar grouped by date for a specific week within a month. Returns 7 days."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Agenda (Flat List)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}",
+                                "description": "Optional",
+                                "disabled": true
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/calendar/agenda?startDate=2026-03-01&endDate=2026-03-31&page=1&limit=20",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "agenda"
+                            ],
+                            "query": [
+                                {
+                                    "key": "startDate",
+                                    "value": "2026-03-01",
+                                    "description": "Start date ISO string — REQUIRED"
+                                },
+                                {
+                                    "key": "endDate",
+                                    "value": "2026-03-31",
+                                    "description": "End date ISO string — REQUIRED"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20",
+                                    "description": "Items per page"
+                                },
+                                {
+                                    "key": "source",
+                                    "value": "event",
+                                    "description": "Filter source: important_date, personal_schedule, event",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "daerah_id",
+                                    "value": "{{daerahId}}",
+                                    "description": "Filter by daerah UUID",
+                                    "disabled": true
+                                },
+                                {
+                                    "key": "search",
+                                    "value": "festival",
+                                    "description": "Search in title and description",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "Get all calendar entries in a date range as a flat paginated list. Sorted by start_date ASC. Useful for agenda/list view in frontend."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Calendar Item by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}",
+                                "description": "Required for internal/private items",
+                                "disabled": true
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/calendar/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "{{calendarItemId}}",
+                                    "description": "Calendar item UUID"
+                                }
+                            ]
+                        },
+                        "description": "Get detail of a single calendar item including daerah, creator, and invites relations.\n\nAccess rules:\n- public items: no auth needed\n- internal items: requires auth with internal role\n- private items: requires auth as creator or invited user"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Important Dates (Admin & Kurator)",
+            "description": "CRUD for important dates. Accessible by admin_kpoti and kurator_daerah only.\n\nRules:\n- Admin KPOTI: can create national (no daerah_id) or per-daerah important dates\n- Kurator Daerah: can only create/edit important dates for their own daerah\n- Visibility: public or internal only (not private)",
+            "item": [
+                {
+                    "name": "Create Important Date",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Hari Permainan Rakyat Nasional\",\n  \"description\": \"Peringatan tahunan permainan rakyat Indonesia\",\n  \"start_date\": \"2026-03-02T00:00:00.000Z\",\n  \"all_day\": true,\n  \"color\": \"#E74C3C\",\n  \"visibility\": \"public\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/calendar/important-dates",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "important-dates"
+                            ]
+                        },
+                        "description": "Create a new important date.\n\nField rules:\n- visibility: 'public' or 'internal' only (NOT private)\n- daerah_id: optional; Kurator Daerah auto-fills with their own daerah if omitted\n- color: hex format #RRGGBB (e.g. #FF5733)\n\nKurator Daerah restrictions:\n- daerah_id must match their own daerah\n- If daerah_id is omitted, it's auto-set to their daerah"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Important Date - Daerah Specific",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Hari Jadi Kota Bandung\",\n  \"description\": \"Peringatan HUT Kota Bandung ke-216\",\n  \"start_date\": \"2026-09-25T00:00:00.000Z\",\n  \"all_day\": true,\n  \"color\": \"#2ECC71\",\n  \"visibility\": \"public\",\n  \"daerah_id\": \"{{daerahId}}\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/calendar/important-dates",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "important-dates"
+                            ]
+                        },
+                        "description": "Create an important date tied to a specific daerah. Admin can set any daerah_id; Kurator Daerah can only use their own daerah_id."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Important Date - Internal",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Deadline Laporan Kuartalan\",\n  \"description\": \"Batas waktu pengumpulan laporan Q1 ke KPOTI Pusat\",\n  \"start_date\": \"2026-03-31T00:00:00.000Z\",\n  \"all_day\": true,\n  \"color\": \"#E67E22\",\n  \"visibility\": \"internal\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/calendar/important-dates",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "important-dates"
+                            ]
+                        },
+                        "description": "Create an internal important date visible only to admin, kurator, and pakar."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List All Important Dates",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/calendar/important-dates?page=1&limit=20",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "important-dates"
+                            ],
+                            "query": [
+                                {
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number (default: 1)"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20",
+                                    "description": "Items per page (default: 20)"
+                                }
+                            ]
+                        },
+                        "description": "Get all important dates for management. Returns paginated result.\n\n- Admin KPOTI: sees all important dates\n- Kurator Daerah: sees only their daerah's important dates + national ones (no daerah_id)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Important Date",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Hari Permainan Rakyat Nasional (Revised)\",\n  \"color\": \"#9B59B6\",\n  \"description\": \"Deskripsi diperbarui\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/calendar/important-dates/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "important-dates",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "{{calendarItemId}}",
+                                    "description": "Calendar item UUID"
+                                }
+                            ]
+                        },
+                        "description": "Update an important date. All fields are optional.\n\n- Admin KPOTI: can update all important dates\n- Kurator Daerah: can only update important dates created by themselves or tied to their daerah\n- Cannot change visibility to 'private'"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Important Date",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/calendar/important-dates/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "important-dates",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "{{calendarItemId}}",
+                                    "description": "Calendar item UUID"
+                                }
+                            ]
+                        },
+                        "description": "Delete an important date. Same ownership rules as update."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Personal Schedule (Authenticated)",
+            "description": "CRUD for personal schedules. All authenticated users can create their own schedules.\n\nVisibility restrictions by role:\n- publik: private only\n- pakar / kurator_daerah: private or internal\n- admin_kpoti: private, internal, or public",
+            "item": [
+                {
+                    "name": "Create Personal Schedule - Private",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Rapat Persiapan Festival\",\n  \"description\": \"Koordinasi panitia festival egrang Bandung\",\n  \"start_date\": \"2026-03-10T10:00:00.000Z\",\n  \"end_date\": \"2026-03-10T12:00:00.000Z\",\n  \"all_day\": false,\n  \"color\": \"#3498DB\",\n  \"visibility\": \"private\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/calendar/personal-schedule",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "personal-schedule"
+                            ]
+                        },
+                        "description": "Create a private personal schedule. Only visible to the creator (and users they invite).\n\n- visibility defaults to 'private' if omitted\n- All authenticated users can create private schedules"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Personal Schedule - Internal",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Jadwal Verifikasi Permainan Rakyat\",\n  \"description\": \"Review batch PROT baru dari kurator Jawa Barat\",\n  \"start_date\": \"2026-03-15T09:00:00.000Z\",\n  \"end_date\": \"2026-03-15T15:00:00.000Z\",\n  \"all_day\": false,\n  \"color\": \"#F39C12\",\n  \"visibility\": \"internal\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/calendar/personal-schedule",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "personal-schedule"
+                            ]
+                        },
+                        "description": "Create an internal personal schedule visible to all internal users (admin, kurator, pakar).\n\nOnly available for: pakar, kurator_daerah, admin_kpoti"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Personal Schedule - All Day",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Cuti Tahunan\",\n  \"start_date\": \"2026-03-20T00:00:00.000Z\",\n  \"end_date\": \"2026-03-22T00:00:00.000Z\",\n  \"all_day\": true,\n  \"color\": \"#1ABC9C\",\n  \"visibility\": \"private\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/calendar/personal-schedule",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "personal-schedule"
+                            ]
+                        },
+                        "description": "Create a multi-day all-day personal schedule. Appears on all days in the range in calendar view."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get My Personal Schedule",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/calendar/personal-schedule?page=1&limit=20",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "personal-schedule"
+                            ],
+                            "query": [
+                                {
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number (default: 1)"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20",
+                                    "description": "Items per page (default: 20)"
+                                }
+                            ]
+                        },
+                        "description": "Get all personal schedules created by the currently authenticated user. Sorted by start_date ASC. Returns paginated result."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Personal Schedule",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Rapat Persiapan Festival (Reschedule)\",\n  \"start_date\": \"2026-03-11T14:00:00.000Z\",\n  \"end_date\": \"2026-03-11T16:00:00.000Z\",\n  \"color\": \"#E74C3C\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/calendar/personal-schedule/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "personal-schedule",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "{{calendarItemId}}",
+                                    "description": "Calendar item UUID"
+                                }
+                            ]
+                        },
+                        "description": "Update a personal schedule. Only the owner can update. All fields are optional."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Personal Schedule",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/calendar/personal-schedule/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "personal-schedule",
+                                ":id"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "{{calendarItemId}}",
+                                    "description": "Calendar item UUID"
+                                }
+                            ]
+                        },
+                        "description": "Delete a personal schedule. Only the owner can delete."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Invites - Owner Actions",
+            "description": "Manage invites for a calendar item. Only the creator of the item can invite, view invites, and remove invites.\n\nInvites are only for 'internal' or 'private' items — public items don't need invites.",
+            "item": [
+                {
+                    "name": "Invite Users to Calendar Item",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"user_ids\": [\n    \"{{targetUserId}}\"\n  ],\n  \"emails\": [\n    \"pakar@example.com\"\n  ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/calendar/:id/invites",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                ":id",
+                                "invites"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "{{calendarItemId}}",
+                                    "description": "Calendar item UUID"
+                                }
+                            ]
+                        },
+                        "description": "Invite one or more users to view a private/internal calendar item.\n\nAccept user_ids (UUID array) OR emails (string array) OR both. At least one must be provided.\n\nRules:\n- Only the creator can invite\n- Cannot invite for public items\n- Cannot invite yourself\n- Duplicate invites are automatically skipped\n- Emails not registered in the platform will return a 400 error"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Invites for Calendar Item",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/calendar/:id/invites?page=1&limit=20",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                ":id",
+                                "invites"
+                            ],
+                            "query": [
+                                {
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number (default: 1)"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20",
+                                    "description": "Items per page (default: 20)"
+                                },
+                                {
+                                    "key": "status",
+                                    "value": "pending",
+                                    "description": "Filter by status: pending, accepted, declined (omit for all)",
+                                    "disabled": true
+                                }
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "{{calendarItemId}}",
+                                    "description": "Calendar item UUID"
+                                }
+                            ]
+                        },
+                        "description": "Get all invites for a specific calendar item. Only the creator can view. Returns paginated invite details with user info."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Remove Invite",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/calendar/:id/invites/:userId",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                ":id",
+                                "invites",
+                                ":userId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "{{calendarItemId}}",
+                                    "description": "Calendar item UUID"
+                                },
+                                {
+                                    "key": "userId",
+                                    "value": "{{targetUserId}}",
+                                    "description": "UUID of the user whose invite to remove"
+                                }
+                            ]
+                        },
+                        "description": "Remove a user's invite from a calendar item. Only the creator can remove invites."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Invites - My Invites",
+            "description": "Manage invites received by the currently authenticated user.",
+            "item": [
+                {
+                    "name": "Get My Invites",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/calendar/invites/my?page=1&limit=20",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "invites",
+                                "my"
+                            ],
+                            "query": [
+                                {
+                                    "key": "page",
+                                    "value": "1",
+                                    "description": "Page number (default: 1)"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20",
+                                    "description": "Items per page (default: 20)"
+                                },
+                                {
+                                    "key": "status",
+                                    "value": "pending",
+                                    "description": "Filter status: pending, accepted, declined (omit for all)",
+                                    "disabled": true
+                                }
+                            ]
+                        },
+                        "description": "Get all invites sent to the currently authenticated user. Paginated. Use ?status=pending to show only pending invites."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Accept Invite",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"accepted\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/calendar/invites/:inviteId",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "invites",
+                                ":inviteId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "inviteId",
+                                    "value": "{{inviteId}}",
+                                    "description": "Invite UUID"
+                                }
+                            ]
+                        },
+                        "description": "Accept an invite. After accepting, the calendar item will appear in the user's calendar view.\n\nOnly the invited user can update their own invite status."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Decline Invite",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"declined\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/calendar/invites/:inviteId",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "invites",
+                                ":inviteId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "inviteId",
+                                    "value": "{{inviteId}}",
+                                    "description": "Invite UUID"
+                                }
+                            ]
+                        },
+                        "description": "Decline an invite. Cannot be reversed back to 'pending'."
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Scenarios",
+            "description": "Example scenario flows for testing end-to-end calendar functionality.",
+            "item": [
+                {
+                    "name": "[Scenario] View March 2026 Calendar - Public",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/calendar?year=2026&month=3&view=monthly&include_events=true",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar"
+                            ],
+                            "query": [
+                                {
+                                    "key": "year",
+                                    "value": "2026"
+                                },
+                                {
+                                    "key": "month",
+                                    "value": "3"
+                                },
+                                {
+                                    "key": "view",
+                                    "value": "monthly"
+                                },
+                                {
+                                    "key": "include_events",
+                                    "value": "true"
+                                }
+                            ]
+                        },
+                        "description": "SCENARIO: Public visitor views March 2026 calendar. No auth token. Should return only public calendar items + public events."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "[Scenario] View March 2026 - Events Only",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/calendar?year=2026&month=3&source=event",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar"
+                            ],
+                            "query": [
+                                {
+                                    "key": "year",
+                                    "value": "2026"
+                                },
+                                {
+                                    "key": "month",
+                                    "value": "3"
+                                },
+                                {
+                                    "key": "source",
+                                    "value": "event"
+                                }
+                            ]
+                        },
+                        "description": "SCENARIO: Show only public events from Events module, no calendar items."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "[Scenario] Agenda - Upcoming Month",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/calendar/agenda?startDate=2026-03-01&endDate=2026-03-31&page=1&limit=20",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "agenda"
+                            ],
+                            "query": [
+                                {
+                                    "key": "startDate",
+                                    "value": "2026-03-01"
+                                },
+                                {
+                                    "key": "endDate",
+                                    "value": "2026-03-31"
+                                },
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "20"
+                                }
+                            ]
+                        },
+                        "description": "SCENARIO: Authenticated user gets all calendar entries for March 2026 as a flat list."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "[Scenario] Kurator - Create Daerah Important Date",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Hari Jadi Kota Bandung ke-216\",\n  \"description\": \"Peringatan ulang tahun Kota Bandung\",\n  \"start_date\": \"2026-09-25T00:00:00.000Z\",\n  \"all_day\": true,\n  \"color\": \"#2ECC71\",\n  \"visibility\": \"public\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/calendar/important-dates",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "important-dates"
+                            ]
+                        },
+                        "description": "SCENARIO: Kurator Daerah creates a public important date for their daerah. daerah_id is auto-filled from their profile."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "[Scenario] Internal User - Share Schedule via Invite",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Sesi Review Permainan Rakyat Bersama Pakar\",\n  \"description\": \"Review kandidat PROT batch Februari bersama tim pakar\",\n  \"start_date\": \"2026-03-12T13:00:00.000Z\",\n  \"end_date\": \"2026-03-12T16:00:00.000Z\",\n  \"all_day\": false,\n  \"color\": \"#8E44AD\",\n  \"visibility\": \"private\"\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/calendar/personal-schedule",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                "personal-schedule"
+                            ]
+                        },
+                        "description": "SCENARIO STEP 1/2: Create a private schedule, then use the returned 'id' in the next request to invite users."
+                    },
+                    "response": []
+                },
+                {
+                    "name": "[Scenario] Internal User - Invite Pakar to Schedule",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{ACCESS_TOKEN}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"user_ids\": [\n    \"{{targetUserId}}\"\n  ],\n  \"emails\": [\n    \"pakar@example.com\"\n  ]\n}",
+                            "options": {
+                                "raw": {
+                                    "language": "json"
+                                }
+                            }
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/calendar/:id/invites",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "calendar",
+                                ":id",
+                                "invites"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "id",
+                                    "value": "{{calendarItemId}}",
+                                    "description": "Use the 'id' from previous step"
+                                }
+                            ]
+                        },
+                        "description": "SCENARIO STEP 2/2: Invite a pakar to the private schedule created in step 1. You can invite via user_ids, emails, or both."
+                    },
+                    "response": []
+                }
+            ]
+        }
+    ]
+}

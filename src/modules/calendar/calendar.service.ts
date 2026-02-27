@@ -17,6 +17,7 @@ import { CreatePersonalScheduleDto } from './dto/create-personal-schedule.dto';
 import { UpdateCalendarItemDto } from './dto/update-calendar-item.dto';
 import { CalendarFilterDto, CalendarView, CalendarSourceFilter } from './dto/calendar-filter.dto';
 import { AgendaFilterDto } from './dto/agenda-filter.dto';
+import { ListCalendarItemsDto } from './dto/list-calendar-items.dto';
 import { EventsService } from '../events/events.service';
 import { DaerahService } from '../daerah/daerah.service';
 import { User, UserRole } from '../users/entities/user.entity';
@@ -234,7 +235,16 @@ export class CalendarService {
         return this.calendarItemRepository.save(item);
     }
 
-    async getImportantDates(user: User): Promise<CalendarItem[]> {
+    async getImportantDates(
+        user: User,
+        filter: ListCalendarItemsDto,
+    ): Promise<{
+        data: CalendarItem[];
+        pagination: { total: number; page: number; limit: number; totalPages: number; hasNext: boolean; hasPrev: boolean };
+    }> {
+        const page = filter.page || 1;
+        const limit = filter.limit || 20;
+
         const qb = this.calendarItemRepository
             .createQueryBuilder('item')
             .leftJoinAndSelect('item.daerah', 'daerah')
@@ -242,7 +252,7 @@ export class CalendarService {
             .where('item.type = :type', { type: CalendarItemType.IMPORTANT_DATE })
             .orderBy('item.start_date', 'ASC');
 
-        // Kurator only sees their own daerah's important dates + public ones without daerah
+        // Kurator only sees their own daerah's important dates + national ones (no daerah)
         if (user.role === UserRole.KURATOR_DAERAH) {
             qb.andWhere(
                 new Brackets((sub) => {
@@ -253,7 +263,21 @@ export class CalendarService {
             );
         }
 
-        return qb.getMany();
+        const total = await qb.getCount();
+        const data = await qb.skip((page - 1) * limit).take(limit).getMany();
+        const totalPages = Math.ceil(total / limit);
+
+        return {
+            data,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages,
+                hasNext: page < totalPages,
+                hasPrev: page > 1,
+            },
+        };
     }
 
     // ─── Personal Schedule CRUD ──────────────────────────────────
@@ -281,14 +305,39 @@ export class CalendarService {
         return this.calendarItemRepository.save(item);
     }
 
-    async getMyPersonalSchedule(userId: string): Promise<CalendarItem[]> {
-        return this.calendarItemRepository.find({
+    async getMyPersonalSchedule(
+        userId: string,
+        filter: ListCalendarItemsDto,
+    ): Promise<{
+        data: CalendarItem[];
+        pagination: { total: number; page: number; limit: number; totalPages: number; hasNext: boolean; hasPrev: boolean };
+    }> {
+        const page = filter.page || 1;
+        const limit = filter.limit || 20;
+
+        const [data, total] = await this.calendarItemRepository.findAndCount({
             where: {
                 type: CalendarItemType.PERSONAL_SCHEDULE,
                 created_by: userId,
             },
             order: { start_date: 'ASC' },
+            skip: (page - 1) * limit,
+            take: limit,
         });
+
+        const totalPages = Math.ceil(total / limit);
+
+        return {
+            data,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages,
+                hasNext: page < totalPages,
+                hasPrev: page > 1,
+            },
+        };
     }
 
     // ─── Update & Delete ──────────────────────────────────────
@@ -533,6 +582,18 @@ export class CalendarService {
         }));
     }
 
+    /**
+     * Format a Date to YYYY-MM-DD using LOCAL timezone parts.
+     * Using toISOString() would convert to UTC, causing off-by-one date
+     * errors for timezones east of UTC (e.g. UTC+7 Indonesia).
+     */
+    private formatLocalDate(date: Date): string {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
     private groupByDate(
         entries: CalendarEntry[],
         startDate: Date,
@@ -540,11 +601,11 @@ export class CalendarService {
     ): CalendarDayGroup[] {
         const map = new Map<string, CalendarEntry[]>();
 
-        // Initialize all dates in range
-        const current = new Date(startDate);
-        while (current <= endDate) {
-            const dateKey = current.toISOString().split('T')[0];
-            map.set(dateKey, []);
+        // Initialize all dates in range using local date parts (not UTC)
+        const current = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+        const rangeEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+        while (current <= rangeEnd) {
+            map.set(this.formatLocalDate(current), []);
             current.setDate(current.getDate() + 1);
         }
 
@@ -553,12 +614,15 @@ export class CalendarService {
             const entryStart = new Date(entry.start_date);
             const entryEnd = entry.end_date ? new Date(entry.end_date) : entryStart;
 
-            // For multi-day entries, add to each day they span
-            const day = new Date(Math.max(entryStart.getTime(), startDate.getTime()));
-            const end = new Date(Math.min(entryEnd.getTime(), endDate.getTime()));
+            // Clamp to the visible range, compare by local date
+            const clampedStart = entryStart < startDate ? startDate : entryStart;
+            const clampedEnd = entryEnd > endDate ? endDate : entryEnd;
+
+            const day = new Date(clampedStart.getFullYear(), clampedStart.getMonth(), clampedStart.getDate());
+            const end = new Date(clampedEnd.getFullYear(), clampedEnd.getMonth(), clampedEnd.getDate());
 
             while (day <= end) {
-                const dateKey = day.toISOString().split('T')[0];
+                const dateKey = this.formatLocalDate(day);
                 if (map.has(dateKey)) {
                     map.get(dateKey)!.push(entry);
                 }
@@ -566,7 +630,7 @@ export class CalendarService {
             }
         }
 
-        // Convert to array
+        // Convert to sorted array
         return Array.from(map.entries())
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([date, entries]) => ({ date, entries }));

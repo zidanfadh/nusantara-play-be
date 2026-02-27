@@ -18,6 +18,8 @@ import { CalendarFilterDto } from './dto/calendar-filter.dto';
 import { AgendaFilterDto } from './dto/agenda-filter.dto';
 import { InviteUsersDto } from './dto/invite-users.dto';
 import { UpdateInviteDto } from './dto/update-invite.dto';
+import { ListCalendarItemsDto } from './dto/list-calendar-items.dto';
+import { ListInvitesDto } from './dto/list-invites.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -60,8 +62,11 @@ export class CalendarController {
 
     @Get('important-dates')
     @Roles(UserRole.ADMIN_KPOTI, UserRole.KURATOR_DAERAH)
-    async getImportantDates(@CurrentUser() user: User) {
-        return this.calendarService.getImportantDates(user);
+    async getImportantDates(
+        @Query() filter: ListCalendarItemsDto,
+        @CurrentUser() user: User,
+    ) {
+        return this.calendarService.getImportantDates(user, filter);
     }
 
     @Patch('important-dates/:id')
@@ -92,8 +97,11 @@ export class CalendarController {
     }
 
     @Get('personal-schedule')
-    async getMyPersonalSchedule(@CurrentUser() user: User) {
-        return this.calendarService.getMyPersonalSchedule(user.id);
+    async getMyPersonalSchedule(
+        @Query() filter: ListCalendarItemsDto,
+        @CurrentUser() user: User,
+    ) {
+        return this.calendarService.getMyPersonalSchedule(user.id, filter);
     }
 
     @Patch('personal-schedule/:id')
@@ -127,12 +135,16 @@ export class CalendarController {
         @Body() dto: InviteUsersDto,
         @CurrentUser() user: User,
     ) {
-        return this.inviteService.inviteUsers(id, dto.user_ids, user);
+        return this.inviteService.inviteUsers(id, dto, user);
     }
 
     @Get(':id/invites')
-    async getItemInvites(@Param('id') id: string, @CurrentUser() user: User) {
-        return this.inviteService.getInvitesForItem(id, user);
+    async getItemInvites(
+        @Param('id') id: string,
+        @Query() filter: ListInvitesDto,
+        @CurrentUser() user: User,
+    ) {
+        return this.inviteService.getInvitesForItem(id, user, filter);
     }
 
     @Delete(':id/invites/:userId')
@@ -148,8 +160,11 @@ export class CalendarController {
     // ─── My Invites (Invited User) ──────────────────────────────────────
 
     @Get('invites/my')
-    async getMyInvites(@CurrentUser() user: User) {
-        return this.inviteService.getMyInvites(user.id);
+    async getMyInvites(
+        @Query() filter: ListInvitesDto,
+        @CurrentUser() user: User,
+    ) {
+        return this.inviteService.getMyInvites(user.id, filter);
     }
 
     @Patch('invites/:inviteId')

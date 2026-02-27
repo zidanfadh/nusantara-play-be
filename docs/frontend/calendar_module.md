@@ -470,54 +470,48 @@ Mendapatkan daftar semua tanggal penting. Kurator hanya melihat tanggal penting 
 **Authentication:** Required (JWT Token)
 **Authorization:** `admin_kpoti`, `kurator_daerah`
 
+**Query Parameters:**
+
+| Param   | Type | Required | Default | Description      |
+| ------- | ---- | -------- | ------- | ---------------- |
+| `page`  | int  | Tidak    | `1`     | Nomor halaman    |
+| `limit` | int  | Tidak    | `20`    | Item per halaman |
+
 **Success Response (200):**
 
 ```json
-[
-  {
-    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "title": "Hari Permainan Rakyat Nasional",
-    "description": "Peringatan tahunan",
-    "type": "important_date",
-    "visibility": "public",
-    "start_date": "2026-03-02T00:00:00.000Z",
-    "end_date": null,
-    "all_day": true,
-    "color": "#E74C3C",
-    "daerah_id": null,
-    "created_by": "f1e2d3c4-b5a6-7890-abcd-ef1234567890",
-    "created_at": "2026-02-20T10:00:00.000Z",
-    "updated_at": "2026-02-20T10:00:00.000Z",
-    "daerah": null,
-    "creator": {
-      "id": "f1e2d3c4-b5a6-7890-abcd-ef1234567890",
-      "full_name": "Admin KPOTI Pusat"
+{
+  "data": [
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "title": "Hari Permainan Rakyat Nasional",
+      "description": "Peringatan tahunan",
+      "type": "important_date",
+      "visibility": "public",
+      "start_date": "2026-03-02T00:00:00.000Z",
+      "end_date": null,
+      "all_day": true,
+      "color": "#E74C3C",
+      "daerah_id": null,
+      "created_by": "f1e2d3c4-b5a6-7890-abcd-ef1234567890",
+      "created_at": "2026-02-20T10:00:00.000Z",
+      "updated_at": "2026-02-20T10:00:00.000Z",
+      "daerah": null,
+      "creator": {
+        "id": "f1e2d3c4-b5a6-7890-abcd-ef1234567890",
+        "full_name": "Admin KPOTI Pusat"
+      }
     }
-  },
-  {
-    "id": "e5f6a7b8-c9d0-1234-efgh-345678901234",
-    "title": "Hari Jadi Kota Bandung",
-    "description": "Peringatan hari jadi Kota Bandung",
-    "type": "important_date",
-    "visibility": "public",
-    "start_date": "2026-09-25T00:00:00.000Z",
-    "end_date": null,
-    "all_day": true,
-    "color": "#2ECC71",
-    "daerah_id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
-    "created_by": "d4e5f6a7-b8c9-0123-defg-234567890123",
-    "created_at": "2026-02-21T08:00:00.000Z",
-    "updated_at": "2026-02-21T08:00:00.000Z",
-    "daerah": {
-      "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
-      "nama": "Kota Bandung"
-    },
-    "creator": {
-      "id": "d4e5f6a7-b8c9-0123-defg-234567890123",
-      "full_name": "Kurator Bandung"
-    }
+  ],
+  "pagination": {
+    "total": 24,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 2,
+    "hasNext": true,
+    "hasPrev": false
   }
-]
+}
 ```
 
 ---
@@ -712,27 +706,44 @@ Mendapatkan semua jadwal pribadi milik user yang sedang login.
 
 **Authentication:** Required (JWT Token)
 
+**Query Parameters:**
+
+| Param   | Type | Required | Default | Description      |
+| ------- | ---- | -------- | ------- | ---------------- |
+| `page`  | int  | Tidak    | `1`     | Nomor halaman    |
+| `limit` | int  | Tidak    | `20`    | Item per halaman |
+
 **Success Response (200):**
 
 ```json
-[
-  {
-    "id": "d4e5f6a7-b8c9-0123-defg-234567890123",
-    "title": "Rapat Persiapan Festival",
-    "description": "Koordinasi panitia festival egrang",
-    "type": "personal_schedule",
-    "visibility": "private",
-    "start_date": "2026-03-05T10:00:00.000Z",
-    "end_date": "2026-03-05T12:00:00.000Z",
-    "all_day": false,
-    "color": "#3498DB",
-    "daerah_id": null,
-    "event_id": null,
-    "created_by": "f1e2d3c4-b5a6-7890-abcd-ef1234567890",
-    "created_at": "2026-02-25T10:00:00.000Z",
-    "updated_at": "2026-02-25T10:00:00.000Z"
+{
+  "data": [
+    {
+      "id": "d4e5f6a7-b8c9-0123-defg-234567890123",
+      "title": "Rapat Persiapan Festival",
+      "description": "Koordinasi panitia festival egrang",
+      "type": "personal_schedule",
+      "visibility": "private",
+      "start_date": "2026-03-05T10:00:00.000Z",
+      "end_date": "2026-03-05T12:00:00.000Z",
+      "all_day": false,
+      "color": "#3498DB",
+      "daerah_id": null,
+      "event_id": null,
+      "created_by": "f1e2d3c4-b5a6-7890-abcd-ef1234567890",
+      "created_at": "2026-02-25T10:00:00.000Z",
+      "updated_at": "2026-02-25T10:00:00.000Z"
+    }
+  ],
+  "pagination": {
+    "total": 8,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
   }
-]
+}
 ```
 
 ---
@@ -818,20 +829,25 @@ Mengundang satu atau beberapa user untuk melihat calendar item. Hanya pembuat it
 
 **Request Body:**
 
+Gunakan `user_ids`, `emails`, atau keduanya. Setidaknya satu harus diisi.
+
 ```json
 {
-  "user_ids": [
-    "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "b2c3d4e5-f6a7-8901-bcde-f12345678901"
-  ]
+  "user_ids": ["a1b2c3d4-e5f6-7890-abcd-ef1234567890"],
+  "emails": ["pakar2@example.com", "kurator.jatim@example.com"]
 }
 ```
 
 **Request Body Schema:**
 
-| Field      | Type   | Required | Validation             |
-| ---------- | ------ | -------- | ---------------------- |
-| `user_ids` | UUID[] | Ya       | Array of valid UUID v4 |
+| Field      | Type     | Required | Validation                                    |
+| ---------- | -------- | -------- | --------------------------------------------- |
+| `user_ids` | UUID[]   | Tidak\*  | Array of valid UUID v4; min 1 item jika diisi |
+| `emails`   | string[] | Tidak\*  | Array of valid email; min 1 item jika diisi   |
+
+\* Minimal **satu** dari `user_ids` atau `emails` harus diisi.
+
+> **Note:** Email yang tidak ditemukan di database akan menghasilkan error `400` dengan daftar email tidak valid.
 
 **Success Response (201):**
 
@@ -881,10 +897,26 @@ Mengundang satu atau beberapa user untuk melihat calendar item. Hanya pembuat it
   "message": "No valid users to invite",
   "error": "Bad Request"
 }
+
+// 400 - Tidak ada user_ids maupun emails
+{
+  "statusCode": 400,
+  "message": "Provide at least one user_id or email to invite",
+  "error": "Bad Request"
+}
+
+// 400 - Email tidak terdaftar
+{
+  "statusCode": 400,
+  "message": "The following emails are not registered: unknown@example.com",
+  "error": "Bad Request"
+}
 ```
 
 **Catatan:**
 
+- Bisa mengundang via `user_ids`, `emails`, atau kombinasi keduanya
+- Email yang tidak terdaftar di platform akan menghasilkan error — pastikan email valid sebelum submit
 - User yang sudah diundang sebelumnya akan di-skip (tidak duplikat)
 - Tidak bisa mengundang diri sendiri (otomatis difilter)
 - Response berisi semua invites (termasuk yang sudah ada sebelumnya)
@@ -905,25 +937,43 @@ Melihat daftar semua user yang diundang ke calendar item tertentu. Hanya pembuat
 | ----- | ---- | -------- | ---------------- |
 | `id`  | UUID | Ya       | ID calendar item |
 
+**Query Parameters:**
+
+| Param    | Type | Required | Default | Description                                      |
+| -------- | ---- | -------- | ------- | ------------------------------------------------ |
+| `page`   | int  | Tidak    | `1`     | Nomor halaman                                    |
+| `limit`  | int  | Tidak    | `20`    | Item per halaman                                 |
+| `status` | enum | Tidak    | (semua) | Filter status: `pending`, `accepted`, `declined` |
+
 **Success Response (200):**
 
 ```json
-[
-  {
-    "id": "e5f6a7b8-c9d0-1234-efgh-345678901234",
-    "calendar_item_id": "d4e5f6a7-b8c9-0123-defg-234567890123",
-    "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "status": "accepted",
-    "invited_by": "f1e2d3c4-b5a6-7890-abcd-ef1234567890",
-    "created_at": "2026-02-25T10:00:00.000Z",
-    "updated_at": "2026-02-25T11:00:00.000Z",
-    "user": {
-      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "full_name": "Pakar Budaya 1",
-      "email": "pakar1@example.com"
+{
+  "data": [
+    {
+      "id": "e5f6a7b8-c9d0-1234-efgh-345678901234",
+      "calendar_item_id": "d4e5f6a7-b8c9-0123-defg-234567890123",
+      "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "status": "accepted",
+      "invited_by": "f1e2d3c4-b5a6-7890-abcd-ef1234567890",
+      "created_at": "2026-02-25T10:00:00.000Z",
+      "updated_at": "2026-02-25T11:00:00.000Z",
+      "user": {
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "full_name": "Pakar Budaya 1",
+        "email": "pakar1@example.com"
+      }
     }
+  ],
+  "pagination": {
+    "total": 3,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
   }
-]
+}
 ```
 
 ---
@@ -979,37 +1029,55 @@ Mendapatkan semua undangan kalender yang ditujukan ke user yang sedang login.
 
 **Authentication:** Required (JWT Token)
 
+**Query Parameters:**
+
+| Param    | Type | Required | Default | Description                                      |
+| -------- | ---- | -------- | ------- | ------------------------------------------------ |
+| `page`   | int  | Tidak    | `1`     | Nomor halaman                                    |
+| `limit`  | int  | Tidak    | `20`    | Item per halaman                                 |
+| `status` | enum | Tidak    | (semua) | Filter status: `pending`, `accepted`, `declined` |
+
 **Success Response (200):**
 
 ```json
-[
-  {
-    "id": "e5f6a7b8-c9d0-1234-efgh-345678901234",
-    "calendar_item_id": "d4e5f6a7-b8c9-0123-defg-234567890123",
-    "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "status": "pending",
-    "invited_by": "f1e2d3c4-b5a6-7890-abcd-ef1234567890",
-    "created_at": "2026-02-25T10:00:00.000Z",
-    "updated_at": "2026-02-25T10:00:00.000Z",
-    "calendarItem": {
-      "id": "d4e5f6a7-b8c9-0123-defg-234567890123",
-      "title": "Rapat Persiapan Festival",
-      "type": "personal_schedule",
-      "visibility": "private",
-      "start_date": "2026-03-05T10:00:00.000Z",
-      "end_date": "2026-03-05T12:00:00.000Z",
-      "all_day": false,
-      "creator": {
+{
+  "data": [
+    {
+      "id": "e5f6a7b8-c9d0-1234-efgh-345678901234",
+      "calendar_item_id": "d4e5f6a7-b8c9-0123-defg-234567890123",
+      "user_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "status": "pending",
+      "invited_by": "f1e2d3c4-b5a6-7890-abcd-ef1234567890",
+      "created_at": "2026-02-25T10:00:00.000Z",
+      "updated_at": "2026-02-25T10:00:00.000Z",
+      "calendarItem": {
+        "id": "d4e5f6a7-b8c9-0123-defg-234567890123",
+        "title": "Rapat Persiapan Festival",
+        "type": "personal_schedule",
+        "visibility": "private",
+        "start_date": "2026-03-05T10:00:00.000Z",
+        "end_date": "2026-03-05T12:00:00.000Z",
+        "all_day": false,
+        "creator": {
+          "id": "f1e2d3c4-b5a6-7890-abcd-ef1234567890",
+          "full_name": "Kurator Bandung"
+        }
+      },
+      "invitedByUser": {
         "id": "f1e2d3c4-b5a6-7890-abcd-ef1234567890",
         "full_name": "Kurator Bandung"
       }
-    },
-    "invitedByUser": {
-      "id": "f1e2d3c4-b5a6-7890-abcd-ef1234567890",
-      "full_name": "Kurator Bandung"
     }
+  ],
+  "pagination": {
+    "total": 5,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 1,
+    "hasNext": false,
+    "hasPrev": false
   }
-]
+}
 ```
 
 ---
