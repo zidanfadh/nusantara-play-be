@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Unique,
 } from 'typeorm';
 import { PROT } from '../../prot/entities/prot.entity';
 import { Verifikasi } from '../../prot/entities/verifikasi.entity';
@@ -16,6 +17,7 @@ export enum BlockchainProofStatus {
   FAILED = 'failed',
 }
 
+@Unique(['prot_id', 'version'])
 @Entity('blockchain_proof')
 export class BlockchainProof {
   @PrimaryGeneratedColumn('uuid')
@@ -37,7 +39,7 @@ export class BlockchainProof {
   tx_hash: string | null;
 
   @Column({ type: 'bigint', nullable: true, name: 'block_number' })
-  block_number: number | null;
+  block_number: string | null;
 
   @Column({ type: 'text', name: 'blockchain_network', default: 'polygon-mumbai' })
   blockchain_network: string;
