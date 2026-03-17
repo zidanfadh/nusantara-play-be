@@ -1,5 +1,6 @@
 import { ethers } from 'hardhat';
 import { expect } from 'chai';
+import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs';
 
 describe('ProtVerification', function () {
   async function deployFixture() {
@@ -14,8 +15,9 @@ describe('ProtVerification', function () {
     const protId = '550e8400-e29b-41d4-a716-446655440000';
     const dataHash = ethers.keccak256(ethers.toUtf8Bytes('test-data'));
 
-    const tx = await contract.recordVerification(protId, dataHash);
-    await tx.wait();
+    await expect(contract.recordVerification(protId, dataHash))
+      .to.emit(contract, 'VerificationAnchored')
+      .withArgs(protId, 1, dataHash, owner.address, anyValue);
 
     expect(await contract.latestVersion(protId)).to.equal(1);
   });

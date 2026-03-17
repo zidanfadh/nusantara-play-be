@@ -16,8 +16,8 @@ contract ProtVerification {
     mapping(string => uint32) public latestVersion;
 
     event VerificationAnchored(
-        string indexed protId,
-        uint32 version,
+        string  protId,           // not indexed — full value recoverable from logs
+        uint32  version,
         bytes32 dataHash,
         address indexed verifier,
         uint256 timestamp
@@ -43,6 +43,7 @@ contract ProtVerification {
         string calldata protId,
         uint32 version
     ) external view returns (VerificationRecord memory) {
+        require(version > 0 && version <= latestVersion[protId], 'Invalid version');
         return records[protId][version];
     }
 
