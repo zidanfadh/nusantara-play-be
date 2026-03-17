@@ -6,6 +6,7 @@ import { Verifikasi, VerifikasiStatus } from './entities/verifikasi.entity';
 import { VerifikasiQueue } from './entities/verifikasi-queue.entity';
 import { PROT, PROTStatus } from './entities/prot.entity';
 import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BlockchainService } from '../blockchain/blockchain.service';
 
 describe('VerifikasiService', () => {
   let service: VerifikasiService;
@@ -38,6 +39,10 @@ describe('VerifikasiService', () => {
     createQueryBuilder: jest.fn(),
   };
 
+  const mockBlockchainService = {
+    anchorVerification: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -53,6 +58,10 @@ describe('VerifikasiService', () => {
         {
           provide: getRepositoryToken(PROT),
           useValue: mockProtRepository,
+        },
+        {
+          provide: BlockchainService,
+          useValue: mockBlockchainService,
         },
       ],
     }).compile();
