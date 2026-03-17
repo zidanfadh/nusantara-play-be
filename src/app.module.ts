@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -28,6 +29,9 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     // Core modules
     ConfigModule,
     DatabaseModule,
+
+    // Scheduling (required for @Cron decorators across all modules)
+    ScheduleModule.forRoot(),
 
     // Rate limiting
     ThrottlerModule.forRoot([

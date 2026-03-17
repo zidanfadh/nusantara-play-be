@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ScheduleModule } from '@nestjs/schedule';
 import { EventsController } from './events.controller';
 import { EventsService } from './events.service';
 import { EventRegistrationsService } from './event-registrations.service';
@@ -13,7 +12,6 @@ import { DaerahModule } from '../daerah/daerah.module';
   imports: [
     TypeOrmModule.forFeature([Event, EventRegistration]),
     DaerahModule,
-    ScheduleModule.forRoot(),
   ],
   controllers: [EventsController],
   providers: [EventsService, EventRegistrationsService, EventsScheduler],

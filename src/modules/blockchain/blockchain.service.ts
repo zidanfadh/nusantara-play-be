@@ -229,7 +229,7 @@ export class BlockchainService implements OnModuleInit {
       try {
         const record = await this.contract['getLatest'](protId);
         onChainHash = (record.dataHash as string).replace('0x', '');
-        chainIntact = onChainHash === proof.data_hash;
+        chainIntact = onChainHash === currentHash;
       } catch (err) {
         this.logger.warn(
           `Chain query failed for PROT ${protId}: ${err instanceof Error ? err.message : String(err)}`,
