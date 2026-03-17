@@ -24,11 +24,15 @@ export class AddBlockchainProof1742000000000 implements MigrationInterface {
       )
     `);
 
-    await queryRunner.query(`
-      CREATE INDEX idx_blockchain_proof_verifikasi ON blockchain_proof(verifikasi_id);
-      CREATE INDEX idx_blockchain_proof_prot       ON blockchain_proof(prot_id);
-      CREATE INDEX idx_blockchain_proof_status     ON blockchain_proof(status);
-    `);
+    await queryRunner.query(
+      `CREATE INDEX idx_blockchain_proof_verifikasi ON blockchain_proof(verifikasi_id)`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX idx_blockchain_proof_prot ON blockchain_proof(prot_id)`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX idx_blockchain_proof_status ON blockchain_proof(status)`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
