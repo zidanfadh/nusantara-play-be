@@ -1,0 +1,304 @@
+{
+  "info": {
+    "name": "Nusantara Play - Blockchain Verification API",
+    "description": "Collection untuk Blockchain Verification Module. Anchoring terjadi otomatis saat verifikasi PROT disetujui — tidak ada endpoint trigger manual. Collection ini mencakup:\n1. Flow verifikasi yang memicu blockchain anchoring\n2. Query blockchain_proof dari database\n3. Contoh query Supabase untuk cek status anchoring",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "2.1.0"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "ACCESS_TOKEN",
+      "value": "",
+      "type": "string",
+      "description": "JWT Access Token - Get from POST /api/auth/login"
+    },
+    {
+      "key": "protId",
+      "value": "",
+      "type": "string",
+      "description": "UUID of the PROT record"
+    },
+    {
+      "key": "verifikasiId",
+      "value": "",
+      "type": "string",
+      "description": "UUID of the Verifikasi record"
+    },
+    {
+      "key": "queueId",
+      "value": "",
+      "type": "string",
+      "description": "UUID of the VerifikasiQueue record"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Verification Flow (triggers blockchain)",
+      "description": "Flow lengkap yang memicu blockchain anchoring. Setelah Submit Review APPROVED, anchoring terjadi otomatis di background.",
+      "item": [
+        {
+          "name": "Submit Review - APPROVED (triggers blockchain)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ACCESS_TOKEN}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"APPROVED\",\n  \"catatan\": \"Data permainan lengkap dan akurat.\",\n  \"dokumen_pendukung\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/verifikasi/{{protId}}/review",
+              "host": ["{{base_url}}"],
+              "path": ["verifikasi", "{{protId}}", "review"]
+            },
+            "description": "Submit review APPROVED sebagai pakar. Setelah request ini berhasil:\n1. PROT status berubah ke DIVERIFIKASI\n2. Blockchain anchoring dimulai di background (fire-and-forget)\n3. Cek status anchoring via blockchain_proof table (lihat contoh di folder '2. Check Anchoring Status')\n\n**Role required:** pakar\n\n**Catatan:** blockchain anchoring TIDAK memblokir response ini. Response kembali segera setelah verifikasi disimpan."
+          },
+          "response": [
+            {
+              "name": "APPROVED - Success",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"id\": \"uuid-verifikasi\",\n  \"prot_id\": \"uuid-prot\",\n  \"pakar_id\": \"uuid-pakar\",\n  \"status\": \"APPROVED\",\n  \"catatan\": \"Data permainan lengkap dan akurat.\",\n  \"saran_perbaikan\": null,\n  \"dokumen_pendukung\": [],\n  \"verified_at\": \"2026-03-17T10:00:00.000Z\",\n  \"created_at\": \"2026-03-17T10:00:00.000Z\",\n  \"updated_at\": \"2026-03-17T10:00:00.000Z\"\n}",
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Check Anchoring Status",
+      "description": "Endpoint untuk mengecek status blockchain anchoring setelah verifikasi APPROVED. Gunakan query langsung ke Supabase atau via backend endpoint jika tersedia.",
+      "item": [
+        {
+          "name": "Get PROT Detail (includes verification status)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ACCESS_TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/prot/{{protId}}",
+              "host": ["{{base_url}}"],
+              "path": ["prot", "{{protId}}"]
+            },
+            "description": "Ambil detail PROT. Jika status = DIVERIFIKASI, berarti proses verifikasi sudah selesai. Anchoring blockchain terjadi di background setelah ini.\n\nUntuk cek status anchoring secara langsung, query tabel blockchain_proof di Supabase (lihat contoh SQL di bawah)."
+          },
+          "response": []
+        },
+        {
+          "name": "[Supabase] Query blockchain_proof by protId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{SUPABASE_ANON_KEY}}",
+                "description": "Supabase anon key"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{SUPABASE_ANON_KEY}}"
+              }
+            ],
+            "url": {
+              "raw": "{{SUPABASE_URL}}/rest/v1/blockchain_proof?prot_id=eq.{{protId}}&order=version.desc",
+              "host": ["{{SUPABASE_URL}}"],
+              "path": ["rest", "v1", "blockchain_proof"],
+              "query": [
+                {
+                  "key": "prot_id",
+                  "value": "eq.{{protId}}",
+                  "description": "Filter by PROT UUID"
+                },
+                {
+                  "key": "order",
+                  "value": "version.desc",
+                  "description": "Latest version first"
+                }
+              ]
+            },
+            "description": "Query langsung ke Supabase REST API untuk melihat semua blockchain proof untuk PROT tertentu.\n\nStatus values:\n- `pending` = sedang diproses / menunggu retry\n- `confirmed` = berhasil dianchor ke blockchain, tx_hash tersedia\n- `failed` = gagal setelah 3 percobaan\n\n**Note:** Set SUPABASE_URL dan SUPABASE_ANON_KEY sebagai variabel collection."
+          },
+          "response": [
+            {
+              "name": "blockchain_proof - Confirmed",
+              "status": "OK",
+              "code": 200,
+              "body": "[\n  {\n    \"id\": \"uuid-proof\",\n    \"verifikasi_id\": \"uuid-verifikasi\",\n    \"prot_id\": \"uuid-prot\",\n    \"version\": 1,\n    \"data_hash\": \"a1b2c3d4e5f6...64chars\",\n    \"tx_hash\": \"0xabc123...66chars\",\n    \"block_number\": \"12345678\",\n    \"blockchain_network\": \"polygon-mumbai\",\n    \"status\": \"confirmed\",\n    \"retry_count\": 0,\n    \"last_error\": null,\n    \"anchored_at\": \"2026-03-17T10:00:05.000Z\",\n    \"created_at\": \"2026-03-17T10:00:00.000Z\",\n    \"updated_at\": \"2026-03-17T10:00:05.000Z\"\n  }\n]",
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            },
+            {
+              "name": "blockchain_proof - Pending",
+              "status": "OK",
+              "code": 200,
+              "body": "[\n  {\n    \"id\": \"uuid-proof\",\n    \"verifikasi_id\": \"uuid-verifikasi\",\n    \"prot_id\": \"uuid-prot\",\n    \"version\": 1,\n    \"data_hash\": \"a1b2c3d4e5f6...64chars\",\n    \"tx_hash\": null,\n    \"block_number\": null,\n    \"blockchain_network\": \"polygon-mumbai\",\n    \"status\": \"pending\",\n    \"retry_count\": 0,\n    \"last_error\": null,\n    \"anchored_at\": null,\n    \"created_at\": \"2026-03-17T10:00:00.000Z\",\n    \"updated_at\": \"2026-03-17T10:00:00.000Z\"\n  }\n]",
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "[Supabase] Latest confirmed proof for protId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{SUPABASE_ANON_KEY}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{SUPABASE_ANON_KEY}}"
+              }
+            ],
+            "url": {
+              "raw": "{{SUPABASE_URL}}/rest/v1/blockchain_proof?prot_id=eq.{{protId}}&status=eq.confirmed&order=version.desc&limit=1",
+              "host": ["{{SUPABASE_URL}}"],
+              "path": ["rest", "v1", "blockchain_proof"],
+              "query": [
+                {
+                  "key": "prot_id",
+                  "value": "eq.{{protId}}"
+                },
+                {
+                  "key": "status",
+                  "value": "eq.confirmed"
+                },
+                {
+                  "key": "order",
+                  "value": "version.desc"
+                },
+                {
+                  "key": "limit",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Ambil bukti blockchain terbaru yang sudah dikonfirmasi untuk PROT tertentu. Digunakan untuk menampilkan badge/sertifikat verifikasi blockchain di frontend."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Polygon Mumbai Explorer",
+      "description": "Referensi untuk verifikasi on-chain via block explorer. Tidak ada request HTTP — ini adalah contoh URL explorer.",
+      "item": [
+        {
+          "name": "[INFO] View Transaction on Mumbai Explorer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://mumbai.polygonscan.com/tx/{{tx_hash}}",
+              "host": ["https://mumbai.polygonscan.com"],
+              "path": ["tx", "{{tx_hash}}"]
+            },
+            "description": "Buka URL ini di browser untuk melihat transaksi anchoring di Polygon Mumbai block explorer.\n\nGanti `{{tx_hash}}` dengan nilai `tx_hash` dari tabel `blockchain_proof`.\n\nContoh URL:\nhttps://mumbai.polygonscan.com/tx/0xabc123...\n\n**Catatan:** Ini bukan request ke backend — ini adalah link ke explorer eksternal."
+          },
+          "response": []
+        },
+        {
+          "name": "[INFO] View Contract on Mumbai Explorer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "https://mumbai.polygonscan.com/address/{{BLOCKCHAIN_CONTRACT_ADDRESS}}",
+              "host": ["https://mumbai.polygonscan.com"],
+              "path": ["address", "{{BLOCKCHAIN_CONTRACT_ADDRESS}}"]
+            },
+            "description": "Buka URL ini di browser untuk melihat smart contract ProtVerification di Polygon Mumbai.\n\nGanti `{{BLOCKCHAIN_CONTRACT_ADDRESS}}` dengan alamat contract dari env var.\n\nDi halaman contract, klik tab 'Read Contract' untuk memanggil:\n- `getLatest(protId)` — ambil verifikasi terbaru\n- `getRecord(protId, version)` — ambil verifikasi versi tertentu\n- `latestVersion(protId)` — cek jumlah verifikasi"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. SQL Reference",
+      "description": "Contoh query SQL untuk keperluan monitoring dan debugging blockchain proof.",
+      "item": [
+        {
+          "name": "[SQL] Semua PROT yang pending anchoring",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "-- Jalankan di Supabase SQL Editor\nSELECT bp.id, bp.prot_id, p.nama, bp.status, bp.retry_count, bp.last_error, bp.created_at\nFROM blockchain_proof bp\nJOIN prot p ON p.id = bp.prot_id\nWHERE bp.status = 'pending'\nORDER BY bp.created_at ASC",
+              "raw": "-- Jalankan di Supabase SQL Editor\nSELECT bp.id, bp.prot_id, p.nama, bp.status, bp.retry_count, bp.last_error, bp.created_at\nFROM blockchain_proof bp\nJOIN prot p ON p.id = bp.prot_id\nWHERE bp.status = 'pending'\nORDER BY bp.created_at ASC"
+            },
+            "description": "Query untuk melihat semua PROT yang anchoring-nya masih pending.\n\n```sql\nSELECT bp.id, bp.prot_id, p.nama, bp.status, bp.retry_count, bp.last_error, bp.created_at\nFROM blockchain_proof bp\nJOIN prot p ON p.id = bp.prot_id\nWHERE bp.status = 'pending'\nORDER BY bp.created_at ASC;\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "[SQL] PROT dengan anchoring gagal (failed)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "-- Jalankan di Supabase SQL Editor",
+              "raw": "-- Jalankan di Supabase SQL Editor"
+            },
+            "description": "Query untuk melihat anchoring yang gagal dan perlu intervensi manual.\n\n```sql\nSELECT bp.id, bp.prot_id, p.nama, bp.retry_count, bp.last_error, bp.updated_at\nFROM blockchain_proof bp\nJOIN prot p ON p.id = bp.prot_id\nWHERE bp.status = 'failed'\nORDER BY bp.updated_at DESC;\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "[SQL] Statistik anchoring per network",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "-- Jalankan di Supabase SQL Editor",
+              "raw": "-- Jalankan di Supabase SQL Editor"
+            },
+            "description": "```sql\nSELECT \n  blockchain_network,\n  status,\n  COUNT(*) as total\nFROM blockchain_proof\nGROUP BY blockchain_network, status\nORDER BY blockchain_network, status;\n```"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
