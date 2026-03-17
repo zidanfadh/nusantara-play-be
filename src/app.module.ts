@@ -18,6 +18,7 @@ import { SupabaseModule } from './modules/supabase/supabase.module';
 import { PROTModule } from './modules/prot/prot.module';
 import { EventsModule } from './modules/events/events.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
+import { BlockchainModule } from './modules/blockchain/blockchain.module';
 
 // Guards
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -46,6 +47,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     PROTModule,
     EventsModule,
     CalendarModule,
+    BlockchainModule,
   ],
   controllers: [AppController],
   providers: [

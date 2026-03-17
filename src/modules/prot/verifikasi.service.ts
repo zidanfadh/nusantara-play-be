@@ -3,8 +3,10 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { BlockchainService } from '../blockchain/blockchain.service';
 import { Repository, IsNull } from 'typeorm';
 import { Verifikasi, VerifikasiStatus } from './entities/verifikasi.entity';
 import { VerifikasiQueue } from './entities/verifikasi-queue.entity';
@@ -20,6 +22,7 @@ export class VerifikasiService {
     private readonly queueRepository: Repository<VerifikasiQueue>,
     @InjectRepository(PROT)
     private readonly protRepository: Repository<PROT>,
+    private readonly blockchainService: BlockchainService,
   ) {}
 
   /**
@@ -194,6 +197,15 @@ export class VerifikasiService {
     }
 
     await this.protRepository.save(prot);
+
+    // Fire-and-forget blockchain anchoring — does not block the response
+    if (reviewDto.status === VerifikasiStatus.APPROVED) {
+      this.blockchainService.anchorVerification(verifikasi.id).catch((err: Error) => {
+        new Logger('VerifikasiService').error(
+          `Blockchain anchor failed for verifikasi ${verifikasi.id}: ${err.message}`,
+        );
+      });
+    }
 
     // 4. Remove from queue
     await this.queueRepository.remove(queue);

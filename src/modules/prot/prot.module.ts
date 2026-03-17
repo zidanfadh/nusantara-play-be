@@ -11,6 +11,7 @@ import { StorageModule } from '../storage/storage.module';
 import { DaerahModule } from '../daerah/daerah.module';
 import { AuditModule } from '../audit/audit.module';
 import { UsersModule } from '../users/users.module';
+import { BlockchainModule } from '../blockchain/blockchain.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { UsersModule } from '../users/users.module';
     DaerahModule,
     AuditModule,
     UsersModule,
+    BlockchainModule,
   ],
   controllers: [PROTController, VerifikasiController],
   providers: [PROTService, VerifikasiService],
