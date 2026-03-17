@@ -75,6 +75,12 @@ export class BlockchainService implements OnModuleInit {
     for (const field of [...HASH_FIELDS].sort()) {
       payload[field] = prot[field] ?? null;
     }
+    // Strip media URL fields from peralatan before hashing
+    if (Array.isArray(payload['peralatan'])) {
+      payload['peralatan'] = (payload['peralatan'] as Array<Record<string, unknown>>).map(
+        ({ fotoAlat: _f, urlPembelian: _u, ...rest }) => rest,
+      );
+    }
     const json = JSON.stringify(payload);
     return crypto.createHash('sha256').update(json).digest('hex');
   }
@@ -84,38 +90,48 @@ export class BlockchainService implements OnModuleInit {
    * Creates a pending proof row, then anchors to chain.
    */
   async anchorVerification(verifikasiId: string): Promise<void> {
-    const verifikasi = await this.verifikasiRepository.findOne({
-      where: { id: verifikasiId },
-      relations: ['prot'],
-    });
+    try {
+      const verifikasi = await this.verifikasiRepository.findOne({
+        where: { id: verifikasiId },
+        relations: ['prot'],
+      });
 
-    if (!verifikasi) {
-      this.logger.error(`Verifikasi ${verifikasiId} not found for blockchain anchoring`);
-      return;
+      if (!verifikasi) {
+        this.logger.error(`Verifikasi ${verifikasiId} not found for blockchain anchoring`);
+        return;
+      }
+
+      const prot = verifikasi.prot;
+      if (!prot) {
+        this.logger.error(`PROT not loaded for verifikasi ${verifikasiId} — cannot anchor`);
+        return;
+      }
+      const dataHash = this.computeHash(prot);
+
+      // Determine next version (count existing proofs for this prot)
+      const existingCount = await this.proofRepository.count({
+        where: { prot_id: prot.id },
+      });
+      const version = existingCount + 1;
+
+      // Create pending proof row first — scheduler can retry if sendToChain fails
+      const proof = this.proofRepository.create({
+        verifikasi_id: verifikasiId,
+        prot_id: prot.id,
+        version,
+        data_hash: dataHash,
+        blockchain_network:
+          this.configService.get<string>('BLOCKCHAIN_NETWORK') ?? 'polygon-mumbai',
+        status: BlockchainProofStatus.PENDING,
+      });
+      await this.proofRepository.save(proof);
+
+      await this.sendToChain(proof, prot.id, dataHash);
+    } catch (err) {
+      this.logger.error(
+        `anchorVerification failed for verifikasi ${verifikasiId}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
-
-    const prot = verifikasi.prot;
-    const dataHash = this.computeHash(prot);
-
-    // Determine next version (count existing proofs for this prot)
-    const existingCount = await this.proofRepository.count({
-      where: { prot_id: prot.id },
-    });
-    const version = existingCount + 1;
-
-    // Create pending proof row first — scheduler can retry if sendToChain fails
-    const proof = this.proofRepository.create({
-      verifikasi_id: verifikasiId,
-      prot_id: prot.id,
-      version,
-      data_hash: dataHash,
-      blockchain_network:
-        this.configService.get<string>('BLOCKCHAIN_NETWORK') ?? 'polygon-mumbai',
-      status: BlockchainProofStatus.PENDING,
-    });
-    await this.proofRepository.save(proof);
-
-    await this.sendToChain(proof, prot.id, dataHash);
   }
 
   /**
@@ -136,6 +152,9 @@ export class BlockchainService implements OnModuleInit {
       const hashBytes = ('0x' + dataHash) as `0x${string}`;
       const tx = await this.contract['recordVerification'](protId, hashBytes);
       const receipt = await tx.wait();
+      if (!receipt) {
+        throw new Error('Transaction dropped from mempool — no receipt received');
+      }
 
       proof.tx_hash = receipt.hash;
       proof.block_number = String(receipt.blockNumber);
@@ -211,7 +230,10 @@ export class BlockchainService implements OnModuleInit {
         const record = await this.contract['getLatest'](protId);
         onChainHash = (record.dataHash as string).replace('0x', '');
         chainIntact = onChainHash === proof.data_hash;
-      } catch {
+      } catch (err) {
+        this.logger.warn(
+          `Chain query failed for PROT ${protId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
         chainIntact = false;
       }
     }
