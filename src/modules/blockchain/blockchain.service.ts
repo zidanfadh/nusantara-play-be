@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -11,6 +11,7 @@ import {
 import { Verifikasi } from '../prot/entities/verifikasi.entity';
 import { PROT } from '../prot/entities/prot.entity';
 import * as ProtVerificationABI from './abi/ProtVerification.json';
+import { BlockchainProofResponseDto } from './dto/blockchain-proof-response.dto';
 
 // Fields included in the content hash — stable content only, no media URLs
 const HASH_FIELDS: (keyof PROT)[] = [
@@ -121,7 +122,7 @@ export class BlockchainService implements OnModuleInit {
         version,
         data_hash: dataHash,
         blockchain_network:
-          this.configService.get<string>('BLOCKCHAIN_NETWORK') ?? 'polygon-mumbai',
+          this.configService.get<string>('BLOCKCHAIN_NETWORK') ?? 'polygon-amoy',
         status: BlockchainProofStatus.PENDING,
       });
       await this.proofRepository.save(proof);
@@ -251,6 +252,92 @@ export class BlockchainService implements OnModuleInit {
         blockNumber: proof?.block_number ?? null,
       },
     };
+  }
+
+  /**
+   * Returns the latest blockchain proof for a PROT with integrity check.
+   * Returns null if no proof exists.
+   * Integrity check (hash recomputation + chain query) is only performed for CONFIRMED proofs.
+   */
+  async getProofForProt(protId: string): Promise<BlockchainProofResponseDto | null> {
+    const proof = await this.proofRepository.findOne({
+      where: { prot_id: protId },
+      order: { version: 'DESC' },
+    });
+
+    if (!proof) return null;
+
+    const response: BlockchainProofResponseDto = {
+      protId,
+      status: proof.status,
+      version: proof.version,
+      txHash: proof.tx_hash,
+      blockNumber: proof.block_number,
+      network: proof.blockchain_network,
+      anchoredAt: proof.anchored_at,
+      integrity: {
+        dbIntact: false,
+        chainIntact: false,
+        fullyVerified: false,
+      },
+    };
+
+    if (proof.status === BlockchainProofStatus.CONFIRMED) {
+      const prot = await this.protRepository.findOne({ where: { id: protId } });
+      if (prot) {
+        const currentHash = this.computeHash(prot);
+        const dbIntact = currentHash === proof.data_hash;
+
+        let chainIntact = false;
+        if (this.contract) {
+          try {
+            const record = await this.contract['getLatest'](protId);
+            const onChainHash = (record.dataHash as string).replace('0x', '');
+            chainIntact = onChainHash === currentHash;
+          } catch (err) {
+            this.logger.warn(
+              `Chain query failed for PROT ${protId}: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        }
+
+        response.integrity = { dbIntact, chainIntact, fullyVerified: dbIntact && chainIntact };
+      }
+    }
+
+    return response;
+  }
+
+  /**
+   * Admin: reset a failed/pending proof and re-trigger chain anchoring.
+   * Throws NotFoundException if no proof row exists for this PROT.
+   * Throws ConflictException if the proof is already CONFIRMED.
+   */
+  async triggerReanchor(protId: string): Promise<{ message: string; proofId: string }> {
+    const proof = await this.proofRepository.findOne({
+      where: { prot_id: protId },
+      order: { version: 'DESC' },
+    });
+
+    if (!proof) {
+      throw new NotFoundException(`No blockchain proof record found for PROT ${protId}`);
+    }
+
+    if (proof.status === BlockchainProofStatus.CONFIRMED) {
+      throw new ConflictException('Blockchain proof is already confirmed');
+    }
+
+    proof.retry_count = 0;
+    proof.status = BlockchainProofStatus.PENDING;
+    proof.last_error = null;
+    await this.proofRepository.save(proof);
+
+    // Fire-and-forget — sendToChain will update the proof row on completion
+    this.sendToChain(proof, protId, proof.data_hash).catch((err: Error) => {
+      this.logger.error(`Manual reanchor failed for PROT ${protId}: ${err.message}`);
+    });
+
+    return { message: 'Reanchor initiated', proofId: proof.id };
   }
 
   /**
