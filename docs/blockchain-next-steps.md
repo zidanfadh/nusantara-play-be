@@ -53,7 +53,7 @@ Edit `backend/blockchain/.env`:
 
 ```env
 PRIVATE_KEY=0x_private_key_wallet_backend_kamu
-MUMBAI_RPC_URL=https://polygon-mumbai.g.alchemy.com/v2/YOUR_ALCHEMY_KEY
+AMOY_RPC_URL =https://polygon-mumbai.g.alchemy.com/v2/YOUR_ALCHEMY_KEY
 ```
 
 > **Rekomendasi:** Daftar di https://alchemy.com untuk RPC yang lebih stabil daripada public endpoint.
@@ -62,10 +62,11 @@ MUMBAI_RPC_URL=https://polygon-mumbai.g.alchemy.com/v2/YOUR_ALCHEMY_KEY
 
 ```bash
 cd backend/blockchain
-npm run deploy:mumbai
+npm run deploy:amoy
 ```
 
 Output yang diharapkan:
+
 ```
 Deploying with account: 0x...
 ProtVerification deployed to: 0xABC123...
@@ -79,9 +80,9 @@ Set BLOCKCHAIN_CONTRACT_ADDRESS=0xABC123... in your backend .env
 Tambahkan ke `docs/blockchain-next-steps.md` atau README:
 
 ```
-Contract deployed (Mumbai): 0xABC123...
+Contract deployed (Amoy): 0x2937d1eF8849B395A502D46e2d6e2EBA2Ae54BB3
 Deploy date: 2026-03-17
-Deployer wallet: 0x...
+Deployer wallet: 0xB1b74B9915F97ff052f0b510314A4a9903071052
 ```
 
 ---
@@ -110,6 +111,7 @@ systemctl restart nusantara-play-backend
 ```
 
 **Verifikasi:** Cek log server setelah restart, harus ada:
+
 ```
 [BlockchainService] BlockchainService initialized. Contract: 0xABC123...
 ```
@@ -152,6 +154,7 @@ LIMIT 5;
 ```
 
 Yang diharapkan:
+
 - Baris baru muncul dengan `status = pending` atau `confirmed`
 - Dalam ~30 detik, `status` berubah ke `confirmed`
 - `tx_hash` terisi (format: `0x...`)
@@ -204,10 +207,9 @@ npm run start:dev
 
 ## Step 4 — HTTP Endpoint untuk Integrity Check (Opsional, Recommended)
 
-**Status:** 📋 Belum dibangun
-**Estimated Time:** 1-2 jam
+**Status:** ✅ Selesai (2026-03-18)
 
-Saat ini `BlockchainService.checkIntegrity()` hanya bisa dipanggil secara internal. Untuk frontend bisa menampilkan badge verifikasi blockchain, perlu endpoint HTTP.
+Endpoint sudah tersedia. `BlockchainController` terdaftar di `BlockchainModule` dengan dua route:
 
 ### Endpoint yang perlu ditambahkan
 
@@ -342,7 +344,7 @@ Jalankan `checkIntegrity` secara berkala untuk semua PROT yang sudah DIVERIFIKAS
 [ ] Step 2: Env vars terset di server production
 [ ] Step 3: Smoke test berhasil — tx_hash tersimpan di DB
 [ ] Step 3: Transaksi terlihat di Mumbai explorer
-[ ] Step 4: Endpoint /prot/:id/blockchain-proof tersedia (opsional)
+[x] Step 4: Endpoint /prot/:id/blockchain-proof tersedia (opsional)
 [ ] Wallet backend punya MATIC cukup untuk operasional
 [ ] Private key wallet backend tersimpan aman (vault/secrets manager)
 [ ] Monitor blockchain_proof untuk failed rows secara berkala
@@ -352,29 +354,29 @@ Jalankan `checkIntegrity` secara berkala untuk semua PROT yang sudah DIVERIFIKAS
 
 ## File Locations
 
-| Item | Lokasi |
-|------|--------|
-| Smart contract | `backend/blockchain/contracts/ProtVerification.sol` |
-| Hardhat workspace | `backend/blockchain/` |
-| BlockchainService | `src/modules/blockchain/blockchain.service.ts` |
-| BlockchainScheduler | `src/modules/blockchain/blockchain.scheduler.ts` |
-| BlockchainModule | `src/modules/blockchain/blockchain.module.ts` |
-| Entity | `src/modules/blockchain/entities/blockchain-proof.entity.ts` |
-| Migration | `src/migrations/1742000000000-AddBlockchainProof.ts` |
-| ABI | `src/modules/blockchain/abi/ProtVerification.json` |
-| TypeChain types | `backend/blockchain/typechain-types/` |
-| Frontend docs | `docs/frontend/blockchain_module.md` |
-| Postman | `docs/postman/Nusantara_Play_Blockchain_API.postman_collection.json` |
-| Implementation plan | `docs/plans/2026-03-17-blockchain-verification.md` |
+| Item                | Lokasi                                                               |
+| ------------------- | -------------------------------------------------------------------- |
+| Smart contract      | `backend/blockchain/contracts/ProtVerification.sol`                  |
+| Hardhat workspace   | `backend/blockchain/`                                                |
+| BlockchainService   | `src/modules/blockchain/blockchain.service.ts`                       |
+| BlockchainScheduler | `src/modules/blockchain/blockchain.scheduler.ts`                     |
+| BlockchainModule    | `src/modules/blockchain/blockchain.module.ts`                        |
+| Entity              | `src/modules/blockchain/entities/blockchain-proof.entity.ts`         |
+| Migration           | `src/migrations/1742000000000-AddBlockchainProof.ts`                 |
+| ABI                 | `src/modules/blockchain/abi/ProtVerification.json`                   |
+| TypeChain types     | `backend/blockchain/typechain-types/`                                |
+| Frontend docs       | `docs/frontend/blockchain_module.md`                                 |
+| Postman             | `docs/postman/Nusantara_Play_Blockchain_API.postman_collection.json` |
+| Implementation plan | `docs/plans/2026-03-17-blockchain-verification.md`                   |
 
 ---
 
 ## Status Legend
 
-| Symbol | Meaning |
-|--------|---------|
-| ✅ | Selesai |
-| 📋 | TODO / Opsional |
-| ❌ | Wajib tapi belum dilakukan |
+| Symbol | Meaning                    |
+| ------ | -------------------------- |
+| ✅     | Selesai                    |
+| 📋     | TODO / Opsional            |
+| ❌     | Wajib tapi belum dilakukan |
 
 **Overall Progress:** Kode selesai. Butuh **deploy + set env** sebelum bisa berjalan di server.
