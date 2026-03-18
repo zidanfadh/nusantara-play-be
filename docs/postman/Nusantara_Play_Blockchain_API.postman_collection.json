@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Nusantara Play - Blockchain Verification API",
-    "description": "Collection untuk Blockchain Verification Module. Anchoring terjadi otomatis saat verifikasi PROT disetujui — tidak ada endpoint trigger manual. Collection ini mencakup:\n1. Flow verifikasi yang memicu blockchain anchoring\n2. Query blockchain_proof dari database\n3. Contoh query Supabase untuk cek status anchoring",
+    "description": "Collection untuk Blockchain Verification Module. Anchoring terjadi otomatis saat verifikasi PROT disetujui. Collection ini mencakup:\n1. Flow verifikasi yang memicu blockchain anchoring\n2. HTTP endpoints — GET proof (public) dan POST reanchor (admin)\n3. Query Supabase langsung untuk cek status anchoring\n4. Link ke block explorer\n5. SQL reference untuk monitoring",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "version": "2.1.0"
   },
@@ -92,7 +92,121 @@
       ]
     },
     {
-      "name": "2. Check Anchoring Status",
+      "name": "2. Blockchain Proof HTTP Endpoints",
+      "description": "Endpoint HTTP langsung untuk mengambil status blockchain proof dan trigger reanchor. Ini adalah endpoint utama yang digunakan frontend untuk badge verifikasi.",
+      "item": [
+        {
+          "name": "Get Blockchain Proof (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/prot/{{protId}}/blockchain-proof",
+              "host": ["{{base_url}}"],
+              "path": ["prot", "{{protId}}", "blockchain-proof"]
+            },
+            "description": "Ambil status blockchain proof dan hasil integrity check untuk PROT tertentu.\n\n**Auth:** Public — tidak perlu JWT.\n\n**Gunakan untuk:**\n- Menampilkan badge 'Terverifikasi di Blockchain' pada halaman detail PROT\n- Mengecek apakah data PROT masih utuh sejak diverifikasi\n\n**Logic tampilan badge:**\n- `status === 'confirmed'` AND `integrity.fullyVerified === true` → Badge hijau ✓\n- `status === 'confirmed'` AND `integrity.fullyVerified === false` → Badge kuning ⚠ (data mungkin berubah)\n- `status === 'pending'` → Badge abu-abu ⏳ (sedang diproses)\n- `status === 'failed'` → Badge merah ✗ (anchoring gagal)\n- HTTP 404 → Tidak ada badge (PROT belum diverifikasi)\n\n**Catatan:** Untuk status `confirmed`, endpoint membuat satu RPC call ke smart contract untuk `chainIntact`. Response tetap 200 meski contract tidak dapat dihubungi."
+          },
+          "response": [
+            {
+              "name": "200 - Confirmed & Fully Verified",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"protId\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"status\": \"confirmed\",\n  \"version\": 1,\n  \"txHash\": \"0xabc123def456789...\",\n  \"blockNumber\": \"12345678\",\n  \"network\": \"polygon-amoy\",\n  \"anchoredAt\": \"2026-03-17T10:00:05.000Z\",\n  \"integrity\": {\n    \"dbIntact\": true,\n    \"chainIntact\": true,\n    \"fullyVerified\": true\n  }\n}",
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }]
+            },
+            {
+              "name": "200 - Pending (anchoring in progress)",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"protId\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"status\": \"pending\",\n  \"version\": 1,\n  \"txHash\": null,\n  \"blockNumber\": null,\n  \"network\": \"polygon-amoy\",\n  \"anchoredAt\": null,\n  \"integrity\": {\n    \"dbIntact\": false,\n    \"chainIntact\": false,\n    \"fullyVerified\": false\n  }\n}",
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }]
+            },
+            {
+              "name": "200 - Failed (anchoring failed after 3 retries)",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"protId\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"status\": \"failed\",\n  \"version\": 1,\n  \"txHash\": null,\n  \"blockNumber\": null,\n  \"network\": \"polygon-amoy\",\n  \"anchoredAt\": null,\n  \"integrity\": {\n    \"dbIntact\": false,\n    \"chainIntact\": false,\n    \"fullyVerified\": false\n  }\n}",
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }]
+            },
+            {
+              "name": "404 - No proof exists",
+              "status": "Not Found",
+              "code": 404,
+              "body": "{\n  \"statusCode\": 404,\n  \"message\": \"No blockchain proof found for PROT 550e8400-e29b-41d4-a716-446655440000\",\n  \"error\": \"Not Found\"\n}",
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }]
+            }
+          ]
+        },
+        {
+          "name": "Reanchor Proof (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ACCESS_TOKEN}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/prot/{{protId}}/blockchain-proof/reanchor",
+              "host": ["{{base_url}}"],
+              "path": ["prot", "{{protId}}", "blockchain-proof", "reanchor"]
+            },
+            "description": "Trigger ulang proses anchoring untuk PROT yang proof-nya berstatus `failed` atau `pending` yang macet.\n\n**Auth:** JWT required — role `ADMIN_KPOTI` saja.\n\n**Kapan digunakan:**\n- Setelah anchoring gagal 3x (status `failed`), admin bisa trigger manual dari dashboard\n- Untuk `pending` yang tidak bergerak (misal scheduler sedang down)\n\n**Penting:** Response dikembalikan segera (fire-and-forget). Cek status sebenarnya via `GET /prot/:id/blockchain-proof` beberapa saat setelah ini."
+          },
+          "response": [
+            {
+              "name": "200 - Reanchor initiated",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"message\": \"Reanchor initiated\",\n  \"proofId\": \"uuid-of-the-proof-row\"\n}",
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }]
+            },
+            {
+              "name": "404 - No proof exists for this PROT",
+              "status": "Not Found",
+              "code": 404,
+              "body": "{\n  \"statusCode\": 404,\n  \"message\": \"No blockchain proof record found for PROT 550e8400-...\",\n  \"error\": \"Not Found\"\n}",
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }]
+            },
+            {
+              "name": "409 - Already confirmed",
+              "status": "Conflict",
+              "code": 409,
+              "body": "{\n  \"statusCode\": 409,\n  \"message\": \"Blockchain proof is already confirmed\",\n  \"error\": \"Conflict\"\n}",
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }]
+            },
+            {
+              "name": "401 - Unauthorized",
+              "status": "Unauthorized",
+              "code": 401,
+              "body": "{\n  \"statusCode\": 401,\n  \"message\": \"Authentication required\",\n  \"error\": \"Unauthorized\"\n}",
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }]
+            },
+            {
+              "name": "403 - Forbidden (not ADMIN_KPOTI)",
+              "status": "Forbidden",
+              "code": 403,
+              "body": "{\n  \"statusCode\": 403,\n  \"message\": \"Forbidden resource\",\n  \"error\": \"Forbidden\"\n}",
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Check Anchoring Status (Supabase Direct)",
       "description": "Endpoint untuk mengecek status blockchain anchoring setelah verifikasi APPROVED. Gunakan query langsung ke Supabase atau via backend endpoint jika tersedia.",
       "item": [
         {
@@ -222,7 +336,7 @@
       ]
     },
     {
-      "name": "3. Polygon Mumbai Explorer",
+      "name": "4. Polygon Block Explorer",
       "description": "Referensi untuk verifikasi on-chain via block explorer. Tidak ada request HTTP — ini adalah contoh URL explorer.",
       "item": [
         {
@@ -256,7 +370,7 @@
       ]
     },
     {
-      "name": "4. SQL Reference",
+      "name": "5. SQL Reference",
       "description": "Contoh query SQL untuk keperluan monitoring dan debugging blockchain proof.",
       "item": [
         {

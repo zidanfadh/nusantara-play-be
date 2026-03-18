@@ -8,7 +8,7 @@ Blockchain Verification module secara otomatis menganchor setiap verifikasi PROT
 2. Menyimpan hash tersebut ke smart contract `ProtVerification` di Polygon Mumbai
 3. Menyimpan bukti blockchain ke tabel `blockchain_proof`
 
-Module ini bersifat **internal** (tidak ada endpoint langsung untuk trigger anchoring). Anchoring terjadi otomatis saat `submitReview` dengan status `APPROVED`.
+Anchoring terjadi otomatis saat `submitReview` dengan status `APPROVED`. Module ini juga menyediakan **HTTP endpoint publik** untuk frontend menampilkan badge verifikasi blockchain, serta endpoint admin untuk men-trigger ulang anchoring yang gagal.
 
 ---
 
@@ -46,7 +46,7 @@ Pakar → POST /verifikasi/:protId/review (status: APPROVED)
 | data_hash           | text      | SHA-256 hex string dari konten PROT saat verifikasi            |
 | tx_hash             | text/null | Transaction hash di Polygon (null sampai dikonfirmasi)         |
 | block_number        | text/null | Block number transaksi (disimpan sebagai string untuk bigint)  |
-| blockchain_network  | text      | Network identifier, default: `polygon-mumbai`                  |
+| blockchain_network  | text      | Network identifier, default: `polygon-amoy`                    |
 | status              | text      | `pending` \| `confirmed` \| `failed`                           |
 | retry_count         | integer   | Jumlah percobaan (max 3)                                       |
 | last_error          | text/null | Pesan error terakhir jika gagal                                |
@@ -102,7 +102,144 @@ Tabel `blockchain_proof` juga menyimpan semua versi dengan constraint `UNIQUE (p
 
 ---
 
-## Integrity Check
+## HTTP Endpoints
+
+### Base URL
+
+```
+/prot
+```
+
+---
+
+### `GET /prot/:id/blockchain-proof`
+
+Ambil status blockchain proof dan hasil integrity check untuk PROT tertentu. Digunakan frontend untuk menampilkan badge verifikasi blockchain.
+
+**Auth:** Public (tidak perlu JWT)
+
+**Path Params:**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | ID PROT |
+
+**Response 200 — PROT sudah ter-anchor:**
+
+```json
+{
+  "protId": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "confirmed",
+  "version": 1,
+  "txHash": "0xabc123def456...",
+  "blockNumber": "12345678",
+  "network": "polygon-amoy",
+  "anchoredAt": "2026-03-17T10:00:05.000Z",
+  "integrity": {
+    "dbIntact": true,
+    "chainIntact": true,
+    "fullyVerified": true
+  }
+}
+```
+
+**Response 200 — Anchoring sedang pending atau gagal:**
+
+```json
+{
+  "protId": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "pending",
+  "version": 1,
+  "txHash": null,
+  "blockNumber": null,
+  "network": "polygon-amoy",
+  "anchoredAt": null,
+  "integrity": {
+    "dbIntact": false,
+    "chainIntact": false,
+    "fullyVerified": false
+  }
+}
+```
+
+**Response 404 — PROT belum pernah diverifikasi / tidak ada proof:**
+
+```json
+{
+  "statusCode": 404,
+  "message": "No blockchain proof found for PROT 550e8400-...",
+  "error": "Not Found"
+}
+```
+
+**Field `status` values:**
+
+| Value | Arti untuk frontend |
+|-------|---------------------|
+| `confirmed` | Anchor sukses — tampilkan badge hijau |
+| `pending` | Sedang diproses — tampilkan badge abu-abu / spinner |
+| `failed` | Gagal setelah 3 percobaan — sembunyikan badge atau tampilkan warning |
+
+**Field `integrity`:** Hanya bermakna saat `status === "confirmed"`. Jika `fullyVerified === false` padahal `status === "confirmed"`, berarti data PROT kemungkinan telah dimodifikasi setelah diverifikasi — tampilkan peringatan.
+
+**Logika integrity check:**
+
+| Flag | `true` artinya | `false` artinya |
+|------|----------------|-----------------|
+| `dbIntact` | Hash data DB saat ini cocok dengan hash saat verifikasi | Data DB telah berubah sejak verifikasi |
+| `chainIntact` | Hash on-chain cocok dengan hash saat ini di DB | Tidak cocok dengan bukti on-chain |
+| `fullyVerified` | `dbIntact && chainIntact` | Ada inkonsistensi |
+
+**Catatan implementasi:** Untuk `status === "confirmed"`, endpoint ini membuat satu RPC call ke smart contract untuk `chainIntact`. Jika smart contract tidak dapat dihubungi (RPC timeout), `chainIntact` akan `false` tapi endpoint tetap merespons 200.
+
+---
+
+### `POST /prot/:id/blockchain-proof/reanchor`
+
+Trigger ulang proses anchoring untuk PROT yang proof-nya berstatus `failed` atau `pending` yang macet. Hanya untuk admin.
+
+**Auth:** JWT required — role `ADMIN_KPOTI`
+
+**Path Params:**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | ID PROT |
+
+**Response 200 — Berhasil di-trigger:**
+
+```json
+{
+  "message": "Reanchor initiated",
+  "proofId": "uuid-of-the-proof-row"
+}
+```
+
+Reanchor bersifat **fire-and-forget** — response dikembalikan segera, proses anchoring berjalan di background. Cek hasilnya via `GET /prot/:id/blockchain-proof` beberapa saat kemudian.
+
+**Response 404 — Tidak ada proof row untuk PROT ini:**
+
+```json
+{
+  "statusCode": 404,
+  "message": "No blockchain proof record found for PROT 550e8400-...",
+  "error": "Not Found"
+}
+```
+
+**Response 409 — Proof sudah confirmed, tidak perlu reanchor:**
+
+```json
+{
+  "statusCode": 409,
+  "message": "Blockchain proof is already confirmed",
+  "error": "Conflict"
+}
+```
+
+---
+
+## Integrity Check (Internal)
 
 `BlockchainService.checkIntegrity(protId)` dapat dipanggil secara internal untuk memverifikasi integritas data:
 
@@ -174,7 +311,7 @@ struct VerificationRecord {
 | `BLOCKCHAIN_RPC_URL`          | RPC endpoint Polygon Mumbai (Alchemy/Infura direkomendasikan) |
 | `BLOCKCHAIN_PRIVATE_KEY`      | Private key wallet backend (simpan di `.env`, jangan commit!) |
 | `BLOCKCHAIN_CONTRACT_ADDRESS` | Alamat contract setelah deploy                                |
-| `BLOCKCHAIN_NETWORK`          | Identifier network, default: `polygon-mumbai`                 |
+| `BLOCKCHAIN_NETWORK`          | Identifier network, default: `polygon-amoy`                   |
 
 ---
 
