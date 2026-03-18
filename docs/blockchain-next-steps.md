@@ -19,7 +19,7 @@
 
 ---
 
-## Step 1 — Deploy Contract ke Polygon Mumbai (WAJIB)
+## Step 1 — Deploy Contract ke Polygon Amoy (WAJIB)
 
 **Status:** ❌ Belum dilakukan
 **Estimated Time:** 30 menit
@@ -38,9 +38,9 @@ Buat wallet baru khusus untuk backend (jangan pakai wallet pribadi):
 Pergi ke faucet dan minta MATIC untuk address wallet baru:
 
 - **Faucet:** https://faucet.polygon.technology/
-- Pilih network: **Mumbai**
+- Pilih network: **Amoy**
 - Paste address wallet → klik Submit
-- Tunggu ~1 menit, cek di https://mumbai.polygonscan.com/
+- Tunggu ~1 menit, cek di https://amoy.polygonscan.com/
 
 ### 1.3 Setup .env di backend/blockchain/
 
@@ -53,7 +53,7 @@ Edit `backend/blockchain/.env`:
 
 ```env
 PRIVATE_KEY=0x_private_key_wallet_backend_kamu
-AMOY_RPC_URL =https://polygon-mumbai.g.alchemy.com/v2/YOUR_ALCHEMY_KEY
+AMOY_RPC_URL=https://polygon-amoy.g.alchemy.com/v2/YOUR_ALCHEMY_KEY
 ```
 
 > **Rekomendasi:** Daftar di https://alchemy.com untuk RPC yang lebih stabil daripada public endpoint.
@@ -96,10 +96,10 @@ Tambahkan ke file `.env` di server (bukan di repo):
 
 ```env
 # Blockchain
-BLOCKCHAIN_RPC_URL=https://polygon-mumbai.g.alchemy.com/v2/YOUR_ALCHEMY_KEY
+BLOCKCHAIN_RPC_URL=https://polygon-amoy.g.alchemy.com/v2/YOUR_ALCHEMY_KEY
 BLOCKCHAIN_PRIVATE_KEY=0x_private_key_wallet_backend
 BLOCKCHAIN_CONTRACT_ADDRESS=0x_address_dari_step_1
-BLOCKCHAIN_NETWORK=polygon-mumbai
+BLOCKCHAIN_NETWORK=polygon-amoy
 ```
 
 Jika deploy ke VPS (lihat `docs/deployment-vps.md`), tambahkan ke file env di server dan restart service:
@@ -162,10 +162,10 @@ Yang diharapkan:
 
 ### 3.4 Verifikasi on-chain
 
-Buka `tx_hash` di Mumbai explorer:
+Buka `tx_hash` di Amoy explorer:
 
 ```
-https://mumbai.polygonscan.com/tx/0xTX_HASH_DISINI
+https://amoy.polygonscan.com/tx/0xTX_HASH_DISINI
 ```
 
 Harus ada transaksi ke contract address dengan function `recordVerification`.
@@ -174,7 +174,7 @@ Harus ada transaksi ke contract address dengan function `recordVerification`.
 
 ## Step 3A — Alternatif: Test Lokal dengan Hardhat Node
 
-**Jika belum mau deploy ke Mumbai**, test dengan local Hardhat node dulu:
+**Jika belum mau deploy ke Amoy**, test dengan local Hardhat node dulu:
 
 ```bash
 # Terminal 1 — jalankan local blockchain node
@@ -226,7 +226,7 @@ GET /prot/:id/blockchain-proof
   "version": 1,
   "txHash": "0x...",
   "blockNumber": "12345678",
-  "network": "polygon-mumbai",
+  "network": "polygon-amoy",
   "anchoredAt": "2026-03-17T10:00:05.000Z",
   "integrity": {
     "dbIntact": true,
@@ -268,7 +268,7 @@ export class BlockchainController {
 
 **Status:** 📋 Belum waktunya
 
-Ketika aplikasi siap production, pindahkan dari Mumbai testnet ke Polygon Mainnet.
+Ketika aplikasi siap production, pindahkan dari Amoy testnet ke Polygon Mainnet.
 
 ### Perubahan yang diperlukan
 
@@ -295,7 +295,7 @@ BLOCKCHAIN_NETWORK=polygon-mainnet
 
 3. **Isi MATIC real** di wallet backend (beli di exchange)
 
-4. **Update explorer links** di frontend dari `mumbai.polygonscan.com` ke `polygonscan.com`
+4. **Update explorer links** di frontend dari `amoy.polygonscan.com` ke `polygonscan.com`
 
 > **Catatan:** PROT yang sudah dianchor di testnet tidak bisa dimigrate ke mainnet. Verifikasi baru akan mulai dari mainnet. Pertimbangkan ini saat menentukan timing.
 
@@ -340,10 +340,10 @@ Jalankan `checkIntegrity` secara berkala untuk semua PROT yang sudah DIVERIFIKAS
 ## Checklist Sebelum Production
 
 ```
-[ ] Step 1: Contract sudah deploy ke Mumbai — address tersimpan
+[ ] Step 1: Contract sudah deploy ke Amoy — address tersimpan
 [ ] Step 2: Env vars terset di server production
 [ ] Step 3: Smoke test berhasil — tx_hash tersimpan di DB
-[ ] Step 3: Transaksi terlihat di Mumbai explorer
+[ ] Step 3: Transaksi terlihat di Amoy explorer
 [x] Step 4: Endpoint /prot/:id/blockchain-proof tersedia (opsional)
 [ ] Wallet backend punya MATIC cukup untuk operasional
 [ ] Private key wallet backend tersimpan aman (vault/secrets manager)

@@ -2,10 +2,10 @@
 
 ## Overview
 
-Blockchain Verification module secara otomatis menganchor setiap verifikasi PROT yang disetujui ke jaringan Polygon Mumbai sebagai bukti permanen dan tidak dapat diubah. Ketika pakar meng-approve verifikasi, sistem otomatis:
+Blockchain Verification module secara otomatis menganchor setiap verifikasi PROT yang disetujui ke jaringan Polygon Amoy sebagai bukti permanen dan tidak dapat diubah. Ketika pakar meng-approve verifikasi, sistem otomatis:
 
 1. Menghitung SHA-256 hash dari konten PROT
-2. Menyimpan hash tersebut ke smart contract `ProtVerification` di Polygon Mumbai
+2. Menyimpan hash tersebut ke smart contract `ProtVerification` di Polygon Amoy
 3. Menyimpan bukti blockchain ke tabel `blockchain_proof`
 
 Anchoring terjadi otomatis saat `submitReview` dengan status `APPROVED`. Module ini juga menyediakan **HTTP endpoint publik** untuk frontend menampilkan badge verifikasi blockchain, serta endpoint admin untuk men-trigger ulang anchoring yang gagal.
@@ -271,7 +271,7 @@ Reanchor bersifat **fire-and-forget** — response dikembalikan segera, proses a
 ## Smart Contract
 
 **Contract:** `ProtVerification.sol`
-**Network:** Polygon Mumbai Testnet
+**Network:** Polygon Amoy Testnet
 **Address:** Diset via env var `BLOCKCHAIN_CONTRACT_ADDRESS`
 
 ### Functions
@@ -308,7 +308,7 @@ struct VerificationRecord {
 
 | Variable                      | Deskripsi                                                     |
 | ----------------------------- | ------------------------------------------------------------- |
-| `BLOCKCHAIN_RPC_URL`          | RPC endpoint Polygon Mumbai (Alchemy/Infura direkomendasikan) |
+| `BLOCKCHAIN_RPC_URL`          | RPC endpoint Polygon Amoy (Alchemy/Infura direkomendasikan) |
 | `BLOCKCHAIN_PRIVATE_KEY`      | Private key wallet backend (simpan di `.env`, jangan commit!) |
 | `BLOCKCHAIN_CONTRACT_ADDRESS` | Alamat contract setelah deploy                                |
 | `BLOCKCHAIN_NETWORK`          | Identifier network, default: `polygon-amoy`                   |

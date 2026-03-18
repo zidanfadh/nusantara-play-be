@@ -13,7 +13,7 @@ export class AddBlockchainProof1742000000000 implements MigrationInterface {
         data_hash          text NOT NULL,
         tx_hash            text,
         block_number       bigint,
-        blockchain_network text NOT NULL DEFAULT 'polygon-mumbai',
+        blockchain_network text NOT NULL DEFAULT 'polygon-amoy',
         status             text NOT NULL DEFAULT 'pending',
         retry_count        integer NOT NULL DEFAULT 0,
         last_error         text,

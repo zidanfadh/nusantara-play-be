@@ -2,11 +2,11 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Anchor every approved PROT verification to Polygon Mumbai blockchain as immutable proof, with a SHA-256 hash of the game record's content fields stored on-chain.
+**Goal:** Anchor every approved PROT verification to Polygon Amoy blockchain as immutable proof, with a SHA-256 hash of the game record's content fields stored on-chain.
 
-**Architecture:** When `VerifikasiService.submitReview()` approves a PROT, it fires an async (non-blocking) call to `BlockchainService.anchorVerification()`. That service computes a deterministic SHA-256 hash of the PROT's core content fields, calls a Solidity smart contract on Polygon Mumbai, and stores the resulting tx_hash/block_number back in a new `blockchain_proof` table. A scheduler retries failed rows every 5 minutes (max 3 retries). A separate `checkIntegrity()` function re-computes the hash and compares it against on-chain data.
+**Architecture:** When `VerifikasiService.submitReview()` approves a PROT, it fires an async (non-blocking) call to `BlockchainService.anchorVerification()`. That service computes a deterministic SHA-256 hash of the PROT's core content fields, calls a Solidity smart contract on Polygon Amoy, and stores the resulting tx_hash/block_number back in a new `blockchain_proof` table. A scheduler retries failed rows every 5 minutes (max 3 retries). A separate `checkIntegrity()` function re-computes the hash and compares it against on-chain data.
 
-**Tech Stack:** NestJS 11, TypeORM 0.3, PostgreSQL (Supabase), ethers.js ^6, Hardhat ^2.22, Solidity ^0.8.20, Polygon Mumbai testnet.
+**Tech Stack:** NestJS 11, TypeORM 0.3, PostgreSQL (Supabase), ethers.js ^6, Hardhat ^2.22, Solidity ^0.8.20, Polygon Amoy testnet.
 
 ---
 
@@ -51,7 +51,7 @@ mkdir -p backend/blockchain
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
-    "deploy:mumbai": "hardhat run scripts/deploy.ts --network mumbai",
+    "deploy:amoy": "hardhat run scripts/deploy.ts --network amoy",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost"
   },
   "devDependencies": {
@@ -77,7 +77,7 @@ dotenv.config();
 const config: HardhatUserConfig = {
   solidity: '0.8.20',
   networks: {
-    mumbai: {
+    amoy: {
       url: process.env.AMOY_RPC_URL || '',
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
@@ -114,7 +114,7 @@ export default config;
 
 ```
 PRIVATE_KEY=0x_your_private_key_here
-AMOY_RPC_URL =https://rpc-mumbai.maticvigil.com
+AMOY_RPC_URL =https://rpc-amoy.polygon.technology
 ```
 
 **Step 5: Create .gitignore**
@@ -442,7 +442,7 @@ export class AddBlockchainProof1742000000000 implements MigrationInterface {
         data_hash          text NOT NULL,
         tx_hash            text,
         block_number       bigint,
-        blockchain_network text NOT NULL DEFAULT 'polygon-mumbai',
+        blockchain_network text NOT NULL DEFAULT 'polygon-amoy',
         status             text NOT NULL DEFAULT 'pending',
         retry_count        integer NOT NULL DEFAULT 0,
         last_error         text,
@@ -538,7 +538,7 @@ export class BlockchainProof {
   @Column({
     type: 'text',
     name: 'blockchain_network',
-    default: 'polygon-mumbai',
+    default: 'polygon-amoy',
   })
   blockchain_network: string;
 
@@ -710,7 +710,7 @@ export class BlockchainService implements OnModuleInit {
       data_hash: dataHash,
       blockchain_network:
         this.configService.get<string>('BLOCKCHAIN_NETWORK') ||
-        'polygon-mumbai',
+        'polygon-amoy',
       status: BlockchainProofStatus.PENDING,
     });
     await this.proofRepository.save(proof);
@@ -1040,13 +1040,13 @@ git commit -m "feat(blockchain): wire BlockchainService into verification flow"
 **Step 1: Add blockchain env vars to .env**
 
 ```
-BLOCKCHAIN_RPC_URL=https://rpc-mumbai.maticvigil.com
+BLOCKCHAIN_RPC_URL=https://rpc-amoy.polygon.technology
 BLOCKCHAIN_PRIVATE_KEY=0x_your_wallet_private_key
 BLOCKCHAIN_CONTRACT_ADDRESS=0x_deployed_contract_address
-BLOCKCHAIN_NETWORK=polygon-mumbai
+BLOCKCHAIN_NETWORK=polygon-amoy
 ```
 
-Note: `BLOCKCHAIN_CONTRACT_ADDRESS` is obtained after running `npm run deploy:mumbai` from `backend/blockchain/`.
+Note: `BLOCKCHAIN_CONTRACT_ADDRESS` is obtained after running `npm run deploy:amoy` from `backend/blockchain/`.
 
 **Step 2: Verify ConfigModule loads these**
 
@@ -1116,17 +1116,17 @@ No code changes — this is a verification step only.
 
 ---
 
-## Task 14: Deploy to Polygon Mumbai
+## Task 14: Deploy to Polygon Amoy
 
 **Prerequisites:**
 
-- Get Mumbai testnet MATIC from faucet: https://faucet.polygon.technology/
+- Get Amoy testnet MATIC from faucet: https://faucet.polygon.technology/
 - Set real `PRIVATE_KEY` and `AMOY_RPC_URL ` in `backend/blockchain/.env`
 
 **Step 1: Deploy**
 
 ```bash
-cd backend/blockchain && npm run deploy:mumbai
+cd backend/blockchain && npm run deploy:amoy
 ```
 
 Expected output:
@@ -1140,18 +1140,18 @@ Set BLOCKCHAIN_CONTRACT_ADDRESS=0x... in your backend .env
 **Step 2: Update backend .env**
 
 ```
-BLOCKCHAIN_RPC_URL=https://rpc-mumbai.maticvigil.com
+BLOCKCHAIN_RPC_URL=https://rpc-amoy.polygon.technology
 BLOCKCHAIN_CONTRACT_ADDRESS=0x<address from deploy>
-BLOCKCHAIN_NETWORK=polygon-mumbai
+BLOCKCHAIN_NETWORK=polygon-amoy
 ```
 
 **Step 3: Commit the deployed address to docs**
 
 ```bash
 # Add to docs or README — never hardcode in source
-echo "Contract deployed to Mumbai: 0x<address>" >> docs/blockchain.md
+echo "Contract deployed to Amoy: 0x<address>" >> docs/blockchain.md
 git add docs/blockchain.md
-git commit -m "docs: record Mumbai contract deployment address"
+git commit -m "docs: record Amoy contract deployment address"
 ```
 
 ---
