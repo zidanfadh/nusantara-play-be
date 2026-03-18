@@ -14,6 +14,7 @@
 
 The trigger point is `src/modules/prot/verifikasi.service.ts:173-196`.
 When `reviewDto.status === VerifikasiStatus.APPROVED`:
+
 - `prot.status` → `PROTStatus.DIVERIFIKASI`
 - `prot.verified_by` / `prot.verified_at` are set
 - `protRepository.save(prot)` is called
@@ -27,6 +28,7 @@ Fields to hash from `prot` table (Option A — content only, no media URLs):
 ## Task 1: Hardhat Workspace Setup
 
 **Files:**
+
 - Create: `backend/blockchain/package.json`
 - Create: `backend/blockchain/hardhat.config.ts`
 - Create: `backend/blockchain/tsconfig.json`
@@ -40,6 +42,7 @@ mkdir -p backend/blockchain
 ```
 
 `backend/blockchain/package.json`:
+
 ```json
 {
   "name": "nusantara-blockchain",
@@ -64,6 +67,7 @@ mkdir -p backend/blockchain
 **Step 2: Create hardhat.config.ts**
 
 `backend/blockchain/hardhat.config.ts`:
+
 ```typescript
 import { HardhatUserConfig } from 'hardhat/config';
 import '@nomicfoundation/hardhat-toolbox';
@@ -74,7 +78,7 @@ const config: HardhatUserConfig = {
   solidity: '0.8.20',
   networks: {
     mumbai: {
-      url: process.env.MUMBAI_RPC_URL || '',
+      url: process.env.AMOY_RPC_URL || '',
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
     localhost: {
@@ -89,6 +93,7 @@ export default config;
 **Step 3: Create tsconfig.json**
 
 `backend/blockchain/tsconfig.json`:
+
 ```json
 {
   "compilerOptions": {
@@ -106,14 +111,16 @@ export default config;
 **Step 4: Create .env.example**
 
 `backend/blockchain/.env.example`:
+
 ```
 PRIVATE_KEY=0x_your_private_key_here
-MUMBAI_RPC_URL=https://rpc-mumbai.maticvigil.com
+AMOY_RPC_URL =https://rpc-mumbai.maticvigil.com
 ```
 
 **Step 5: Create .gitignore**
 
 `backend/blockchain/.gitignore`:
+
 ```
 node_modules/
 artifacts/
@@ -142,12 +149,14 @@ git commit -m "feat(blockchain): add hardhat workspace scaffold"
 ## Task 2: Smart Contract
 
 **Files:**
+
 - Create: `backend/blockchain/contracts/ProtVerification.sol`
 - Create: `backend/blockchain/test/ProtVerification.test.ts`
 
 **Step 1: Write the contract**
 
 `backend/blockchain/contracts/ProtVerification.sol`:
+
 ```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
@@ -210,6 +219,7 @@ contract ProtVerification {
 **Step 2: Write contract tests**
 
 `backend/blockchain/test/ProtVerification.test.ts`:
+
 ```typescript
 import { ethers } from 'hardhat';
 import { expect } from 'chai';
@@ -263,7 +273,9 @@ describe('ProtVerification', function () {
 
   it('getLatest reverts when no record exists', async function () {
     const { contract } = await deployFixture();
-    await expect(contract.getLatest('nonexistent')).to.be.revertedWith('No record found');
+    await expect(contract.getLatest('nonexistent')).to.be.revertedWith(
+      'No record found',
+    );
   });
 
   it('keeps old records immutable after re-verification', async function () {
@@ -301,11 +313,13 @@ git commit -m "feat(blockchain): add ProtVerification smart contract with tests"
 ## Task 3: Deploy Script
 
 **Files:**
+
 - Create: `backend/blockchain/scripts/deploy.ts`
 
 **Step 1: Write deploy script**
 
 `backend/blockchain/scripts/deploy.ts`:
+
 ```typescript
 import { ethers } from 'hardhat';
 
@@ -319,7 +333,9 @@ async function main() {
 
   const address = await contract.getAddress();
   console.log('ProtVerification deployed to:', address);
-  console.log('Set BLOCKCHAIN_CONTRACT_ADDRESS=' + address + ' in your backend .env');
+  console.log(
+    'Set BLOCKCHAIN_CONTRACT_ADDRESS=' + address + ' in your backend .env',
+  );
 }
 
 main().catch((err) => {
@@ -351,6 +367,7 @@ After compiling, the ABI lives at:
 `backend/blockchain/artifacts/contracts/ProtVerification.sol/ProtVerification.json`
 
 **Files:**
+
 - Create: `src/modules/blockchain/abi/ProtVerification.json` (copy from artifacts)
 
 **Step 1: Copy the ABI**
@@ -377,6 +394,7 @@ git commit -m "feat(blockchain): add compiled ABI to NestJS module"
 ## Task 5: Add ethers.js to main backend
 
 **Files:**
+
 - Modify: `package.json`
 
 **Step 1: Install ethers**
@@ -399,6 +417,7 @@ git commit -m "feat(blockchain): add ethers.js dependency"
 ## Task 6: Database Migration — blockchain_proof table
 
 **Files:**
+
 - Create: `src/migrations/<timestamp>-AddBlockchainProof.ts`
 
 Use timestamp: `1742000000000`
@@ -406,6 +425,7 @@ Use timestamp: `1742000000000`
 **Step 1: Write the migration**
 
 `src/migrations/1742000000000-AddBlockchainProof.ts`:
+
 ```typescript
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
@@ -466,11 +486,13 @@ git commit -m "feat(blockchain): add blockchain_proof migration"
 ## Task 7: BlockchainProof Entity
 
 **Files:**
+
 - Create: `src/modules/blockchain/entities/blockchain-proof.entity.ts`
 
 **Step 1: Write the entity**
 
 `src/modules/blockchain/entities/blockchain-proof.entity.ts`:
+
 ```typescript
 import {
   Entity,
@@ -513,7 +535,11 @@ export class BlockchainProof {
   @Column({ type: 'bigint', nullable: true, name: 'block_number' })
   block_number: number | null;
 
-  @Column({ type: 'text', name: 'blockchain_network', default: 'polygon-mumbai' })
+  @Column({
+    type: 'text',
+    name: 'blockchain_network',
+    default: 'polygon-mumbai',
+  })
   blockchain_network: string;
 
   @Column({ type: 'text', default: BlockchainProofStatus.PENDING })
@@ -556,11 +582,13 @@ git commit -m "feat(blockchain): add BlockchainProof entity"
 ## Task 8: BlockchainService
 
 **Files:**
+
 - Create: `src/modules/blockchain/blockchain.service.ts`
 
 **Step 1: Write the service**
 
 `src/modules/blockchain/blockchain.service.ts`:
+
 ```typescript
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -612,7 +640,9 @@ export class BlockchainService implements OnModuleInit {
   onModuleInit() {
     const rpcUrl = this.configService.get<string>('BLOCKCHAIN_RPC_URL');
     const privateKey = this.configService.get<string>('BLOCKCHAIN_PRIVATE_KEY');
-    const contractAddress = this.configService.get<string>('BLOCKCHAIN_CONTRACT_ADDRESS');
+    const contractAddress = this.configService.get<string>(
+      'BLOCKCHAIN_CONTRACT_ADDRESS',
+    );
 
     if (!rpcUrl || !privateKey || !contractAddress) {
       this.logger.warn(
@@ -628,7 +658,9 @@ export class BlockchainService implements OnModuleInit {
       ProtVerificationABI.abi,
       this.wallet,
     );
-    this.logger.log(`BlockchainService initialized. Contract: ${contractAddress}`);
+    this.logger.log(
+      `BlockchainService initialized. Contract: ${contractAddress}`,
+    );
   }
 
   /**
@@ -655,7 +687,9 @@ export class BlockchainService implements OnModuleInit {
     });
 
     if (!verifikasi) {
-      this.logger.error(`Verifikasi ${verifikasiId} not found for blockchain anchoring`);
+      this.logger.error(
+        `Verifikasi ${verifikasiId} not found for blockchain anchoring`,
+      );
       return;
     }
 
@@ -674,7 +708,9 @@ export class BlockchainService implements OnModuleInit {
       prot_id: prot.id,
       version,
       data_hash: dataHash,
-      blockchain_network: this.configService.get<string>('BLOCKCHAIN_NETWORK') || 'polygon-mumbai',
+      blockchain_network:
+        this.configService.get<string>('BLOCKCHAIN_NETWORK') ||
+        'polygon-mumbai',
       status: BlockchainProofStatus.PENDING,
     });
     await this.proofRepository.save(proof);
@@ -748,7 +784,14 @@ export class BlockchainService implements OnModuleInit {
         dbIntact: false,
         chainIntact: false,
         fullyVerified: false,
-        details: { storedHash: null, currentHash: '', onChainHash: null, status: null, txHash: null, blockNumber: null },
+        details: {
+          storedHash: null,
+          currentHash: '',
+          onChainHash: null,
+          status: null,
+          txHash: null,
+          blockNumber: null,
+        },
       };
     }
 
@@ -800,7 +843,9 @@ export class BlockchainService implements OnModuleInit {
       .getMany();
 
     for (const proof of pendingProofs) {
-      this.logger.log(`Retrying blockchain proof ${proof.id} (attempt ${proof.retry_count + 1})`);
+      this.logger.log(
+        `Retrying blockchain proof ${proof.id} (attempt ${proof.retry_count + 1})`,
+      );
       await this.sendToChain(proof, proof.prot_id, proof.data_hash);
     }
   }
@@ -819,11 +864,13 @@ git commit -m "feat(blockchain): add BlockchainService with hash, anchor, and in
 ## Task 9: BlockchainScheduler
 
 **Files:**
+
 - Create: `src/modules/blockchain/blockchain.scheduler.ts`
 
 **Step 1: Write the scheduler**
 
 `src/modules/blockchain/blockchain.scheduler.ts`:
+
 ```typescript
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -855,11 +902,13 @@ git commit -m "feat(blockchain): add retry scheduler for pending proofs"
 ## Task 10: BlockchainModule
 
 **Files:**
+
 - Create: `src/modules/blockchain/blockchain.module.ts`
 
 **Step 1: Write the module**
 
 `src/modules/blockchain/blockchain.module.ts`:
+
 ```typescript
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -889,6 +938,7 @@ git commit -m "feat(blockchain): add BlockchainModule"
 ## Task 11: Wire BlockchainModule into ProtModule and AppModule
 
 **Files:**
+
 - Modify: `src/modules/prot/prot.module.ts`
 - Modify: `src/app.module.ts`
 - Modify: `src/modules/prot/verifikasi.service.ts`
@@ -900,6 +950,7 @@ Read `src/modules/prot/prot.module.ts` before editing.
 **Step 2: Add BlockchainModule import to ProtModule**
 
 In `src/modules/prot/prot.module.ts`, add to `imports` array:
+
 ```typescript
 import { BlockchainModule } from '../blockchain/blockchain.module';
 // ...
@@ -912,6 +963,7 @@ imports: [
 **Step 3: Add BlockchainModule to AppModule**
 
 In `src/app.module.ts`, add `BlockchainModule` to the `imports` array:
+
 ```typescript
 import { BlockchainModule } from './modules/blockchain/blockchain.module';
 // add BlockchainModule to the imports array
@@ -922,11 +974,13 @@ import { BlockchainModule } from './modules/blockchain/blockchain.module';
 In `src/modules/prot/verifikasi.service.ts`:
 
 Add import:
+
 ```typescript
 import { BlockchainService } from '../blockchain/blockchain.service';
 ```
 
 Add to constructor:
+
 ```typescript
 constructor(
   @InjectRepository(Verifikasi)
@@ -956,13 +1010,15 @@ After the switch block, before `await this.queueRepository.remove(queue)`, add:
 ```typescript
 // Fire-and-forget blockchain anchoring — does not block the response
 if (reviewDto.status === VerifikasiStatus.APPROVED) {
-  this.blockchainService.anchorVerification(verifikasi.id).catch((err: Error) => {
-    // blockchain_proof row is already created with status: pending
-    // the scheduler will retry automatically
-    new Logger('VerifikasiService').error(
-      `Blockchain anchor failed for verifikasi ${verifikasi.id}: ${err.message}`,
-    );
-  });
+  this.blockchainService
+    .anchorVerification(verifikasi.id)
+    .catch((err: Error) => {
+      // blockchain_proof row is already created with status: pending
+      // the scheduler will retry automatically
+      new Logger('VerifikasiService').error(
+        `Blockchain anchor failed for verifikasi ${verifikasi.id}: ${err.message}`,
+      );
+    });
 }
 ```
 
@@ -978,6 +1034,7 @@ git commit -m "feat(blockchain): wire BlockchainService into verification flow"
 ## Task 12: Add env vars to .env
 
 **Files:**
+
 - Modify: `.env` (and `.env.example` if it exists)
 
 **Step 1: Add blockchain env vars to .env**
@@ -1015,11 +1072,13 @@ cd backend/blockchain && npx hardhat node
 **Step 2: Deploy to local node**
 
 In a second terminal:
+
 ```bash
 cd backend/blockchain && npm run deploy:local
 ```
 
 Copy the deployed address. Set in `.env`:
+
 ```
 BLOCKCHAIN_RPC_URL=http://127.0.0.1:8545
 BLOCKCHAIN_CONTRACT_ADDRESS=<address from above>
@@ -1038,6 +1097,7 @@ npm run start:dev
 **Step 4: Trigger a verification approval via API**
 
 Use the existing Postman collection or curl to:
+
 1. Submit a PROT for review (status → DIKURASI)
 2. Pick it from queue as a pakar
 3. Submit review with `status: APPROVED`
@@ -1059,8 +1119,9 @@ No code changes — this is a verification step only.
 ## Task 14: Deploy to Polygon Mumbai
 
 **Prerequisites:**
+
 - Get Mumbai testnet MATIC from faucet: https://faucet.polygon.technology/
-- Set real `PRIVATE_KEY` and `MUMBAI_RPC_URL` in `backend/blockchain/.env`
+- Set real `PRIVATE_KEY` and `AMOY_RPC_URL ` in `backend/blockchain/.env`
 
 **Step 1: Deploy**
 
@@ -1069,6 +1130,7 @@ cd backend/blockchain && npm run deploy:mumbai
 ```
 
 Expected output:
+
 ```
 Deploying with account: 0x...
 ProtVerification deployed to: 0x...
@@ -1096,23 +1158,23 @@ git commit -m "docs: record Mumbai contract deployment address"
 
 ## Summary of All Files Created/Modified
 
-| Action | File |
-|--------|------|
-| Create | `backend/blockchain/package.json` |
-| Create | `backend/blockchain/hardhat.config.ts` |
-| Create | `backend/blockchain/tsconfig.json` |
-| Create | `backend/blockchain/.env.example` |
-| Create | `backend/blockchain/.gitignore` |
-| Create | `backend/blockchain/contracts/ProtVerification.sol` |
-| Create | `backend/blockchain/test/ProtVerification.test.ts` |
-| Create | `backend/blockchain/scripts/deploy.ts` |
-| Create | `src/migrations/1742000000000-AddBlockchainProof.ts` |
-| Create | `src/modules/blockchain/abi/ProtVerification.json` |
+| Action | File                                                         |
+| ------ | ------------------------------------------------------------ |
+| Create | `backend/blockchain/package.json`                            |
+| Create | `backend/blockchain/hardhat.config.ts`                       |
+| Create | `backend/blockchain/tsconfig.json`                           |
+| Create | `backend/blockchain/.env.example`                            |
+| Create | `backend/blockchain/.gitignore`                              |
+| Create | `backend/blockchain/contracts/ProtVerification.sol`          |
+| Create | `backend/blockchain/test/ProtVerification.test.ts`           |
+| Create | `backend/blockchain/scripts/deploy.ts`                       |
+| Create | `src/migrations/1742000000000-AddBlockchainProof.ts`         |
+| Create | `src/modules/blockchain/abi/ProtVerification.json`           |
 | Create | `src/modules/blockchain/entities/blockchain-proof.entity.ts` |
-| Create | `src/modules/blockchain/blockchain.service.ts` |
-| Create | `src/modules/blockchain/blockchain.scheduler.ts` |
-| Create | `src/modules/blockchain/blockchain.module.ts` |
-| Modify | `src/modules/prot/prot.module.ts` |
-| Modify | `src/modules/prot/verifikasi.service.ts` |
-| Modify | `src/app.module.ts` |
-| Modify | `.env` / `.env.example` |
+| Create | `src/modules/blockchain/blockchain.service.ts`               |
+| Create | `src/modules/blockchain/blockchain.scheduler.ts`             |
+| Create | `src/modules/blockchain/blockchain.module.ts`                |
+| Modify | `src/modules/prot/prot.module.ts`                            |
+| Modify | `src/modules/prot/verifikasi.service.ts`                     |
+| Modify | `src/app.module.ts`                                          |
+| Modify | `.env` / `.env.example`                                      |

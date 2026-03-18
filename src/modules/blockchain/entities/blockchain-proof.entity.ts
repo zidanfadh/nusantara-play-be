@@ -41,7 +41,7 @@ export class BlockchainProof {
   @Column({ type: 'bigint', nullable: true, name: 'block_number' })
   block_number: string | null;
 
-  @Column({ type: 'text', name: 'blockchain_network', default: 'polygon-mumbai' })
+  @Column({ type: 'text', name: 'blockchain_network', default: 'polygon-amoy' })
   blockchain_network: string;
 
   @Column({ type: 'text', default: BlockchainProofStatus.PENDING })

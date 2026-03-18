@@ -15,7 +15,7 @@ npm ci          # use npm ci (not npm install) to reproduce exact lockfile
 - `npm run compile` — compile Solidity contracts
 - `npm test` — run contract unit tests
 - `npm run deploy:local` — deploy to local Hardhat node
-- `npm run deploy:mumbai` — deploy to Polygon Mumbai testnet (requires .env)
+- `npm run deploy:amoy` — deploy to Polygon amoy testnet (requires .env)
 
 ## Environment
 
