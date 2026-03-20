@@ -86,7 +86,7 @@ export class OrderService {
       return this.orderRepo.findOne({
         where: { id: savedOrder.id },
         relations: ['toko', 'buyer', 'items'],
-      });
+      }) as Promise<Order>;
     } catch (err) {
       await qr.rollbackTransaction();
       throw err;

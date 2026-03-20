@@ -20,6 +20,7 @@ import { PROTModule } from './modules/prot/prot.module';
 import { EventsModule } from './modules/events/events.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { BlockchainModule } from './modules/blockchain/blockchain.module';
+import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 
 // Guards
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -52,6 +53,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     EventsModule,
     CalendarModule,
     BlockchainModule,
+    MarketplaceModule,
   ],
   controllers: [AppController],
   providers: [
