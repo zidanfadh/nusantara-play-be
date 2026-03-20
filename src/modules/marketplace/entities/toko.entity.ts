@@ -26,16 +26,16 @@ export class Toko {
   @Column({ type: 'text', nullable: true })
   deskripsi: string | null;
 
-  @Column({ name: 'logo_url', nullable: true })
+  @Column({ name: 'logo_url', type: 'varchar', nullable: true })
   logo_url: string | null;
 
   @Column({ type: 'text', nullable: true })
   alamat: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   phone: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   whatsapp: string | null;
 
   @Column({ name: 'is_active', default: true })
