@@ -52,10 +52,10 @@ export class Order {
   @Column({ type: 'text', nullable: true })
   catatan: string | null;
 
-  @Column({ name: 'kurir_pengiriman', nullable: true })
+  @Column({ name: 'kurir_pengiriman', type: 'varchar', nullable: true })
   kurir_pengiriman: string | null;
 
-  @Column({ name: 'nomor_resi', nullable: true })
+  @Column({ name: 'nomor_resi', type: 'varchar', nullable: true })
   nomor_resi: string | null;
 
   @CreateDateColumn({ name: 'created_at' })
