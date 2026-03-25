@@ -13,7 +13,12 @@
       "Bash(npm test)",
       "Bash(npm test:*)",
       "Bash(ls:*)",
-      "Bash(npm run test:e2e:*)"
+      "Bash(npm run test:e2e:*)",
+      "Bash(git -C \"C:\\\\Users\\\\muhfa\\\\Documents\\\\Work\\\\Freelance\\\\Sainstext\\\\nusantara-play\\\\Nusantara Play\\\\nusantara-play-backend\" show HEAD --stat)",
+      "Bash(npx tsc:*)",
+      "Bash(npx jest:*)",
+      "Bash(timeout 20 npm run start:dev)",
+      "Bash(npm run:*)"
     ]
   }
 }
