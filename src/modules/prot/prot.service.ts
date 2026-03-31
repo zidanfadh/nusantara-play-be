@@ -38,11 +38,42 @@ export class PROTService {
     return this.protRepository.save(prot);
   }
 
+  private async enrichWithDaerahNames(prot: PROT): Promise<PROT & {
+    provinsiName: string | null;
+    kabkotaName: string | null;
+    kecamatanName: string | null;
+    desaName: string | null;
+  }> {
+    const resolveName = async (kode: string | null | undefined): Promise<string | null> => {
+      if (!kode) return null;
+      try {
+        const daerah = await this.daerahService.findByKode(kode);
+        return daerah.nama;
+      } catch {
+        return null;
+      }
+    };
+
+    const [provinsiName, kabkotaName, kecamatanName, desaName] = await Promise.all([
+      resolveName(prot.provinsiKode),
+      resolveName(prot.kabkotaKode),
+      resolveName(prot.kecamatanKode),
+      resolveName(prot.desaKode),
+    ]);
+
+    return { ...prot, provinsiName, kabkotaName, kecamatanName, desaName };
+  }
+
   async findAll(
     query: QueryPROTDto,
     user?: User,
   ): Promise<{
-    data: PROT[];
+    data: (PROT & {
+      provinsiName: string | null;
+      kabkotaName: string | null;
+      kecamatanName: string | null;
+      desaName: string | null;
+    })[];
     pagination: {
       total: number;
       page: number;
@@ -137,8 +168,10 @@ export class PROTService {
 
     const totalPages = Math.ceil(total / limit);
 
+    const enrichedData = await Promise.all(data.map((prot) => this.enrichWithDaerahNames(prot)));
+
     return {
-      data,
+      data: enrichedData,
       pagination: {
         total,
         page,
@@ -150,12 +183,17 @@ export class PROTService {
     };
   }
 
-  async findOne(id: string): Promise<PROT> {
+  async findOne(id: string): Promise<PROT & {
+    provinsiName: string | null;
+    kabkotaName: string | null;
+    kecamatanName: string | null;
+    desaName: string | null;
+  }> {
     const prot = await this.protRepository.findOne({ where: { id } });
     if (!prot) {
       throw new NotFoundException(`PROT with ID ${id} not found`);
     }
-    return prot;
+    return this.enrichWithDaerahNames(prot);
   }
 
   async update(
