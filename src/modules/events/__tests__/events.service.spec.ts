@@ -53,6 +53,7 @@ describe('EventsService', () => {
           provide: getRepositoryToken(EventRegistration),
           useValue: {
             count: jest.fn(),
+            findOne: jest.fn(),
           },
         },
         {
@@ -125,10 +126,14 @@ describe('EventsService', () => {
         getOne: jest.fn().mockResolvedValue(mockEvent),
       };
       eventRepository.createQueryBuilder = jest.fn().mockReturnValue(qb);
+      registrationRepository.findOne = jest.fn().mockResolvedValue(null);
 
       const result = await service.findOne('test-id', mockUser);
 
-      expect(result).toEqual(mockEvent);
+      expect(result).toEqual({ ...mockEvent, is_registered: false });
+      expect(registrationRepository.findOne).toHaveBeenCalledWith({
+        where: { event_id: 'test-id', user_id: mockUser.id },
+      });
     });
 
     it('should throw NotFoundException for non-existent event', async () => {
