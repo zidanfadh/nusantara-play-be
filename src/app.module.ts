@@ -21,6 +21,7 @@ import { EventsModule } from './modules/events/events.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { BlockchainModule } from './modules/blockchain/blockchain.module';
 import { MarketplaceModule } from './modules/marketplace/marketplace.module';
+import { NftsModule } from './modules/nfts/nfts.module';
 
 // Guards
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -54,6 +55,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     CalendarModule,
     BlockchainModule,
     MarketplaceModule,
+    NftsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -43,7 +43,7 @@ export class BlockchainService implements OnModuleInit {
     @InjectRepository(PROT)
     private readonly protRepository: Repository<PROT>,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   onModuleInit() {
     const rpcUrl = this.configService.get<string>('BLOCKCHAIN_RPC_URL');
@@ -317,15 +317,23 @@ export class BlockchainService implements OnModuleInit {
     const proof = await this.proofRepository.findOne({
       where: { prot_id: protId },
       order: { version: 'DESC' },
+      relations: ['prot'],
     });
 
     if (!proof) {
       throw new NotFoundException(`No blockchain proof record found for PROT ${protId}`);
     }
 
+    if (!proof.prot) {
+      throw new NotFoundException(`PROT data not loaded for blockchain proof ${proof.id}`);
+    }
+
     if (proof.status === BlockchainProofStatus.CONFIRMED) {
       throw new ConflictException('Blockchain proof is already confirmed');
     }
+
+    // Recalculate hash in case it was empty or tampered
+    proof.data_hash = this.computeHash(proof.prot);
 
     proof.retry_count = 0;
     proof.status = BlockchainProofStatus.PENDING;

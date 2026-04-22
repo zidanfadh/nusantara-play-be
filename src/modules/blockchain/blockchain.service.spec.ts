@@ -202,8 +202,10 @@ describe('BlockchainService', () => {
 
     it('throws ConflictException when proof is already CONFIRMED', async () => {
       const proof = {
+        id: 'proof-uuid-1',
         prot_id: 'prot-uuid-1',
         status: BlockchainProofStatus.CONFIRMED,
+        prot: { id: 'prot-uuid-1' } as PROT,
       } as BlockchainProof;
 
       mockProofRepository.findOne.mockResolvedValue(proof);
@@ -221,10 +223,13 @@ describe('BlockchainService', () => {
         retry_count: 3,
         data_hash: 'hash-abc',
         last_error: 'some error',
+        prot: { id: 'prot-uuid-1' } as PROT,
       } as BlockchainProof;
 
       mockProofRepository.findOne.mockResolvedValue(proof);
       mockProofRepository.save.mockResolvedValue(proof);
+
+      jest.spyOn(service, 'computeHash').mockReturnValue('hash-abc');
 
       const sendToChainSpy = jest
         .spyOn(service, 'sendToChain')
@@ -237,6 +242,7 @@ describe('BlockchainService', () => {
           retry_count: 0,
           status: BlockchainProofStatus.PENDING,
           last_error: null,
+          data_hash: 'hash-abc',
         }),
       );
       expect(sendToChainSpy).toHaveBeenCalledWith(proof, 'prot-uuid-1', 'hash-abc');
@@ -251,17 +257,23 @@ describe('BlockchainService', () => {
         retry_count: 3,
         data_hash: 'hash-xyz',
         last_error: null,
+        prot: { id: 'prot-uuid-1' } as PROT,
       } as BlockchainProof;
 
       mockProofRepository.findOne.mockResolvedValue(proof);
       mockProofRepository.save.mockResolvedValue(proof);
 
+      jest.spyOn(service, 'computeHash').mockReturnValue('hash-xyz');
       jest.spyOn(service, 'sendToChain').mockResolvedValue(undefined);
 
       await service.triggerReanchor('prot-uuid-1');
 
       expect(mockProofRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ retry_count: 0, status: BlockchainProofStatus.PENDING }),
+        expect.objectContaining({
+          retry_count: 0,
+          status: BlockchainProofStatus.PENDING,
+          data_hash: 'hash-xyz',
+        }),
       );
     });
   });
