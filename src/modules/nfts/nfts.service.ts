@@ -11,7 +11,19 @@ import { PROT } from '../prot/entities/prot.entity';
 import { StorageService } from '../storage/storage.service';
 import { CreateNftDto } from './dto/create-nft.dto';
 import { UpdateNftDto } from './dto/update-nft.dto';
-import { QueryNftsDto } from './dto/query-nfts.dto';
+import { QueryAdminNftsDto, QueryNftsDto } from './dto/query-nfts.dto';
+
+type NftListResult = {
+  data: NftCatalog[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+};
 
 @Injectable()
 export class NftsService {
@@ -44,17 +56,22 @@ export class NftsService {
     return this.nftRepository.save(nft);
   }
 
-  async findAll(query: QueryNftsDto): Promise<{
-    data: NftCatalog[];
-    pagination: {
-      total: number;
-      page: number;
-      limit: number;
-      totalPages: number;
-      hasNext: boolean;
-      hasPrev: boolean;
-    };
-  }> {
+  async findAll(query: QueryNftsDto): Promise<NftListResult> {
+    return this.findAllWithVisibility(query, {
+      publishedOnly: true,
+    });
+  }
+
+  async findAllForAdmin(query: QueryAdminNftsDto): Promise<NftListResult> {
+    return this.findAllWithVisibility(query, {
+      status: query.status,
+    });
+  }
+
+  private async findAllWithVisibility(
+    query: QueryNftsDto,
+    options: { publishedOnly?: boolean; status?: NftCatalogStatus },
+  ): Promise<NftListResult> {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const skip = (page - 1) * limit;
@@ -62,8 +79,13 @@ export class NftsService {
     const queryBuilder = this.nftRepository
       .createQueryBuilder('nft')
       .leftJoinAndSelect('nft.prot', 'prot')
-      .where('nft.is_active = true')
-      .andWhere('nft.status = :status', { status: NftCatalogStatus.PUBLISHED });
+      .where('nft.is_active = true');
+
+    if (options.publishedOnly) {
+      queryBuilder.andWhere('nft.status = :status', { status: NftCatalogStatus.PUBLISHED });
+    } else if (options.status) {
+      queryBuilder.andWhere('nft.status = :status', { status: options.status });
+    }
 
     if (query.blockchain_network) {
       queryBuilder.andWhere('nft.blockchain_network = :blockchain_network', {
@@ -98,6 +120,10 @@ export class NftsService {
         hasPrev: page > 1,
       },
     };
+  }
+
+  async findOneForAdmin(id: string): Promise<NftCatalog> {
+    return this.findActiveById(id);
   }
 
   async findOne(id: string): Promise<NftCatalog> {

@@ -24,7 +24,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { AuditInterceptor } from '../audit/audit.interceptor';
 import { User, UserRole } from '../users/entities/user.entity';
 import { CreateNftDto } from './dto/create-nft.dto';
-import { QueryNftsDto } from './dto/query-nfts.dto';
+import { QueryAdminNftsDto, QueryNftsDto } from './dto/query-nfts.dto';
 import { UpdateNftDto } from './dto/update-nft.dto';
 import { NftsService } from './nfts.service';
 
@@ -39,10 +39,22 @@ export class NftsController {
     return this.nftsService.findAll(query);
   }
 
+  @Get('admin')
+  @Roles(UserRole.ADMIN_KPOTI)
+  findAllForAdmin(@Query() query: QueryAdminNftsDto) {
+    return this.nftsService.findAllForAdmin(query);
+  }
+
   @Get('slug/:slug')
   @Public()
   findBySlug(@Param('slug') slug: string) {
     return this.nftsService.findBySlug(slug);
+  }
+
+  @Get('admin/:id')
+  @Roles(UserRole.ADMIN_KPOTI)
+  findOneForAdmin(@Param('id', ParseUUIDPipe) id: string) {
+    return this.nftsService.findOneForAdmin(id);
   }
 
   @Post('upload/image')

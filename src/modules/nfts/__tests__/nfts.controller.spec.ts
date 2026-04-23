@@ -6,7 +6,9 @@ import { NftsController } from '../nfts.controller';
 const mockNftsService = {
   uploadImage: jest.fn(),
   findAll: jest.fn(),
+  findAllForAdmin: jest.fn(),
   findOne: jest.fn(),
+  findOneForAdmin: jest.fn(),
   findBySlug: jest.fn(),
   create: jest.fn(),
   update: jest.fn(),
@@ -52,6 +54,29 @@ describe('NftsController', () => {
 
     it('is restricted to admin_kpoti role', () => {
       const roles = Reflect.getMetadata(ROLES_KEY, NftsController.prototype.uploadImage);
+      expect(roles).toEqual([UserRole.ADMIN_KPOTI]);
+    });
+  });
+
+  describe('admin reads', () => {
+    it('lists draft and published NFTs through admin endpoint', () => {
+      const query = { page: 1, limit: 20 };
+
+      controller.findAllForAdmin(query);
+
+      expect(mockNftsService.findAllForAdmin).toHaveBeenCalledWith(query);
+    });
+
+    it('gets active draft NFT detail through admin endpoint', () => {
+      controller.findOneForAdmin('550e8400-e29b-41d4-a716-446655440000');
+
+      expect(mockNftsService.findOneForAdmin).toHaveBeenCalledWith(
+        '550e8400-e29b-41d4-a716-446655440000',
+      );
+    });
+
+    it('restricts admin listing to admin_kpoti role', () => {
+      const roles = Reflect.getMetadata(ROLES_KEY, NftsController.prototype.findAllForAdmin);
       expect(roles).toEqual([UserRole.ADMIN_KPOTI]);
     });
   });

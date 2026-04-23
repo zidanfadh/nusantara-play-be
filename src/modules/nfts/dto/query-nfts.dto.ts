@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { NftCatalogStatus } from '../entities/nft-catalog.entity';
 
 export class QueryNftsDto {
   @IsString()
@@ -26,4 +27,10 @@ export class QueryNftsDto {
   @Min(1)
   @Max(100)
   limit?: number = 20;
+}
+
+export class QueryAdminNftsDto extends QueryNftsDto {
+  @IsEnum(NftCatalogStatus)
+  @IsOptional()
+  status?: NftCatalogStatus;
 }

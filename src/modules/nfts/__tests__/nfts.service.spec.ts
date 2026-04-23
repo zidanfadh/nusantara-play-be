@@ -129,6 +129,32 @@ describe('NftsService', () => {
         status: NftCatalogStatus.PUBLISHED,
       });
     });
+
+    it('returns active NFTs for admin listing with optional status filter', async () => {
+      const queryBuilder = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([[{ id: 'nft-1' }], 1]),
+      };
+
+      mockNftRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+      const result = await service.findAllForAdmin({
+        page: 1,
+        limit: 20,
+        status: NftCatalogStatus.DRAFT,
+      });
+
+      expect(result.data).toHaveLength(1);
+      expect(queryBuilder.where).toHaveBeenCalledWith('nft.is_active = true');
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith('nft.status = :status', {
+        status: NftCatalogStatus.DRAFT,
+      });
+    });
   });
 
   describe('update', () => {
