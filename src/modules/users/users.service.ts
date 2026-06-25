@@ -2,19 +2,26 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole, UserStatus } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { SupabaseUser } from '../supabase';
+import { SupabaseService, SupabaseUser } from '../supabase';
+import { DaerahService } from '../daerah/daerah.service';
+import { AdminCreateUserDto } from './dto/admin-create-user.dto';
+import { EmailService } from '../notifications';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private daerahService: DaerahService,
+    private supabaseService: SupabaseService,
+    private emailService: EmailService,
   ) {}
 
   async findBySupabaseId(supabaseUserId: string): Promise<User | null> {
@@ -104,11 +111,108 @@ export class UsersService {
     id: string,
     role: UserRole,
     updatedBy: string,
+    daerahId?: string,
   ): Promise<User> {
     const user = await this.findById(id);
+
+    if (role === UserRole.KURATOR_DAERAH) {
+      if (!daerahId) {
+        throw new BadRequestException(
+          'daerah_id is required for kurator_daerah role',
+        );
+      }
+
+      try {
+        await this.daerahService.findById(daerahId);
+      } catch {
+        throw new BadRequestException(`Invalid daerah_id: ${daerahId}`);
+      }
+
+      user.daerah_id = daerahId;
+    } else {
+      user.daerah_id = null;
+    }
+
     user.role = role;
     user.updated_by = updatedBy;
     return this.usersRepository.save(user);
+  }
+
+  async createByAdmin(
+    dto: AdminCreateUserDto,
+    createdBy: string,
+  ): Promise<User> {
+    const existingUser = await this.findByEmail(dto.email);
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    const role = dto.role || UserRole.PUBLIK;
+    const status = dto.status || UserStatus.ACTIVE;
+    let daerahId: string | null = null;
+
+    if (role === UserRole.KURATOR_DAERAH) {
+      if (!dto.daerah_id) {
+        throw new BadRequestException(
+          'daerah_id is required for kurator_daerah role',
+        );
+      }
+
+      try {
+        await this.daerahService.findById(dto.daerah_id);
+      } catch {
+        throw new BadRequestException(`Invalid daerah_id: ${dto.daerah_id}`);
+      }
+
+      daerahId = dto.daerah_id;
+    }
+
+    const shouldSendEmail =
+      dto.send_email === true && this.emailService.isCredentialEmailEnabled();
+
+    if (shouldSendEmail) {
+      this.emailService.assertConfigured();
+    }
+
+    let supabaseUser: SupabaseUser;
+    try {
+      supabaseUser = await this.supabaseService.createUser({
+        email: dto.email,
+        password: dto.password,
+        full_name: dto.full_name,
+        email_confirm: true,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to create user';
+      throw new BadRequestException(message);
+    }
+
+    const user = this.usersRepository.create({
+      supabase_user_id: supabaseUser.id,
+      email: dto.email,
+      full_name: dto.full_name,
+      phone: dto.phone,
+      institution: dto.institution,
+      role,
+      status,
+      daerah_id: daerahId,
+      created_by: createdBy,
+      updated_by: createdBy,
+    });
+
+    const savedUser = await this.usersRepository.save(user);
+
+    if (shouldSendEmail) {
+      await this.emailService.sendAdminCreatedUserCredentials({
+        to: dto.email,
+        fullName: dto.full_name,
+        email: dto.email,
+        password: dto.password,
+      });
+    }
+
+    return savedUser;
   }
 
   async updateLastLogin(id: string): Promise<void> {

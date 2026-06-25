@@ -64,4 +64,43 @@ export class SupabaseService {
       name: data.user.user_metadata?.name,
     };
   }
+
+  async createUser(params: {
+    email: string;
+    password: string;
+    full_name: string;
+    email_confirm?: boolean;
+  }): Promise<SupabaseUser> {
+    const { data, error } = await this.adminClient.auth.admin.createUser({
+      email: params.email,
+      password: params.password,
+      email_confirm: params.email_confirm ?? true,
+      user_metadata: {
+        full_name: params.full_name,
+        name: params.full_name,
+      },
+    });
+
+    if (error) {
+      this.logger.error(`Failed to create Supabase user: ${error.message}`);
+      throw new Error(`Supabase API error: ${error.message}`);
+    }
+
+    if (!data.user) {
+      throw new Error('Supabase API error: user was not created');
+    }
+
+    return {
+      id: data.user.id,
+      email: data.user.email ?? null,
+      phone: data.user.phone ?? null,
+      user_metadata: data.user.user_metadata,
+      created_at: data.user.created_at,
+      updated_at: data.user.updated_at,
+      avatar_url: data.user.user_metadata?.avatar_url,
+      full_name: data.user.user_metadata?.full_name,
+      name: data.user.user_metadata?.name,
+    };
+  }
+
 }

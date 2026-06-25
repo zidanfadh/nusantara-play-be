@@ -32,16 +32,18 @@ export class VerifikasiController {
   // PAKAR & ADMIN ENDPOINTS (Admin can also access Pakar endpoints)
 
   @Get('queue')
-  @Roles(UserRole.PAKAR, UserRole.ADMIN_KPOTI)
+  @Roles(UserRole.PAKAR, UserRole.ADMIN_KPOTI, UserRole.KURATOR_DAERAH)
   async getAvailableQueue(
+    @CurrentUser() user: User,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('provinsi') provinsi?: string,
   ) {
-    return this.verifikasiService.getAvailableQueue(page, limit);
+    return this.verifikasiService.getAvailableQueue(page, limit, user, provinsi);
   }
 
   @Get('my-queue')
-  @Roles(UserRole.PAKAR, UserRole.ADMIN_KPOTI)
+  @Roles(UserRole.PAKAR, UserRole.ADMIN_KPOTI, UserRole.KURATOR_DAERAH)
   async getMyQueue(
     @CurrentUser() user: User,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
@@ -51,17 +53,17 @@ export class VerifikasiController {
   }
 
   @Post('queue/:queueId/pick')
-  @Roles(UserRole.PAKAR, UserRole.ADMIN_KPOTI)
+  @Roles(UserRole.PAKAR, UserRole.ADMIN_KPOTI, UserRole.KURATOR_DAERAH)
   @UseInterceptors(AuditInterceptor)
   async pickFromQueue(
     @Param('queueId') queueId: string,
     @CurrentUser() user: User,
   ) {
-    return this.verifikasiService.pickFromQueue(queueId, user.id);
+    return this.verifikasiService.pickFromQueue(queueId, user.id, user);
   }
 
   @Post('queue/:queueId/release')
-  @Roles(UserRole.PAKAR, UserRole.ADMIN_KPOTI)
+  @Roles(UserRole.PAKAR, UserRole.ADMIN_KPOTI, UserRole.KURATOR_DAERAH)
   @UseInterceptors(AuditInterceptor)
   async releaseFromQueue(
     @Param('queueId') queueId: string,
@@ -71,14 +73,14 @@ export class VerifikasiController {
   }
 
   @Post(':protId/review')
-  @Roles(UserRole.PAKAR, UserRole.ADMIN_KPOTI)
+  @Roles(UserRole.PAKAR, UserRole.ADMIN_KPOTI, UserRole.KURATOR_DAERAH)
   @UseInterceptors(AuditInterceptor)
   async submitReview(
     @Param('protId') protId: string,
     @CurrentUser() user: User,
     @Body() reviewDto: VerifikasiReviewDto,
   ) {
-    return this.verifikasiService.submitReview(protId, user.id, reviewDto);
+    return this.verifikasiService.submitReview(protId, user.id, reviewDto, user);
   }
 
   @Get(':protId/history')

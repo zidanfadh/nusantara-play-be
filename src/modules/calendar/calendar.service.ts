@@ -211,6 +211,9 @@ export class CalendarService {
         // Kurator Daerah must set daerah_id to their own daerah
         if (user.role === UserRole.KURATOR_DAERAH) {
             if (!dto.daerah_id) {
+                if (!user.daerah_id) {
+                    throw new BadRequestException('Kurator Daerah must have daerah_id assigned');
+                }
                 dto.daerah_id = user.daerah_id;
             } else if (dto.daerah_id !== user.daerah_id) {
                 throw new ForbiddenException('Kurator Daerah can only create important dates for their own daerah');

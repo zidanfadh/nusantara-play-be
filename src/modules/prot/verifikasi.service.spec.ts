@@ -7,6 +7,9 @@ import { VerifikasiQueue } from './entities/verifikasi-queue.entity';
 import { PROT, PROTStatus } from './entities/prot.entity';
 import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { BlockchainService } from '../blockchain/blockchain.service';
+import { DaerahService } from '../daerah/daerah.service';
+import { DaerahLevel } from '../daerah/entities/daerah.entity';
+import { UserRole } from '../users/entities/user.entity';
 
 describe('VerifikasiService', () => {
   let service: VerifikasiService;
@@ -43,6 +46,10 @@ describe('VerifikasiService', () => {
     anchorVerification: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockDaerahService = {
+    findAncestors: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -62,6 +69,10 @@ describe('VerifikasiService', () => {
         {
           provide: BlockchainService,
           useValue: mockBlockchainService,
+        },
+        {
+          provide: DaerahService,
+          useValue: mockDaerahService,
         },
       ],
     }).compile();
@@ -104,6 +115,89 @@ describe('VerifikasiService', () => {
           order: { priority: 'DESC', created_at: 'ASC' },
           skip: 0,
           take: 20,
+        }),
+      );
+    });
+
+    it('should filter available queue by kurator province', async () => {
+      const mockQueue = [
+        {
+          id: 'queue-1',
+          prot: {
+            id: 'prot-1',
+            nama: 'Gasing',
+            status: PROTStatus.DIKURASI,
+            provinsiKode: '32',
+          },
+          priority: 0,
+          created_at: new Date(),
+        },
+      ];
+
+      mockDaerahService.findAncestors.mockResolvedValue([
+        {
+          id: 'province-1',
+          kode: '32',
+          level: DaerahLevel.PROVINSI,
+        },
+        {
+          id: 'city-1',
+          kode: '32.73',
+          level: DaerahLevel.KOTA,
+        },
+      ]);
+      mockQueueRepository.findAndCount.mockResolvedValue([mockQueue, 1]);
+
+      const result = await service.getAvailableQueue(1, 20, {
+        id: 'kurator-1',
+        role: UserRole.KURATOR_DAERAH,
+        daerah_id: 'city-1',
+      });
+
+      expect(result.data).toEqual(mockQueue);
+      expect(mockDaerahService.findAncestors).toHaveBeenCalledWith('city-1');
+      expect(queueRepository.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            assigned_pakar_id: expect.anything(),
+            prot: { provinsiKode: '32' },
+          },
+        }),
+      );
+    });
+
+    it('should filter available queue by requested province for pakar and admin', async () => {
+      const mockQueue = [
+        {
+          id: 'queue-1',
+          prot: {
+            id: 'prot-1',
+            nama: 'Gasing',
+            status: PROTStatus.DIKURASI,
+            provinsiKode: '32',
+          },
+          priority: 0,
+          created_at: new Date(),
+        },
+      ];
+
+      mockQueueRepository.findAndCount.mockResolvedValue([mockQueue, 1]);
+
+      const result = await service.getAvailableQueue(
+        1,
+        20,
+        { role: UserRole.PAKAR },
+        '32',
+      );
+
+      expect(result.data).toEqual(mockQueue);
+      expect(mockDaerahService.findAncestors).not.toHaveBeenCalled();
+      expect(queueRepository.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            assigned_pakar_id: expect.anything(),
+            prot: { provinsiKode: '32' },
+          },
         }),
       );
     });
@@ -150,6 +244,64 @@ describe('VerifikasiService', () => {
       await expect(service.pickFromQueue('queue-1', 'pakar-1')).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    it('should allow kurator daerah to pick a PROT from their province', async () => {
+      const mockQueue = {
+        id: 'queue-1',
+        prot: {
+          id: 'prot-1',
+          status: PROTStatus.DIKURASI,
+          provinsiKode: '32',
+        },
+        assigned_pakar_id: null,
+      };
+
+      mockQueueRepository.findOne.mockResolvedValue(mockQueue);
+      mockDaerahService.findAncestors.mockResolvedValue([
+        { id: 'province-1', kode: '32', level: DaerahLevel.PROVINSI },
+        { id: 'city-1', kode: '32.73', level: DaerahLevel.KOTA },
+      ]);
+      mockQueueRepository.save.mockResolvedValue({
+        ...mockQueue,
+        assigned_pakar_id: 'kurator-1',
+        assigned_at: expect.any(Date),
+      });
+
+      const result = await service.pickFromQueue('queue-1', 'kurator-1', {
+        role: UserRole.KURATOR_DAERAH,
+        daerah_id: 'city-1',
+      });
+
+      expect(result.assigned_pakar_id).toBe('kurator-1');
+      expect(mockDaerahService.findAncestors).toHaveBeenCalledWith('city-1');
+    });
+
+    it('should reject kurator daerah picking a PROT from another province', async () => {
+      const mockQueue = {
+        id: 'queue-1',
+        prot: {
+          id: 'prot-1',
+          status: PROTStatus.DIKURASI,
+          provinsiKode: '33',
+        },
+        assigned_pakar_id: null,
+      };
+
+      mockQueueRepository.findOne.mockResolvedValue(mockQueue);
+      mockDaerahService.findAncestors.mockResolvedValue([
+        { id: 'province-1', kode: '32', level: DaerahLevel.PROVINSI },
+        { id: 'city-1', kode: '32.73', level: DaerahLevel.KOTA },
+      ]);
+
+      await expect(
+        service.pickFromQueue('queue-1', 'kurator-1', {
+          role: UserRole.KURATOR_DAERAH,
+          daerah_id: 'city-1',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockQueueRepository.save).not.toHaveBeenCalled();
     });
   });
 
@@ -224,6 +376,79 @@ describe('VerifikasiService', () => {
       await expect(
         service.submitReview('prot-1', 'pakar-1', mockReviewDto),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should allow kurator daerah to submit review for their province', async () => {
+      const mockQueue = {
+        id: 'queue-1',
+        prot_id: 'prot-1',
+        prot: {
+          id: 'prot-1',
+          status: PROTStatus.DIKURASI,
+          provinsiKode: '32',
+        },
+      };
+
+      mockQueueRepository.findOne.mockResolvedValue(mockQueue);
+      mockDaerahService.findAncestors.mockResolvedValue([
+        { id: 'province-1', kode: '32', level: DaerahLevel.PROVINSI },
+        { id: 'city-1', kode: '32.73', level: DaerahLevel.KOTA },
+      ]);
+      mockVerifikasiRepository.create.mockReturnValue({
+        id: 'verif-1',
+        status: VerifikasiStatus.APPROVED,
+      });
+      mockVerifikasiRepository.save.mockResolvedValue({
+        id: 'verif-1',
+        status: VerifikasiStatus.APPROVED,
+      });
+      mockProtRepository.save.mockResolvedValue({
+        ...mockQueue.prot,
+        status: PROTStatus.DIVERIFIKASI,
+      });
+      mockQueueRepository.remove.mockResolvedValue(mockQueue);
+
+      const result = await service.submitReview(
+        'prot-1',
+        'kurator-1',
+        mockReviewDto,
+        {
+          role: UserRole.KURATOR_DAERAH,
+          daerah_id: 'city-1',
+        },
+      );
+
+      expect(result.status).toBe(VerifikasiStatus.APPROVED);
+      expect(mockDaerahService.findAncestors).toHaveBeenCalledWith('city-1');
+      expect(protRepository.save).toHaveBeenCalled();
+    });
+
+    it('should reject kurator daerah submitting review for another province', async () => {
+      const mockQueue = {
+        id: 'queue-1',
+        prot_id: 'prot-1',
+        prot: {
+          id: 'prot-1',
+          status: PROTStatus.DIKURASI,
+          provinsiKode: '33',
+        },
+      };
+
+      mockQueueRepository.findOne.mockResolvedValue(mockQueue);
+      mockDaerahService.findAncestors.mockResolvedValue([
+        { id: 'province-1', kode: '32', level: DaerahLevel.PROVINSI },
+        { id: 'city-1', kode: '32.73', level: DaerahLevel.KOTA },
+      ]);
+
+      await expect(
+        service.submitReview('prot-1', 'kurator-1', mockReviewDto, {
+          role: UserRole.KURATOR_DAERAH,
+          daerah_id: 'city-1',
+        }),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockVerifikasiRepository.create).not.toHaveBeenCalled();
+      expect(protRepository.save).not.toHaveBeenCalled();
     });
   });
 

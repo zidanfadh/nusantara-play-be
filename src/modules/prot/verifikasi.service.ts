@@ -12,6 +12,14 @@ import { Verifikasi, VerifikasiStatus } from './entities/verifikasi.entity';
 import { VerifikasiQueue } from './entities/verifikasi-queue.entity';
 import { PROT, PROTStatus } from './entities/prot.entity';
 import { VerifikasiReviewDto } from './dto/verifikasi-review.dto';
+import { DaerahService } from '../daerah/daerah.service';
+import { DaerahLevel } from '../daerah/entities/daerah.entity';
+import { UserRole } from '../users/entities/user.entity';
+
+interface ReviewerContext {
+  role?: UserRole;
+  daerah_id?: string | null;
+}
 
 @Injectable()
 export class VerifikasiService {
@@ -23,14 +31,42 @@ export class VerifikasiService {
     @InjectRepository(PROT)
     private readonly protRepository: Repository<PROT>,
     private readonly blockchainService: BlockchainService,
+    private readonly daerahService: DaerahService,
   ) {}
 
   /**
    * Get available queue (PROT yang belum di-assign ke pakar)
    */
-  async getAvailableQueue(page = 1, limit = 20) {
+  async getAvailableQueue(
+    page = 1,
+    limit = 20,
+    user?: { role?: UserRole; daerah_id?: string | null },
+    provinsiKode?: string,
+  ) {
+    const where: {
+      assigned_pakar_id: ReturnType<typeof IsNull>;
+      prot?: { provinsiKode: string };
+    } = { assigned_pakar_id: IsNull() };
+
+    if (user?.role === UserRole.KURATOR_DAERAH) {
+      if (!user.daerah_id) {
+        throw new BadRequestException('Kurator Daerah must have daerah_id assigned');
+      }
+
+      const ancestors = await this.daerahService.findAncestors(user.daerah_id);
+      const province = ancestors.find((daerah) => daerah.level === DaerahLevel.PROVINSI);
+
+      if (!province) {
+        throw new BadRequestException('Kurator Daerah province could not be resolved');
+      }
+
+      where.prot = { provinsiKode: province.kode };
+    } else if (provinsiKode) {
+      where.prot = { provinsiKode };
+    }
+
     const [data, total] = await this.queueRepository.findAndCount({
-      where: { assigned_pakar_id: IsNull() },
+      where,
       relations: ['prot', 'prot.createdBy'],
       order: { priority: 'DESC', created_at: 'ASC' },
       skip: (page - 1) * limit,
@@ -81,6 +117,7 @@ export class VerifikasiService {
   async pickFromQueue(
     queueId: string,
     pakarId: string,
+    reviewer?: ReviewerContext,
   ): Promise<VerifikasiQueue> {
     const queue = await this.queueRepository.findOne({
       where: { id: queueId },
@@ -101,6 +138,8 @@ export class VerifikasiService {
         `PROT dengan status ${queue.prot.status} tidak bisa di-pick`,
       );
     }
+
+    await this.ensureKuratorCanAccessProt(queue.prot, reviewer);
 
     queue.assigned_pakar_id = pakarId;
     queue.assigned_at = new Date();
@@ -138,6 +177,7 @@ export class VerifikasiService {
     protId: string,
     pakarId: string,
     reviewDto: VerifikasiReviewDto,
+    reviewer?: ReviewerContext,
   ): Promise<Verifikasi> {
     // 1. Check if PROT exists and assigned to this pakar
     const queue = await this.queueRepository.findOne({
@@ -158,6 +198,8 @@ export class VerifikasiService {
         `PROT dengan status ${prot.status} tidak bisa diverifikasi`,
       );
     }
+
+    await this.ensureKuratorCanAccessProt(prot, reviewer);
 
     // 2. Create verifikasi record
     const verifikasi = this.verifikasiRepository.create({
@@ -211,6 +253,43 @@ export class VerifikasiService {
     await this.queueRepository.remove(queue);
 
     return verifikasi;
+  }
+
+  private async ensureKuratorCanAccessProt(
+    prot: PROT,
+    reviewer?: ReviewerContext,
+  ): Promise<void> {
+    if (reviewer?.role !== UserRole.KURATOR_DAERAH) {
+      return;
+    }
+
+    const provinceCode = await this.getKuratorProvinceCode(reviewer);
+    if (prot.provinsiKode !== provinceCode) {
+      throw new ForbiddenException(
+        'Kurator Daerah hanya bisa memverifikasi PROT dari provinsinya sendiri',
+      );
+    }
+  }
+
+  private async getKuratorProvinceCode(
+    reviewer: ReviewerContext,
+  ): Promise<string> {
+    if (!reviewer.daerah_id) {
+      throw new BadRequestException('Kurator Daerah must have daerah_id assigned');
+    }
+
+    const ancestors = await this.daerahService.findAncestors(reviewer.daerah_id);
+    const province = ancestors.find(
+      (daerah) => daerah.level === DaerahLevel.PROVINSI,
+    );
+
+    if (!province) {
+      throw new BadRequestException(
+        'Kurator Daerah province could not be resolved',
+      );
+    }
+
+    return province.kode;
   }
 
   /**

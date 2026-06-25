@@ -59,7 +59,7 @@ export class User {
   bio: string;
 
   @Column({ type: 'uuid', nullable: true })
-  daerah_id: string;
+  daerah_id: string | null;
 
   @Column({ nullable: true })
   institution: string;

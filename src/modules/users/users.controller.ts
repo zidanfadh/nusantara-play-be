@@ -11,6 +11,7 @@ import {
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
+import { AdminCreateUserDto } from './dto/admin-create-user.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -53,6 +54,15 @@ export class UsersController {
     });
   }
 
+  @Post()
+  @Roles(UserRole.ADMIN_KPOTI)
+  create(
+    @Body() createUserDto: AdminCreateUserDto,
+    @CurrentUser() user: User,
+  ) {
+    return this.usersService.createByAdmin(createUserDto, user.id);
+  }
+
   @Get('stats')
   @Roles(UserRole.ADMIN_KPOTI)
   async getStats() {
@@ -73,7 +83,12 @@ export class UsersController {
     @Body() updateRoleDto: UpdateRoleDto,
     @CurrentUser() user: User,
   ) {
-    return this.usersService.updateRole(id, updateRoleDto.role, user.id);
+    return this.usersService.updateRole(
+      id,
+      updateRoleDto.role,
+      user.id,
+      updateRoleDto.daerah_id,
+    );
   }
 
   @Patch(':id/status')
