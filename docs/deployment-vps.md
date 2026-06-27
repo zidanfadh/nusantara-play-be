@@ -135,7 +135,9 @@ AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_S3_BUCKET=nusantara-play-storage
 
 # CORS
-FRONTEND_URL=https://nusantaraplay.com
+FRONTEND_URLS=https://nusantaralegacy.org,https://nusantaravirtual.org
+# Legacy single-origin fallback if FRONTEND_URLS is unset:
+# FRONTEND_URL=https://nusantaralegacy.org
 
 # Security
 RATE_LIMIT_TTL=60

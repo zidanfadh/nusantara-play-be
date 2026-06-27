@@ -217,7 +217,9 @@ AWS_SECRET_ACCESS_KEY=xxx
 AWS_S3_BUCKET=nusantara-play-storage
 
 # CORS
-FRONTEND_URL=http://localhost:3001
+FRONTEND_URLS=http://localhost:3001,https://nusantaralegacy.org,https://nusantaravirtual.org
+# Legacy single-origin fallback if FRONTEND_URLS is unset:
+# FRONTEND_URL=http://localhost:3001
 ```
 
 ### 3. Database Setup

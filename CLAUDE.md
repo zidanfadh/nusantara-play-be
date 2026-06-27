@@ -88,4 +88,4 @@ with `publik` role (JIT sync).
 ## Env Vars
 
 `DATABASE_*`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
-`SUPABASE_JWT_SECRET`, `AWS_*`, `FRONTEND_URL`
+`SUPABASE_JWT_SECRET`, `AWS_*`, `FRONTEND_URLS` (comma-separated CORS origins; falls back to `FRONTEND_URL`)
