@@ -34,13 +34,13 @@ export class PROTController {
   constructor(private readonly protService: PROTService) { }
 
   @Post()
-  @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
+  @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI, UserRole.PAKAR)
   @UseInterceptors(AuditInterceptor)
   async create(
     @Body() createPROTDto: CreatePROTDto,
     @CurrentUser() user: User,
   ) {
-    return this.protService.create(createPROTDto, user.id);
+    return this.protService.create(createPROTDto, user);
   }
 
   @Get()

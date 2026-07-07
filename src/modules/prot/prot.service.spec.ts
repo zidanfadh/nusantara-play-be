@@ -29,6 +29,7 @@ describe('PROTService', () => {
 
   const mockDaerahService = {
     findByKode: jest.fn(),
+    findAncestors: jest.fn(),
   };
 
   const mockStorageService = {
@@ -82,13 +83,14 @@ describe('PROTService', () => {
         targetUsia: TargetUsia.ANAK,
       };
 
+      const mockUser = { id: 'user-1', role: UserRole.KURATOR_DAERAH } as any;
       const mockProt = { id: 'prot-1', ...createDto, status: PROTStatus.DRAFT, created_by: 'user-1' };
 
       mockDaerahService.findByKode.mockResolvedValue({});
       mockProtRepository.create.mockReturnValue(mockProt);
       mockProtRepository.save.mockResolvedValue(mockProt);
 
-      const result = await service.create(createDto, 'user-1');
+      const result = await service.create(createDto, mockUser);
 
       expect(result.status).toBe(PROTStatus.DRAFT);
       expect(result.created_by).toBe('user-1');
@@ -97,6 +99,77 @@ describe('PROTService', () => {
         created_by: 'user-1',
         status: PROTStatus.DRAFT,
       });
+    });
+
+    it('should allow pakar to create PROT in their province', async () => {
+      const createDto = {
+        nama: 'Gasing',
+        jenis: PROTJenis.PERMAINAN_RAKYAT,
+        provinsiKode: '11',
+        kabkotaKode: '11.01',
+        targetUsia: TargetUsia.ANAK,
+      };
+
+      const mockUser = {
+        id: 'user-1',
+        role: UserRole.PAKAR,
+        daerah_id: 'daerah-1',
+      } as any;
+
+      const mockProt = { id: 'prot-1', ...createDto, status: PROTStatus.DRAFT, created_by: 'user-1' };
+
+      mockDaerahService.findByKode.mockResolvedValue({});
+      mockDaerahService.findAncestors.mockResolvedValue([
+        { kode: '11', nama: 'Aceh' },
+      ]);
+      mockProtRepository.create.mockReturnValue(mockProt);
+      mockProtRepository.save.mockResolvedValue(mockProt);
+
+      const result = await service.create(createDto, mockUser);
+
+      expect(result.status).toBe(PROTStatus.DRAFT);
+    });
+
+    it('should reject pakar if PROT province differs from their own', async () => {
+      const createDto = {
+        nama: 'Gasing',
+        jenis: PROTJenis.PERMAINAN_RAKYAT,
+        provinsiKode: '12', // Different province
+        kabkotaKode: '12.01',
+        targetUsia: TargetUsia.ANAK,
+      };
+
+      const mockUser = {
+        id: 'user-1',
+        role: UserRole.PAKAR,
+        daerah_id: 'daerah-1',
+      } as any;
+
+      mockDaerahService.findByKode.mockResolvedValue({});
+      mockDaerahService.findAncestors.mockResolvedValue([
+        { kode: '11', nama: 'Aceh' },
+      ]);
+
+      await expect(service.create(createDto, mockUser)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should reject pakar without daerah_id', async () => {
+      const createDto = {
+        nama: 'Gasing',
+        jenis: PROTJenis.PERMAINAN_RAKYAT,
+        provinsiKode: '11',
+        targetUsia: TargetUsia.ANAK,
+      };
+
+      const mockUser = {
+        id: 'user-1',
+        role: UserRole.PAKAR,
+        daerah_id: null,
+      } as any;
+
+      mockDaerahService.findByKode.mockResolvedValue({});
+
+      await expect(service.create(createDto, mockUser)).rejects.toThrow(BadRequestException);
     });
   });
 

@@ -26,13 +26,31 @@ export class PROTService {
     private storageService: StorageService,
   ) { }
 
-  async create(createPROTDto: CreatePROTDto, createdBy: string): Promise<PROT> {
+  async create(createPROTDto: CreatePROTDto, user: User): Promise<PROT> {
     // Validate daerah cascade
     await this.validateDaerahKode(createPROTDto);
 
+    // Pakar: restrict to their own province
+    if (user.role === UserRole.PAKAR) {
+      if (!user.daerah_id) {
+        throw new BadRequestException(
+          'Anda belum memiliki data daerah. Silakan perbarui profil Anda terlebih dahulu.',
+        );
+      }
+
+      const ancestors = await this.daerahService.findAncestors(user.daerah_id);
+      const province = ancestors[0];
+
+      if (!createPROTDto.provinsiKode || createPROTDto.provinsiKode !== province.kode) {
+        throw new ForbiddenException(
+          `Anda hanya dapat menambahkan PROT di provinsi ${province.nama}.`,
+        );
+      }
+    }
+
     const prot = this.protRepository.create({
       ...createPROTDto,
-      created_by: createdBy,
+      created_by: user.id,
       status: PROTStatus.DRAFT, // Explicit default
     });
     return this.protRepository.save(prot);
