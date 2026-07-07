@@ -54,8 +54,8 @@ export class PROTController {
 
   @Get(':id')
   @Public()
-  async findOne(@Param('id') id: string) {
-    return this.protService.findOne(id);
+  async findOne(@Param('id') id: string, @CurrentUser() user?: User) {
+    return this.protService.findOneForRead(id, user);
   }
 
   @Patch(':id')

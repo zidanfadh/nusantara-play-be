@@ -314,4 +314,66 @@ describe('PROTService', () => {
       );
     });
   });
+
+  describe('findOneForRead', () => {
+    it('allows guest users to read ARSIP_NASIONAL PROT detail', async () => {
+      const prot = {
+        id: 'published-id',
+        nama: 'Gasing',
+        status: PROTStatus.ARSIP_NASIONAL,
+      };
+      mockProtRepository.findOne.mockResolvedValue(prot);
+
+      const result = await service.findOneForRead('published-id');
+
+      expect(result.id).toBe('published-id');
+    });
+
+    it('hides draft PROT detail from guest users', async () => {
+      const prot = {
+        id: 'draft-id',
+        nama: 'Gasing',
+        status: PROTStatus.DRAFT,
+      };
+      mockProtRepository.findOne.mockResolvedValue(prot);
+
+      await expect(service.findOneForRead('draft-id')).rejects.toThrow(NotFoundException);
+    });
+
+    it('allows kurator to read own draft PROT detail', async () => {
+      const user = {
+        id: 'user-1',
+        role: UserRole.KURATOR_DAERAH,
+      } as any;
+      const prot = {
+        id: 'own-draft-id',
+        nama: 'Gasing',
+        status: PROTStatus.DRAFT,
+        created_by: user.id,
+      };
+      mockProtRepository.findOne.mockResolvedValue(prot);
+
+      const result = await service.findOneForRead('own-draft-id', user);
+
+      expect(result.id).toBe('own-draft-id');
+    });
+
+    it('forbids kurator from reading another user draft PROT detail', async () => {
+      const user = {
+        id: 'user-1',
+        role: UserRole.KURATOR_DAERAH,
+      } as any;
+      const prot = {
+        id: 'other-draft-id',
+        nama: 'Gasing',
+        status: PROTStatus.DRAFT,
+        created_by: 'other-user-id',
+      };
+      mockProtRepository.findOne.mockResolvedValue(prot);
+
+      await expect(service.findOneForRead('other-draft-id', user)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+  });
 });

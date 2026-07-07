@@ -196,6 +196,48 @@ export class PROTService {
     return this.enrichWithDaerahNames(prot);
   }
 
+  private canReadProtDetail(prot: PROT, user?: User): boolean {
+    if (!user || user.role === UserRole.PUBLIK) {
+      return prot.status === PROTStatus.ARSIP_NASIONAL;
+    }
+
+    if (user.role === UserRole.KURATOR_DAERAH) {
+      return prot.created_by === user.id || prot.status === PROTStatus.ARSIP_NASIONAL;
+    }
+
+    if (user.role === UserRole.PAKAR) {
+      return [
+        PROTStatus.DIKURASI,
+        PROTStatus.DIVERIFIKASI,
+        PROTStatus.ARSIP_NASIONAL,
+      ].includes(prot.status);
+    }
+
+    return user.role === UserRole.ADMIN_KPOTI;
+  }
+
+  async findOneForRead(id: string, user?: User): Promise<PROT & {
+    provinsiName: string | null;
+    kabkotaName: string | null;
+    kecamatanName: string | null;
+    desaName: string | null;
+  }> {
+    const prot = await this.protRepository.findOne({ where: { id } });
+    if (!prot) {
+      throw new NotFoundException(`PROT with ID ${id} not found`);
+    }
+
+    if (!this.canReadProtDetail(prot, user)) {
+      if (!user || user.role === UserRole.PUBLIK) {
+        throw new NotFoundException(`PROT with ID ${id} not found`);
+      }
+
+      throw new ForbiddenException('Anda tidak memiliki akses untuk melihat PROT ini');
+    }
+
+    return this.enrichWithDaerahNames(prot);
+  }
+
   async update(
     id: string,
     updatePROTDto: UpdatePROTDto,
