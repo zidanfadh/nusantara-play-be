@@ -18,12 +18,13 @@ Other things in this repo: `blockchain/` (a separate Hardhat project with its ow
 ```bash
 npm run start:dev           # Start with hot reload (http://localhost:3000, API under /api)
 npm run build               # Compile TypeScript (nest build -> dist/)
-npm run lint                # ESLint + Prettier WITH --fix (modifies files!)
-npx eslint "{src,apps,libs,test}/**/*.ts"   # Lint without auto-fix (read-only check)
-npm test                    # Run all unit tests (jest)
+npm run lint                # ESLint + Prettier check, read-only (no --fix). Exits 1 while the lint baseline is not 0.
+npm run lint:fix            # Same with --fix (modifies files!)
+npm run format              # Prettier --write on src/**/*.ts and test/**/*.ts
+npm test                    # Run all unit tests (jest); on this machine add -- --cacheDirectory D:/dev-cache/jest
 npm test -- --testPathPattern=prot.service   # Run single test file
 npm run test:e2e            # E2E tests — boots the full AppModule, needs a reachable PostgreSQL + Supabase env. Never point it at production.
-npm run migration:run       # Run TypeORM migrations in src/migrations/*.ts (CLI reads DB_* env vars, see Env Vars)
+npm run migration:run       # Run TypeORM migrations in src/migrations/*.ts (same DATABASE_* env vars and env files as the app)
 npm run seed                # BROKEN: points to src/seeds/index.ts, which does not exist
 ```
 
@@ -110,14 +111,13 @@ They overlap (both create e.g. `verifikasi_status` and `verifikasi`); the correc
 Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.module.ts`).
 
 - App: `NODE_ENV`, `PORT`, `APP_NAME`, `FRONTEND_URLS` (comma-separated CORS origins; falls back to `FRONTEND_URL`)
-- Database (app, `src/config/database.config.ts`): `DATABASE_URL` (takes precedence) or `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_NAME`; `DATABASE_SSL`
-- Database (migration CLI, `src/config/typeorm.config.ts`, loads only `.env`): `DATABASE_URL` or `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`; `DB_SSL`
+- Database: `DATABASE_URL` (takes precedence) or `DATABASE_HOST` (default `localhost`), `DATABASE_PORT` (5432), `DATABASE_USER` (`postgres`), `DATABASE_PASSWORD`, `DATABASE_NAME` (`nusantara_play`); `DATABASE_SSL` (`'true'` = SSL with `rejectUnauthorized: false`). One builder, `src/config/data-source-options.ts`, is used by both the app (`src/database/database.module.ts`) and the migration CLI (`src/config/typeorm.config.ts`, which also loads `.env.local` then `.env`). The CLI alone still accepts the deprecated `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`, `DB_SSL` as a per-variable fallback and prints one warning; the app ignores `DB_*`. (`src/config/database.config.ts` still registers the same values under `database.*`, but nothing reads them any more.)
 - Supabase: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`; `SUPABASE_JWT_SECRET` and `SUPABASE_JWT_PUBLIC_KEY_JWK` are read into config but not used for token validation
 - AWS: `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET`
 - Email: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `USER_CREDENTIAL_EMAIL_ENABLED`
 - Blockchain: `BLOCKCHAIN_RPC_URL`, `BLOCKCHAIN_PRIVATE_KEY`, `BLOCKCHAIN_CONTRACT_ADDRESS`, `BLOCKCHAIN_NETWORK`
 
-`.env.example` is incomplete (see `docs/phase-reports/phase-01.md`).
+`.env.example` lists all of the above with placeholders (Phase 02). `RATE_LIMIT_TTL` and `RATE_LIMIT_MAX` were removed from it: the code never read them (the throttler is hard-coded to 100 requests / 60 s in `app.module.ts`). Node version: `.nvmrc` (24).
 
 ## Current direction
 
@@ -148,13 +148,23 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
 - Never log secrets, tokens, or passwords.
 - If a requirement is ambiguous or conflicts with existing code, stop and ask instead of guessing.
 
+## Lint baseline (after Phase 02)
+
+Phases must not add lint errors in the files they touch. Counts below are the whole-repo baseline.
+
+- Backend `npm run lint`: 406 errors, 30 warnings; `prettier/prettier` 0. Per rule: no-unsafe-member-access 174, no-unsafe-call 88, no-unsafe-assignment 84, no-unused-vars 29, no-unsafe-argument 27 (warn), unbound-method 13, no-unsafe-return 10, require-await 4, no-floating-promises 3 (warn), no-unsafe-enum-comparison 2, no-unnecessary-type-assertion 2 (all `@typescript-eslint/`).
+- Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
+
 ## Decisions log
 
-- 2026-11-17: Frontend tests will use Vitest (added in Phase 02).
-- 2026-11-17: pnpm: allow the sharp and unrs-resolver build scripts and pin the pnpm version with the packageManager field (Phase 02).
-- 2026-11-17: .superpowers/ and .claude/settings.local.json will be removed from git and ignored (Phase 02).
-- 2026-11-17: Prettier formatting will be applied once to the whole codebase in Phase 02; after that, phases must not add new lint errors.
 - 2026-11-17: Blockchain work is deprioritized.
+- 2026-11-17: Line endings are LF in both repos, enforced by `.gitattributes` (`* text=auto eol=lf`, common binary types marked `binary`). The working tree is LF even with a global `core.autocrlf=true` (Phase 02).
+- 2026-11-17: Prettier was applied once to the backend (`src/`, `test/`) in Phase 02. Backend `npm run lint` is read-only; `npm run lint:fix` fixes. The frontend has no Prettier setup.
+- 2026-11-17: The app and the migration CLI build their DB connection from one function, `src/config/data-source-options.ts` (DATABASE_* names, `.env.local` then `.env`). Deprecated `DB_*` names are a CLI-only fallback with a warning, so the app's behavior did not change (Phase 02, finding B9).
+- 2026-11-17: pnpm build scripts (frontend): `pnpm-workspace.yaml` allows sharp and unrs-resolver with both `allowBuilds` (pnpm >= 10.26, 11, 12) and `onlyBuiltDependencies` (pnpm 10.x), plus `packages: ['.']` so pnpm 9 accepts the file. Verified `pnpm install --frozen-lockfile` with pnpm 9.15.9, 10.25.0, 10.34.9 and 12.14.0. Lockfile stays `lockfileVersion: '9.0'` (Vercel uses pnpm 9 or 10 for it). No `packageManager` field for now (Phase 02).
+- 2026-11-17: Frontend tests use Vitest 5 (`pnpm test` = `vitest run`, config `vitest.config.ts` with the `@/` alias, tests in `tests/**/*.test.ts`) (Phase 02).
+- 2026-11-17: .superpowers/ and .claude/settings.local.json are no longer tracked and are git-ignored in both repos (Phase 02).
+- 2026-11-17: Frontend dev server runs on port 3001 (`next dev -p 3001`), matching the backend's default CORS origin; the backend uses 3000 (Phase 02).
 
 ## Phase workflow
 
