@@ -23,9 +23,11 @@ npm run lint:fix            # Same with --fix (modifies files!)
 npm run format              # Prettier --write on src/**/*.ts and test/**/*.ts
 npm test                    # Run all unit tests (jest); on this machine add -- --cacheDirectory D:/dev-cache/jest
 npm test -- --testPathPattern=prot.service   # Run single test file
-npm run test:e2e            # E2E tests — boots the full AppModule, needs a reachable PostgreSQL + Supabase env. Never point it at production.
+npm run test:int            # Integration tests (*.int-spec.ts) against the local nusantara_play_test (needs npm run db:up)
+npm run test:e2e            # E2E tests — full AppModule against the local nusantara_play_test (needs npm run db:up). Env is forced to local test values.
 npm run migration:run       # Run TypeORM migrations in src/migrations/*.ts (same DATABASE_* env vars and env files as the app)
-npm run seed                # BROKEN: points to src/seeds/index.ts, which does not exist
+npm run db:up               # Start local PostgreSQL 15 (docker-compose.dev.yml); also db:down, db:logs, db:reset -- --yes
+npm run db:setup            # Local schema (entities) + migration baseline + daerah + DEMO seed; local _dev/_test DBs only. npm run seed = alias
 ```
 
 ## Git Workflow
@@ -81,7 +83,7 @@ with the default `publik` role (JIT sync).
 **Database schema has two sources**:
 - `src/migrations/*.ts` — TypeORM migrations, run with `npm run migration:run` (data source `src/config/typeorm.config.ts`).
 - `src/database/migrations/*.sql` + `src/database/seeds/initial-data.sql` — raw SQL that the README says to run manually with `psql -f`.
-They overlap (both create e.g. `verifikasi_status` and `verifikasi`); the correct bootstrap order for a fresh DB is not documented yet.
+They overlap (both create e.g. `verifikasi_status` and `verifikasi`) and cannot build a fresh DB. Local dev/test databases are therefore built from the entities by `npm run db:setup` (see "Local development").
 
 ## Domain Model
 
@@ -137,7 +139,36 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
 - Production backend: **confirmed** (Phase 01) at `https://api.nusantaralegacy.org` (API under `/api`; IP 103.235.72.203, nginx/1.24.0 on Ubuntu in front of the NestJS app). The live frontend bundle has `NEXT_PUBLIC_BACKEND_API_URL=https://api.nusantaralegacy.org/api` baked in. Hosting provider of that server is unknown. `nginx/nginx.conf` in this repo still uses `server_name api-nusantaraplay.kpoti.id`, which no longer resolves, so the repo nginx config does not match production.
 - Production backend CORS: its allowlist contains `https://nusantaravirtual.org` but **not** `nusantaralegacy.org` (Phase 03: `Access-Control-Allow-Origin` is returned only for `Origin: https://nusantaravirtual.org`). **Nobody currently has access to that server**, so its CORS config, nginx config and env cannot be changed or inspected.
 - Browser → backend: browser calls go to the same-origin path `/backend-api/*`, which a Vercel rewrite (frontend `next.config.ts`) proxies to `https://api.nusantaralegacy.org/api/*` (Phase 03). Server-side calls (server components, route handlers) go directly to `NEXT_PUBLIC_BACKEND_API_URL`.
-- Local development database: a local PostgreSQL on port 5432, set up in a later phase.
+- Local development database: PostgreSQL 15 in Docker (`nusantara-play-be/docker-compose.dev.yml`, container `nusantara-dev-db`, `127.0.0.1:5432`), databases `nusantara_play_dev` and `nusantara_play_test` (Phase 05). See "Local development".
+
+## Local development
+
+Both repos run fully locally against a disposable PostgreSQL (Phase 05). **Login does not work locally**
+until the self-hosted auth phase: auth is still Supabase, and the local Supabase values are fake
+(`https://supabase-placeholder.invalid`), so authenticated backend endpoints return 401 and the
+frontend cannot sign in. Public pages and public endpoints work.
+
+1. Database (in `nusantara-play-be`): `npm run db:up` starts `postgres:15-alpine` (container
+   `nusantara-dev-db`, port bound to `127.0.0.1:5432`, volume `nusantara-dev-db-data`, local-only
+   password `localdev`) and creates `nusantara_play_dev` and `nusantara_play_test` on first start.
+2. Backend env: `cp .env.local.example .env.local` (fake placeholders only; never put real secrets there).
+3. Schema and seed: `npm run db:setup` (`src/scripts/db-local-setup.ts`; `npm run seed` is an alias).
+   Refuses unless the host is `localhost`/`127.0.0.1` and the database name ends with `_dev` or `_test`.
+   Builds the schema from the entities, records all `src/migrations/` as applied, seeds daerah (34 provinsi,
+   416 kabupaten, 98 kota, 7230 kecamatan, 74952 desa, 8487 kelurahan) and DEMO data (user
+   `demo-kurator@example.test`, 3 PROT with status ARSIP_NASIONAL, 1 published event; names start with
+   "DEMO"). Idempotent. Flags: `-- --database=<name>`, `-- --no-demo`.
+4. Backend: `npm run start:dev` → http://localhost:3000/api. Blockchain vars stay empty, so
+   BlockchainService logs a warning and is inactive.
+5. Frontend (in `nusantara-play-fe`): `.env.local` with `NEXT_PUBLIC_BACKEND_API_URL=http://localhost:3000/api`
+   and placeholder Supabase values (see `.env.example`), then `pnpm dev` → http://localhost:3001
+   (`/prot` shows the DEMO PROT).
+6. Tests (backend): `npm test` (unit, no database), `npm run test:int` (`*.int-spec.ts`, real
+   `nusantara_play_test`), `npm run test:e2e` (full AppModule on `nusantara_play_test`). Integration and
+   e2e run the same setup logic as `db:setup` in a Jest global setup and force every env var to local test
+   values (`test/test-env.ts`). Login-dependent e2e tests are skipped until the auth phase.
+7. Reset: `npm run db:reset -- --yes` deletes the volume and starts an empty database; then `npm run db:setup`.
+   `npm run db:down` stops the container and keeps the data; `npm run db:logs` follows the logs.
 
 ## Risks
 
@@ -162,6 +193,7 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
 Phases must not add lint errors in the files they touch. Counts below are the whole-repo baseline.
 
 - Backend `npm run lint`: 406 errors, 30 warnings; `prettier/prettier` 0. Per rule: no-unsafe-member-access 174, no-unsafe-call 88, no-unsafe-assignment 84, no-unused-vars 29, no-unsafe-argument 27 (warn), unbound-method 13, no-unsafe-return 10, require-await 4, no-floating-promises 3 (warn), no-unsafe-enum-comparison 2, no-unnecessary-type-assertion 2 (all `@typescript-eslint/`).
+- Backend after Phase 05: 240 errors, 30 warnings (`test/events.e2e-spec.ts` went from 214 to 48 errors; all new files are clean).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -178,6 +210,10 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - 2026-11-17: `/api/proxy-image` (finding F1) validates in `lib/security/image-proxy.ts`: https only, no credentials, default port, exact hostname allowlist `PROXY_IMAGE_ALLOWED_HOSTS` (default `lh3.googleusercontent.com`, the Google OAuth photo host; its only caller `components/dashboard/ProfileCard.tsx` proxies only Google URLs). The hostname is resolved once with `node:dns`; every address must be public (private, loopback, link-local, CGNAT, multicast, reserved IPv4; IPv6 outside 2000::/3 plus special ranges inside it), and the request goes out through `node:https` with a pinned `lookup`, so the socket connects to the validated addresses only (no DNS rebinding). No redirects (3xx = error), 5 s timeout, `image/*` except SVG (else 415), 5 MB cap while streaming, `nosniff` + `default-src 'none'; sandbox` CSP on every response, 24 h `Cache-Control` on success only, generic JSON errors. The route stays behind login (Phase 04).
 - 2026-11-17: NFT `about` is rendered as plain text (`whitespace-pre-line`), never as HTML (finding F2). Do not reintroduce `dangerouslySetInnerHTML` for API data; the only allowed use is the static theme script in `app/layout.tsx` (Phase 04).
 - 2026-11-17: `/about` is no longer a public route in `middleware.ts` (finding F5): no such page exists, so logged-out visitors are redirected to `/login` like any other unknown path. `isPublicPath` is exported for tests (Phase 04).
+- 2026-11-17: Until a production schema dump is available, the TypeORM entities are the source of truth for the LOCAL schema (dev and test databases): `npm run db:setup` builds it with `DataSource.synchronize()`. A later phase compares a production dump with the entities. The production database is never touched (Phase 05).
+- 2026-11-17: Migration baseline for local databases: after `synchronize()`, every migration in `src/migrations/` is inserted into the TypeORM `migrations` table as already applied (without running it), so `npm run migration:run` reports nothing pending and only NEW migrations run on top (Phase 05).
+- 2026-11-17: Local PostgreSQL is pinned to `postgres:15-alpine` (README says PostgreSQL 15) until the production version is known (Phase 05).
+- 2026-11-17: Local daerah seed reuses `src/database/migrations/002_replace_daerah_data.sql` (34 provinsi + 514 kab/kota, Kemendagri codes) and the `up()` of `src/migrations/1740500100000-SeedKecamatanKelurahanDesa.ts`; `1738826000000-SeedDaerahBPS.ts` is not used (12 provinces only, codes that do not match the kecamatan CSV) (Phase 05).
 
 ## Phase workflow
 
@@ -199,5 +235,5 @@ Windows 11; repos live on drive D: (`D:/Project/Nusantara Legacy/`). C: has very
 - Jest: `npm test -- --cacheDirectory D:/dev-cache/jest`
 - Create these folders if they do not exist.
 - Do not change global settings (no `npm config set`, no `pnpm config set --global`, no edits to system or user environment variables) unless the owner asks.
-- Docker Desktop's disk image currently lives on C: (`%LOCALAPPDATA%\Docker\wsl\disk\docker_data.vhdx`). Do not pull images or start containers unless a phase asks for it.
-- Never connect to the production database. Local PostgreSQL uses port 5432.
+- Docker Desktop's data stays on C: (`%LOCALAPPDATA%\Docker\wsl\disk\docker_data.vhdx`) by the owner's decision (Phase 05); the owner freed space there. Phases may pull images and start containers when the phase asks for it (for example `npm run db:up`). Stop only if C: has less than 5 GB free.
+- Never connect to the production database. Local PostgreSQL uses port 5432 (Docker container `nusantara-dev-db`, bound to 127.0.0.1).

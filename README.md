@@ -161,100 +161,56 @@ Backend API untuk platform Nusantara Play - sistem arsip digital permainan rakya
 
 ### Prerequisites
 
-- Node.js 18+ & npm
-- PostgreSQL 15+
-- Supabase account
-- AWS S3 account (or MinIO for local dev)
+- Node.js 24 (see `.nvmrc`) & npm
+- Docker Desktop (local PostgreSQL 15 via `docker-compose.dev.yml`)
+- No Supabase or AWS account is needed for local development (fake placeholders are used)
 
 ### 1. Installation
 
 ```bash
-# Clone repository
 git clone <repository-url>
-cd nusantara-play-backend
-
-# Install dependencies
+cd nusantara-play-be
 npm install
 ```
 
-### 2. Environment Setup
+### 2. Local development (Phase 05)
 
 ```bash
-# Copy environment template
-cp .env.example .env
-
-# Edit .env with your credentials
-# - DATABASE_* (PostgreSQL connection)
-# - SUPABASE_* (Supabase credentials)
-# - AWS_* (S3 credentials)
+npm run db:up                         # PostgreSQL 15 in Docker (127.0.0.1:5432), creates nusantara_play_dev + nusantara_play_test
+cp .env.local.example .env.local      # local-only values; .env.local is git-ignored
+npm run db:setup                      # schema from the TypeORM entities + daerah seed + DEMO data (idempotent)
+npm run start:dev                     # http://localhost:3000/api
 ```
 
-**Required Environment Variables:**
+Check it: `curl http://localhost:3000/api/health`, `/api/daerah/provinces`, `/api/prot` (shows the DEMO PROT).
+
+- `npm run db:setup` refuses to run unless the host is `localhost`/`127.0.0.1` and the database name ends
+  with `_dev` or `_test`. Options: `-- --database=nusantara_play_test`, `-- --no-demo`. `npm run seed` is an alias.
+- The local schema is built from the TypeORM entities (`DataSource.synchronize()`), and every migration in
+  `src/migrations/` is recorded as already applied, so `npm run migration:run` only runs migrations added later.
+- **Login does not work locally** until the self-hosted auth phase (auth is still Supabase; the placeholder
+  Supabase URL never resolves, so authenticated endpoints return 401).
+- Other commands: `npm run db:down` (stop, keeps data), `npm run db:logs`, `npm run db:reset -- --yes`
+  (deletes the Docker volume and starts empty; then run `npm run db:setup` again).
+
+### 3. Tests
 
 ```bash
-# Application
-NODE_ENV=development
-PORT=3000
-APP_NAME=Nusantara Play
-
-# Database
-DATABASE_HOST=localhost
-DATABASE_PORT=5432
-DATABASE_USER=postgres
-DATABASE_PASSWORD=your_password
-DATABASE_NAME=nusantara_play
-
-# Supabase Auth
-SUPABASE_URL=https://xxxxx.supabase.co
-SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
-SUPABASE_JWT_SECRET=your-jwt-secret
-
-# AWS S3
-AWS_REGION=ap-southeast-1
-AWS_ACCESS_KEY_ID=AKIA...
-AWS_SECRET_ACCESS_KEY=xxx
-AWS_S3_BUCKET=nusantara-play-storage
-
-# CORS
-FRONTEND_URLS=http://localhost:3001,https://nusantaralegacy.org,https://nusantaravirtual.org
-# Legacy single-origin fallback if FRONTEND_URLS is unset:
-# FRONTEND_URL=http://localhost:3001
+npm test              # unit tests, no database needed
+npm run test:int      # integration tests (*.int-spec.ts) against nusantara_play_test (needs npm run db:up)
+npm run test:e2e      # e2e tests (test/*.e2e-spec.ts) against nusantara_play_test (needs npm run db:up)
 ```
 
-### 3. Database Setup
+`test:int` and `test:e2e` prepare `nusantara_play_test` with the same logic as `db:setup` and force all env
+vars to local test values (`test/test-env.ts`), so they never use `.env.local` or a real service.
 
-**Option A - Docker PostgreSQL (Recommended):**
+### 4. Legacy manual SQL setup (do not use)
 
-```bash
-docker run -d \
-  --name nusantara-postgres \
-  -e POSTGRES_DB=nusantara_play \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=your_password \
-  -p 5432:5432 \
-  postgres:15-alpine
-```
+Earlier versions of this README created the schema with `psql -f src/database/migrations/001_initial_schema.sql`
+and `src/database/seeds/initial-data.sql`. Those files conflict with the TypeORM migrations in `src/migrations/`
+and do not build a working schema. They are kept only as history.
 
-**Option B - Local PostgreSQL:**
-
-```bash
-psql -U postgres
-CREATE DATABASE nusantara_play;
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-```
-
-### 4. Run Migrations
-
-```bash
-# Run schema migration
-psql -U postgres -d nusantara_play -f src/database/migrations/001_initial_schema.sql
-
-# Run seed data (34 provinces + settings)
-psql -U postgres -d nusantara_play -f src/database/seeds/initial-data.sql
-```
-
-### 5. Supabase Setup
+### 5. Supabase Setup (real project only, not needed locally)
 
 1. Create project at [supabase.com](https://supabase.com)
 2. Go to **Project Settings → API**:
