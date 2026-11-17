@@ -33,7 +33,10 @@ export class EventsController {
 
   @Post()
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
-  async create(@Body() createEventDto: CreateEventDto, @CurrentUser() user: User) {
+  async create(
+    @Body() createEventDto: CreateEventDto,
+    @CurrentUser() user: User,
+  ) {
     return this.eventsService.create(createEventDto, user.id);
   }
 
@@ -45,7 +48,10 @@ export class EventsController {
 
   @Get('my-events')
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
-  async getMyEvents(@CurrentUser() user: User, @Query() filter: EventFilterDto) {
+  async getMyEvents(
+    @CurrentUser() user: User,
+    @Query() filter: EventFilterDto,
+  ) {
     // For my events, we need to filter by created_by
     const result = await this.eventsService.findAll(filter, user);
     // Filter the results to only show user's own events
@@ -62,7 +68,11 @@ export class EventsController {
   @Get('featured')
   @Public()
   async getFeatured(@Query() filter: EventFilterDto) {
-    return this.eventsService.findAll({ ...filter, sortBy: 'created_at', sortOrder: 'DESC' });
+    return this.eventsService.findAll({
+      ...filter,
+      sortBy: 'created_at',
+      sortOrder: 'DESC',
+    });
   }
 
   @Get(':id')

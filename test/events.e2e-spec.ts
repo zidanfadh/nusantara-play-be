@@ -166,20 +166,20 @@ describe('Events (e2e)', () => {
             .post(`/api/events/${eventId}/register`)
             .set('Authorization', userToken)
             .send({})
-          .expect(201)
-          .expect((res) => {
-            expect(res.body).toHaveProperty('id');
-            expect(res.body.event_id).toBe(eventId);
-            expect(res.body.user_id).toBe('user@test.com');
-            expect(res.body.status).toBe('registered');
-          });
+            .expect(201)
+            .expect((res) => {
+              expect(res.body).toHaveProperty('id');
+              expect(res.body.event_id).toBe(eventId);
+              expect(res.body.user_id).toBe('user@test.com');
+              expect(res.body.status).toBe('registered');
+            });
         });
 
         it('should fail without authentication', async () => {
           await request(app.getHttpServer())
             .post(`/api/events/${eventId}/register`)
             .send({})
-          .expect(401);
+            .expect(401);
         });
       });
 
@@ -195,7 +195,7 @@ describe('Events (e2e)', () => {
             .post(`/api/events/${eventId}/register`)
             .set('Authorization', authToken)
             .send({})
-          .expect(201);
+            .expect(201);
 
           // Get my registrations
           const userResponse = await request(app.getHttpServer())
@@ -212,13 +212,13 @@ describe('Events (e2e)', () => {
             .get('/api/events/my-registrations')
             .set('Authorization', userToken)
             .expect(200)
-          .expect((res) => {
-            expect(Array.isArray(res.body)).toBe(true);
-            expect(res.body.data.length).toBeGreaterThan(0);
-            res.body.data.forEach((reg: any) => {
-              expect(reg).toHaveProperty('event');
+            .expect((res) => {
+              expect(Array.isArray(res.body)).toBe(true);
+              expect(res.body.data.length).toBeGreaterThan(0);
+              res.body.data.forEach((reg: any) => {
+                expect(reg).toHaveProperty('event');
+              });
             });
-          });
         });
       });
     });

@@ -43,7 +43,15 @@ export class JwtAuthGuard extends AuthGuard('jwt') implements CanActivate {
 
     // Only log errors on protected routes in non-production
     if (process.env.NODE_ENV !== 'production' && !isPublic && (err || !user)) {
-      console.log('[JwtAuthGuard] handleRequest - err:', err?.message, 'user:', user?.id, user?.role, 'info:', info?.message);
+      console.log(
+        '[JwtAuthGuard] handleRequest - err:',
+        err?.message,
+        'user:',
+        user?.id,
+        user?.role,
+        'info:',
+        info?.message,
+      );
     }
 
     // For public routes, return user if available (can be undefined)

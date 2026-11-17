@@ -75,10 +75,22 @@ export class Event {
   @Column({ name: 'daerah_id' })
   daerah_id: string;
 
-  @Column({ name: 'latitude', type: 'decimal', precision: 10, scale: 8, nullable: true })
+  @Column({
+    name: 'latitude',
+    type: 'decimal',
+    precision: 10,
+    scale: 8,
+    nullable: true,
+  })
   latitude: number;
 
-  @Column({ name: 'longitude', type: 'decimal', precision: 11, scale: 8, nullable: true })
+  @Column({
+    name: 'longitude',
+    type: 'decimal',
+    precision: 11,
+    scale: 8,
+    nullable: true,
+  })
   longitude: number;
 
   @Column({ name: 'kuota_peserta', nullable: true })

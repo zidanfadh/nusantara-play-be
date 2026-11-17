@@ -18,7 +18,9 @@ export class TokoService {
   ) {}
 
   async create(userId: string, dto: CreateTokoDto): Promise<Toko> {
-    const existingForUser = await this.repo.findOne({ where: { user_id: userId } });
+    const existingForUser = await this.repo.findOne({
+      where: { user_id: userId },
+    });
     if (existingForUser) {
       throw new ConflictException('Anda sudah memiliki toko');
     }
@@ -31,7 +33,10 @@ export class TokoService {
   }
 
   async findAll(): Promise<Toko[]> {
-    return this.repo.find({ where: { is_active: true }, order: { created_at: 'DESC' } });
+    return this.repo.find({
+      where: { is_active: true },
+      order: { created_at: 'DESC' },
+    });
   }
 
   async findOne(id: string): Promise<Toko> {

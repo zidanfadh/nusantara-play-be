@@ -102,5 +102,4 @@ export class SupabaseService {
       name: data.user.user_metadata?.name,
     };
   }
-
 }

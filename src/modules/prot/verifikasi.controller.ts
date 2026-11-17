@@ -39,7 +39,12 @@ export class VerifikasiController {
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query('provinsi') provinsi?: string,
   ) {
-    return this.verifikasiService.getAvailableQueue(page, limit, user, provinsi);
+    return this.verifikasiService.getAvailableQueue(
+      page,
+      limit,
+      user,
+      provinsi,
+    );
   }
 
   @Get('my-queue')
@@ -80,7 +85,12 @@ export class VerifikasiController {
     @CurrentUser() user: User,
     @Body() reviewDto: VerifikasiReviewDto,
   ) {
-    return this.verifikasiService.submitReview(protId, user.id, reviewDto, user);
+    return this.verifikasiService.submitReview(
+      protId,
+      user.id,
+      reviewDto,
+      user,
+    );
   }
 
   @Get(':protId/history')

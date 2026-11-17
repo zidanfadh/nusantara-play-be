@@ -40,7 +40,10 @@ export class KategoriProdukController {
 
   @Roles('admin_kpoti')
   @Patch(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateKategoriDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateKategoriDto,
+  ) {
     return this.service.update(id, dto);
   }
 

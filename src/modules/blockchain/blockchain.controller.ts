@@ -23,7 +23,9 @@ export class BlockchainController {
   async getBlockchainProof(@Param('id') protId: string) {
     const result = await this.blockchainService.getProofForProt(protId);
     if (!result) {
-      throw new NotFoundException(`No blockchain proof found for PROT ${protId}`);
+      throw new NotFoundException(
+        `No blockchain proof found for PROT ${protId}`,
+      );
     }
     return result;
   }

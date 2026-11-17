@@ -1,7 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { OrderService } from '../order.service';
 import { Order, OrderStatus } from '../entities/order.entity';
 import { OrderItem } from '../entities/order-item.entity';
@@ -75,7 +79,10 @@ describe('OrderService', () => {
     });
 
     it('should throw BadRequestException when buyer is the toko owner', async () => {
-      mockQueryRunner.manager.findOne.mockResolvedValue({ id: 'toko-1', user_id: 'buyer-1' });
+      mockQueryRunner.manager.findOne.mockResolvedValue({
+        id: 'toko-1',
+        user_id: 'buyer-1',
+      });
 
       await expect(
         service.create('buyer-1', {
@@ -101,7 +108,9 @@ describe('OrderService', () => {
         toko: { user_id: 'seller-1' },
       });
 
-      await expect(service.konfirmasi('order-1', 'other-user')).rejects.toThrow(ForbiddenException);
+      await expect(service.konfirmasi('order-1', 'other-user')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should throw BadRequestException when order is not in MENUNGGU status', async () => {
@@ -111,7 +120,9 @@ describe('OrderService', () => {
         toko: { user_id: 'seller-1' },
       });
 
-      await expect(service.konfirmasi('order-1', 'seller-1')).rejects.toThrow(BadRequestException);
+      await expect(service.konfirmasi('order-1', 'seller-1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -125,7 +136,9 @@ describe('OrderService', () => {
         items: [],
       });
 
-      await expect(service.batalkan('order-1', 'stranger')).rejects.toThrow(ForbiddenException);
+      await expect(service.batalkan('order-1', 'stranger')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 });

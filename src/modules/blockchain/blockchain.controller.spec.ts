@@ -44,35 +44,46 @@ describe('BlockchainController', () => {
       const result = await controller.getBlockchainProof('prot-uuid-1');
 
       expect(result).toEqual(proofData);
-      expect(mockBlockchainService.getProofForProt).toHaveBeenCalledWith('prot-uuid-1');
+      expect(mockBlockchainService.getProofForProt).toHaveBeenCalledWith(
+        'prot-uuid-1',
+      );
     });
 
     it('throws NotFoundException when service returns null', async () => {
       mockBlockchainService.getProofForProt.mockResolvedValue(null);
 
-      await expect(controller.getBlockchainProof('prot-uuid-1')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        controller.getBlockchainProof('prot-uuid-1'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('POST :id/blockchain-proof/reanchor', () => {
     it('returns reanchor result on success', async () => {
-      const reanchorResult = { message: 'Reanchor initiated', proofId: 'proof-1' };
+      const reanchorResult = {
+        message: 'Reanchor initiated',
+        proofId: 'proof-1',
+      };
       mockBlockchainService.triggerReanchor.mockResolvedValue(reanchorResult);
 
       const result = await controller.reanchorProof('prot-uuid-1');
 
       expect(result).toEqual(reanchorResult);
-      expect(mockBlockchainService.triggerReanchor).toHaveBeenCalledWith('prot-uuid-1');
+      expect(mockBlockchainService.triggerReanchor).toHaveBeenCalledWith(
+        'prot-uuid-1',
+      );
     });
 
     it('propagates NotFoundException from service', async () => {
       mockBlockchainService.triggerReanchor.mockRejectedValue(
-        new NotFoundException('No blockchain proof record found for PROT prot-uuid-1'),
+        new NotFoundException(
+          'No blockchain proof record found for PROT prot-uuid-1',
+        ),
       );
 
-      await expect(controller.reanchorProof('prot-uuid-1')).rejects.toThrow(NotFoundException);
+      await expect(controller.reanchorProof('prot-uuid-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('propagates ConflictException from service', async () => {
@@ -80,7 +91,9 @@ describe('BlockchainController', () => {
         new ConflictException('Blockchain proof is already confirmed'),
       );
 
-      await expect(controller.reanchorProof('prot-uuid-1')).rejects.toThrow(ConflictException);
+      await expect(controller.reanchorProof('prot-uuid-1')).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 });

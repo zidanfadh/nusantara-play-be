@@ -1,4 +1,8 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { PROT } from '../../prot/entities/prot.entity';
@@ -44,7 +48,10 @@ describe('NftsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         NftsService,
-        { provide: getRepositoryToken(NftCatalog), useValue: mockNftRepository },
+        {
+          provide: getRepositoryToken(NftCatalog),
+          useValue: mockNftRepository,
+        },
         { provide: getRepositoryToken(PROT), useValue: mockProtRepository },
         { provide: StorageService, useValue: mockStorageService },
       ],
@@ -87,7 +94,9 @@ describe('NftsService', () => {
     it('rejects duplicate slug', async () => {
       mockNftRepository.findOne.mockResolvedValueOnce({ id: 'existing-nft' });
 
-      await expect(service.create('admin-1', baseDto)).rejects.toThrow(ConflictException);
+      await expect(service.create('admin-1', baseDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('rejects duplicate blockchain identity', async () => {
@@ -95,14 +104,19 @@ describe('NftsService', () => {
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ id: 'existing-nft' });
 
-      await expect(service.create('admin-1', baseDto)).rejects.toThrow(ConflictException);
+      await expect(service.create('admin-1', baseDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('validates optional prot_id', async () => {
       mockProtRepository.findOne.mockResolvedValue(null);
 
       await expect(
-        service.create('admin-1', { ...baseDto, prot_id: '550e8400-e29b-41d4-a716-446655440000' }),
+        service.create('admin-1', {
+          ...baseDto,
+          prot_id: '550e8400-e29b-41d4-a716-446655440000',
+        }),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -125,9 +139,12 @@ describe('NftsService', () => {
 
       expect(result.data).toHaveLength(1);
       expect(queryBuilder.where).toHaveBeenCalledWith('nft.is_active = true');
-      expect(queryBuilder.andWhere).toHaveBeenCalledWith('nft.status = :status', {
-        status: NftCatalogStatus.PUBLISHED,
-      });
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'nft.status = :status',
+        {
+          status: NftCatalogStatus.PUBLISHED,
+        },
+      );
     });
 
     it('returns active NFTs for admin listing with optional status filter', async () => {
@@ -151,9 +168,12 @@ describe('NftsService', () => {
 
       expect(result.data).toHaveLength(1);
       expect(queryBuilder.where).toHaveBeenCalledWith('nft.is_active = true');
-      expect(queryBuilder.andWhere).toHaveBeenCalledWith('nft.status = :status', {
-        status: NftCatalogStatus.DRAFT,
-      });
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'nft.status = :status',
+        {
+          status: NftCatalogStatus.DRAFT,
+        },
+      );
     });
   });
 
@@ -182,7 +202,11 @@ describe('NftsService', () => {
 
   describe('publish and unpublish', () => {
     it('publishes NFT', async () => {
-      const nft = { id: 'nft-1', is_active: true, status: NftCatalogStatus.DRAFT };
+      const nft = {
+        id: 'nft-1',
+        is_active: true,
+        status: NftCatalogStatus.DRAFT,
+      };
       mockNftRepository.findOne.mockResolvedValue(nft);
 
       const result = await service.publish('nft-1', 'admin-1');
@@ -224,7 +248,9 @@ describe('NftsService', () => {
     it('throws NotFoundException for inactive or missing NFT', async () => {
       mockNftRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.remove('missing-nft', 'admin-1')).rejects.toThrow(NotFoundException);
+      await expect(service.remove('missing-nft', 'admin-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

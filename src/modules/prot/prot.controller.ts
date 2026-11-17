@@ -31,7 +31,7 @@ import { AuditInterceptor } from '../audit/audit.interceptor';
 @Controller('prot')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class PROTController {
-  constructor(private readonly protService: PROTService) { }
+  constructor(private readonly protService: PROTService) {}
 
   @Post()
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI, UserRole.PAKAR)
@@ -45,10 +45,7 @@ export class PROTController {
 
   @Get()
   @Public()
-  async findAll(
-    @Query() query: QueryPROTDto,
-    @CurrentUser() user?: User,
-  ) {
+  async findAll(@Query() query: QueryPROTDto, @CurrentUser() user?: User) {
     return this.protService.findAll(query, user);
   }
 

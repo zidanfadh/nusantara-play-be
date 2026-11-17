@@ -56,10 +56,7 @@ export class UsersController {
 
   @Post()
   @Roles(UserRole.ADMIN_KPOTI)
-  create(
-    @Body() createUserDto: AdminCreateUserDto,
-    @CurrentUser() user: User,
-  ) {
+  create(@Body() createUserDto: AdminCreateUserDto, @CurrentUser() user: User) {
     return this.usersService.createByAdmin(createUserDto, user.id);
   }
 

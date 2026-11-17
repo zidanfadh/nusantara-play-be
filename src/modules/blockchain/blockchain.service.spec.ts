@@ -3,7 +3,10 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 import { BlockchainService } from './blockchain.service';
-import { BlockchainProof, BlockchainProofStatus } from './entities/blockchain-proof.entity';
+import {
+  BlockchainProof,
+  BlockchainProofStatus,
+} from './entities/blockchain-proof.entity';
 import { Verifikasi } from '../prot/entities/verifikasi.entity';
 import { PROT } from '../prot/entities/prot.entity';
 
@@ -35,8 +38,14 @@ describe('BlockchainService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BlockchainService,
-        { provide: getRepositoryToken(BlockchainProof), useValue: mockProofRepository },
-        { provide: getRepositoryToken(Verifikasi), useValue: mockVerifikasiRepository },
+        {
+          provide: getRepositoryToken(BlockchainProof),
+          useValue: mockProofRepository,
+        },
+        {
+          provide: getRepositoryToken(Verifikasi),
+          useValue: mockVerifikasiRepository,
+        },
         { provide: getRepositoryToken(PROT), useValue: mockProtRepository },
         { provide: ConfigService, useValue: mockConfigService },
       ],
@@ -153,7 +162,9 @@ describe('BlockchainService', () => {
       } as BlockchainProof;
 
       mockProofRepository.findOne.mockResolvedValue(proof);
-      mockProtRepository.findOne.mockResolvedValue({ id: 'prot-uuid-1' } as PROT);
+      mockProtRepository.findOne.mockResolvedValue({
+        id: 'prot-uuid-1',
+      } as PROT);
       jest.spyOn(service, 'computeHash').mockReturnValue('tampered-hash');
       // proof.data_hash = 'original-hash' !== 'tampered-hash' → dbIntact = false
 
@@ -245,8 +256,15 @@ describe('BlockchainService', () => {
           data_hash: 'hash-abc',
         }),
       );
-      expect(sendToChainSpy).toHaveBeenCalledWith(proof, 'prot-uuid-1', 'hash-abc');
-      expect(result).toMatchObject({ message: 'Reanchor initiated', proofId: 'proof-1' });
+      expect(sendToChainSpy).toHaveBeenCalledWith(
+        proof,
+        'prot-uuid-1',
+        'hash-abc',
+      );
+      expect(result).toMatchObject({
+        message: 'Reanchor initiated',
+        proofId: 'proof-1',
+      });
     });
 
     it('resets retry_count and calls sendToChain for PENDING proof with maxed retries', async () => {

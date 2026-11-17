@@ -6,7 +6,12 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { PROT, PROTJenis, TargetUsia, PROTStatus } from './entities/prot.entity';
+import {
+  PROT,
+  PROTJenis,
+  TargetUsia,
+  PROTStatus,
+} from './entities/prot.entity';
 import { CreatePROTDto } from './dto/create-prot.dto';
 import { UpdatePROTDto } from './dto/update-prot.dto';
 import { QueryPROTDto } from './dto/query-prot.dto';
@@ -24,7 +29,7 @@ export class PROTService {
     private queueRepository: Repository<VerifikasiQueue>,
     private daerahService: DaerahService,
     private storageService: StorageService,
-  ) { }
+  ) {}
 
   async create(createPROTDto: CreatePROTDto, user: User): Promise<PROT> {
     // Validate daerah cascade
@@ -41,7 +46,10 @@ export class PROTService {
       const ancestors = await this.daerahService.findAncestors(user.daerah_id);
       const province = ancestors[0];
 
-      if (!createPROTDto.provinsiKode || createPROTDto.provinsiKode !== province.kode) {
+      if (
+        !createPROTDto.provinsiKode ||
+        createPROTDto.provinsiKode !== province.kode
+      ) {
         throw new ForbiddenException(
           `Anda hanya dapat menambahkan PROT di provinsi ${province.nama}.`,
         );
@@ -56,13 +64,17 @@ export class PROTService {
     return this.protRepository.save(prot);
   }
 
-  private async enrichWithDaerahNames(prot: PROT): Promise<PROT & {
-    provinsiName: string | null;
-    kabkotaName: string | null;
-    kecamatanName: string | null;
-    desaName: string | null;
-  }> {
-    const resolveName = async (kode: string | null | undefined): Promise<string | null> => {
+  private async enrichWithDaerahNames(prot: PROT): Promise<
+    PROT & {
+      provinsiName: string | null;
+      kabkotaName: string | null;
+      kecamatanName: string | null;
+      desaName: string | null;
+    }
+  > {
+    const resolveName = async (
+      kode: string | null | undefined,
+    ): Promise<string | null> => {
       if (!kode) return null;
       try {
         const daerah = await this.daerahService.findByKode(kode);
@@ -72,12 +84,13 @@ export class PROTService {
       }
     };
 
-    const [provinsiName, kabkotaName, kecamatanName, desaName] = await Promise.all([
-      resolveName(prot.provinsiKode),
-      resolveName(prot.kabkotaKode),
-      resolveName(prot.kecamatanKode),
-      resolveName(prot.desaKode),
-    ]);
+    const [provinsiName, kabkotaName, kecamatanName, desaName] =
+      await Promise.all([
+        resolveName(prot.provinsiKode),
+        resolveName(prot.kabkotaKode),
+        resolveName(prot.kecamatanKode),
+        resolveName(prot.desaKode),
+      ]);
 
     return { ...prot, provinsiName, kabkotaName, kecamatanName, desaName };
   }
@@ -106,32 +119,48 @@ export class PROTService {
     const skip = (page - 1) * limit;
 
     // DEBUG: Log user info
-    console.log('[PROT findAll] User:', user ? { id: user.id, role: user.role, email: user.email } : 'No user');
+    console.log(
+      '[PROT findAll] User:',
+      user ? { id: user.id, role: user.role, email: user.email } : 'No user',
+    );
 
     const queryBuilder = this.protRepository.createQueryBuilder('prot');
 
     // Status filter based on role
     if (!user || user.role === UserRole.PUBLIK) {
       // Public users only see published
-      console.log('[PROT findAll] Applying PUBLIC filter (ARSIP_NASIONAL only)');
-      queryBuilder.andWhere('prot.status = :roleStatus', { roleStatus: PROTStatus.ARSIP_NASIONAL });
+      console.log(
+        '[PROT findAll] Applying PUBLIC filter (ARSIP_NASIONAL only)',
+      );
+      queryBuilder.andWhere('prot.status = :roleStatus', {
+        roleStatus: PROTStatus.ARSIP_NASIONAL,
+      });
     } else if (user.role === UserRole.KURATOR_DAERAH) {
       // Kurator see own PROT or published
-      console.log('[PROT findAll] Applying KURATOR_DAERAH filter (own + ARSIP_NASIONAL)');
+      console.log(
+        '[PROT findAll] Applying KURATOR_DAERAH filter (own + ARSIP_NASIONAL)',
+      );
       queryBuilder.andWhere(
         '(prot.created_by = :userId OR prot.status = :roleStatus)',
         { userId: user.id, roleStatus: PROTStatus.ARSIP_NASIONAL },
       );
     } else if (user.role === UserRole.PAKAR) {
       // Pakar see DIKURASI + DIVERIFIKASI + ARSIP_NASIONAL
-      console.log('[PROT findAll] Applying PAKAR filter (DIKURASI + DIVERIFIKASI + ARSIP_NASIONAL)');
-      queryBuilder.andWhere(
-        'prot.status IN (:...roleStatuses)',
-        { roleStatuses: [PROTStatus.DIKURASI, PROTStatus.DIVERIFIKASI, PROTStatus.ARSIP_NASIONAL] },
+      console.log(
+        '[PROT findAll] Applying PAKAR filter (DIKURASI + DIVERIFIKASI + ARSIP_NASIONAL)',
       );
+      queryBuilder.andWhere('prot.status IN (:...roleStatuses)', {
+        roleStatuses: [
+          PROTStatus.DIKURASI,
+          PROTStatus.DIVERIFIKASI,
+          PROTStatus.ARSIP_NASIONAL,
+        ],
+      });
     } else {
       // ADMIN_KPOTI sees all statuses (no filter applied)
-      console.log('[PROT findAll] Applying ADMIN filter (all statuses, no filter)');
+      console.log(
+        '[PROT findAll] Applying ADMIN filter (all statuses, no filter)',
+      );
     }
 
     if (query.jenis) {
@@ -177,7 +206,9 @@ export class PROTService {
     }
 
     if (query.created_by) {
-      queryBuilder.andWhere('prot.created_by = :created_by', { created_by: query.created_by });
+      queryBuilder.andWhere('prot.created_by = :created_by', {
+        created_by: query.created_by,
+      });
     }
 
     queryBuilder.skip(skip).take(limit);
@@ -186,7 +217,9 @@ export class PROTService {
 
     const totalPages = Math.ceil(total / limit);
 
-    const enrichedData = await Promise.all(data.map((prot) => this.enrichWithDaerahNames(prot)));
+    const enrichedData = await Promise.all(
+      data.map((prot) => this.enrichWithDaerahNames(prot)),
+    );
 
     return {
       data: enrichedData,
@@ -201,12 +234,14 @@ export class PROTService {
     };
   }
 
-  async findOne(id: string): Promise<PROT & {
-    provinsiName: string | null;
-    kabkotaName: string | null;
-    kecamatanName: string | null;
-    desaName: string | null;
-  }> {
+  async findOne(id: string): Promise<
+    PROT & {
+      provinsiName: string | null;
+      kabkotaName: string | null;
+      kecamatanName: string | null;
+      desaName: string | null;
+    }
+  > {
     const prot = await this.protRepository.findOne({ where: { id } });
     if (!prot) {
       throw new NotFoundException(`PROT with ID ${id} not found`);
@@ -220,7 +255,9 @@ export class PROTService {
     }
 
     if (user.role === UserRole.KURATOR_DAERAH) {
-      return prot.created_by === user.id || prot.status === PROTStatus.ARSIP_NASIONAL;
+      return (
+        prot.created_by === user.id || prot.status === PROTStatus.ARSIP_NASIONAL
+      );
     }
 
     if (user.role === UserRole.PAKAR) {
@@ -234,12 +271,17 @@ export class PROTService {
     return user.role === UserRole.ADMIN_KPOTI;
   }
 
-  async findOneForRead(id: string, user?: User): Promise<PROT & {
-    provinsiName: string | null;
-    kabkotaName: string | null;
-    kecamatanName: string | null;
-    desaName: string | null;
-  }> {
+  async findOneForRead(
+    id: string,
+    user?: User,
+  ): Promise<
+    PROT & {
+      provinsiName: string | null;
+      kabkotaName: string | null;
+      kecamatanName: string | null;
+      desaName: string | null;
+    }
+  > {
     const prot = await this.protRepository.findOne({ where: { id } });
     if (!prot) {
       throw new NotFoundException(`PROT with ID ${id} not found`);
@@ -250,7 +292,9 @@ export class PROTService {
         throw new NotFoundException(`PROT with ID ${id} not found`);
       }
 
-      throw new ForbiddenException('Anda tidak memiliki akses untuk melihat PROT ini');
+      throw new ForbiddenException(
+        'Anda tidak memiliki akses untuk melihat PROT ini',
+      );
     }
 
     return this.enrichWithDaerahNames(prot);
@@ -266,7 +310,9 @@ export class PROTService {
 
     // Check ownership (kurator can only edit own PROT, admin can edit all)
     if (userRole === UserRole.KURATOR_DAERAH && prot.created_by !== userId) {
-      throw new ForbiddenException('Anda tidak memiliki akses untuk edit PROT ini');
+      throw new ForbiddenException(
+        'Anda tidak memiliki akses untuk edit PROT ini',
+      );
     }
 
     // Check status (only DRAFT or REVISI can be edited)
@@ -306,7 +352,9 @@ export class PROTService {
     const prot = await this.findOne(id);
 
     const urls = await Promise.all(
-      files.map((file) => this.storageService.uploadFile(file, 'prot/foto-kegiatan')),
+      files.map((file) =>
+        this.storageService.uploadFile(file, 'prot/foto-kegiatan'),
+      ),
     );
 
     prot.fotoKegiatan = prot.fotoKegiatan || [];
@@ -322,7 +370,9 @@ export class PROTService {
     const prot = await this.findOne(id);
 
     const urls = await Promise.all(
-      files.map((file) => this.storageService.uploadFile(file, 'prot/video-kegiatan')),
+      files.map((file) =>
+        this.storageService.uploadFile(file, 'prot/video-kegiatan'),
+      ),
     );
 
     prot.videoKegiatan = prot.videoKegiatan || [];
@@ -374,7 +424,9 @@ export class PROTService {
     const prot = await this.findOne(id);
 
     const urls = await Promise.all(
-      files.map((file) => this.storageService.uploadFile(file, 'prot/dokumen-kurikulum')),
+      files.map((file) =>
+        this.storageService.uploadFile(file, 'prot/dokumen-kurikulum'),
+      ),
     );
 
     prot.dokumenKurikulum = prot.dokumenKurikulum || [];
@@ -407,15 +459,24 @@ export class PROTService {
   ): Promise<PROT> {
     const prot = await this.findOne(id);
 
-    if (!prot.peralatan || peralatanIndex < 0 || peralatanIndex >= prot.peralatan.length) {
-      throw new BadRequestException(`Invalid peralatan index: ${peralatanIndex}`);
+    if (
+      !prot.peralatan ||
+      peralatanIndex < 0 ||
+      peralatanIndex >= prot.peralatan.length
+    ) {
+      throw new BadRequestException(
+        `Invalid peralatan index: ${peralatanIndex}`,
+      );
     }
 
     const urls = await Promise.all(
-      files.map((file) => this.storageService.uploadFile(file, 'prot/peralatan')),
+      files.map((file) =>
+        this.storageService.uploadFile(file, 'prot/peralatan'),
+      ),
     );
 
-    prot.peralatan[peralatanIndex].fotoAlat = prot.peralatan[peralatanIndex].fotoAlat || [];
+    prot.peralatan[peralatanIndex].fotoAlat =
+      prot.peralatan[peralatanIndex].fotoAlat || [];
     prot.peralatan[peralatanIndex].fotoAlat.push(...urls);
 
     return this.protRepository.save(prot);
@@ -428,8 +489,14 @@ export class PROTService {
   ): Promise<PROT> {
     const prot = await this.findOne(id);
 
-    if (!prot.peralatan || peralatanIndex < 0 || peralatanIndex >= prot.peralatan.length) {
-      throw new BadRequestException(`Invalid peralatan index: ${peralatanIndex}`);
+    if (
+      !prot.peralatan ||
+      peralatanIndex < 0 ||
+      peralatanIndex >= prot.peralatan.length
+    ) {
+      throw new BadRequestException(
+        `Invalid peralatan index: ${peralatanIndex}`,
+      );
     }
 
     const fotoAlat = prot.peralatan[peralatanIndex].fotoAlat;
@@ -551,7 +618,9 @@ export class PROTService {
     // Cascade validation: if child is provided, parent must be provided and valid
     if (dto.desaKode) {
       if (!dto.kecamatanKode) {
-        throw new BadRequestException('kecamatanKode is required when desaKode is provided');
+        throw new BadRequestException(
+          'kecamatanKode is required when desaKode is provided',
+        );
       }
       try {
         await this.daerahService.findByKode(dto.desaKode);
@@ -562,23 +631,31 @@ export class PROTService {
 
     if (dto.kecamatanKode) {
       if (!dto.kabkotaKode) {
-        throw new BadRequestException('kabkotaKode is required when kecamatanKode is provided');
+        throw new BadRequestException(
+          'kabkotaKode is required when kecamatanKode is provided',
+        );
       }
       try {
         await this.daerahService.findByKode(dto.kecamatanKode);
       } catch {
-        throw new BadRequestException(`Invalid kecamatanKode: ${dto.kecamatanKode}`);
+        throw new BadRequestException(
+          `Invalid kecamatanKode: ${dto.kecamatanKode}`,
+        );
       }
     }
 
     if (dto.kabkotaKode) {
       if (!dto.provinsiKode) {
-        throw new BadRequestException('provinsiKode is required when kabkotaKode is provided');
+        throw new BadRequestException(
+          'provinsiKode is required when kabkotaKode is provided',
+        );
       }
       try {
         await this.daerahService.findByKode(dto.kabkotaKode);
       } catch {
-        throw new BadRequestException(`Invalid kabkotaKode: ${dto.kabkotaKode}`);
+        throw new BadRequestException(
+          `Invalid kabkotaKode: ${dto.kabkotaKode}`,
+        );
       }
     }
 
@@ -586,7 +663,9 @@ export class PROTService {
       try {
         await this.daerahService.findByKode(dto.provinsiKode);
       } catch {
-        throw new BadRequestException(`Invalid provinsiKode: ${dto.provinsiKode}`);
+        throw new BadRequestException(
+          `Invalid provinsiKode: ${dto.provinsiKode}`,
+        );
       }
     }
   }

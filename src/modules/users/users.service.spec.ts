@@ -93,7 +93,9 @@ describe('UsersService', () => {
       const user = { ...baseUser };
       mockUsersRepository.findOne.mockResolvedValue(user);
       mockDaerahService.findById.mockResolvedValue({ id: 'daerah-1' });
-      mockUsersRepository.save.mockImplementation(async (savedUser) => savedUser);
+      mockUsersRepository.save.mockImplementation(
+        async (savedUser) => savedUser,
+      );
 
       const result = await service.updateRole(
         'user-1',
@@ -115,7 +117,9 @@ describe('UsersService', () => {
         daerah_id: 'daerah-1',
       };
       mockUsersRepository.findOne.mockResolvedValue(user);
-      mockUsersRepository.save.mockImplementation(async (savedUser) => savedUser);
+      mockUsersRepository.save.mockImplementation(
+        async (savedUser) => savedUser,
+      );
 
       const result = await service.updateRole(
         'user-1',

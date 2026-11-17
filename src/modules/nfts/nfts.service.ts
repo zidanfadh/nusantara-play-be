@@ -82,7 +82,9 @@ export class NftsService {
       .where('nft.is_active = true');
 
     if (options.publishedOnly) {
-      queryBuilder.andWhere('nft.status = :status', { status: NftCatalogStatus.PUBLISHED });
+      queryBuilder.andWhere('nft.status = :status', {
+        status: NftCatalogStatus.PUBLISHED,
+      });
     } else if (options.status) {
       queryBuilder.andWhere('nft.status = :status', { status: options.status });
     }
@@ -94,7 +96,9 @@ export class NftsService {
     }
 
     if (query.prot_id) {
-      queryBuilder.andWhere('nft.prot_id = :prot_id', { prot_id: query.prot_id });
+      queryBuilder.andWhere('nft.prot_id = :prot_id', {
+        prot_id: query.prot_id,
+      });
     }
 
     if (query.search) {
@@ -160,7 +164,11 @@ export class NftsService {
     return nft;
   }
 
-  async update(id: string, userId: string, dto: UpdateNftDto): Promise<NftCatalog> {
+  async update(
+    id: string,
+    userId: string,
+    dto: UpdateNftDto,
+  ): Promise<NftCatalog> {
     const nft = await this.findActiveById(id);
 
     await this.validateProt(dto.prot_id);
@@ -210,7 +218,9 @@ export class NftsService {
     await this.nftRepository.save(nft);
   }
 
-  async uploadImage(file: Express.Multer.File): Promise<{ url: string; message: string }> {
+  async uploadImage(
+    file: Express.Multer.File,
+  ): Promise<{ url: string; message: string }> {
     const url = await this.storageService.uploadFile(file, 'images/nfts');
     return {
       url,
@@ -242,7 +252,10 @@ export class NftsService {
     }
   }
 
-  private async assertSlugAvailable(slug: string, excludeId?: string): Promise<void> {
+  private async assertSlugAvailable(
+    slug: string,
+    excludeId?: string,
+  ): Promise<void> {
     const existing = await this.nftRepository.findOne({ where: { slug } });
     if (existing && existing.id !== excludeId) {
       throw new ConflictException(`Slug '${slug}' sudah digunakan`);

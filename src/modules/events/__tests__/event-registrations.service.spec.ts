@@ -2,10 +2,17 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventRegistrationsService } from '../event-registrations.service';
-import { EventRegistration, RegistrationStatus } from '../entities/event-registration.entity';
+import {
+  EventRegistration,
+  RegistrationStatus,
+} from '../entities/event-registration.entity';
 import { Event, EventStatus } from '../entities/event.entity';
 import { EventsService } from '../events.service';
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 
 describe('EventRegistrationsService', () => {
   let service: EventRegistrationsService;
@@ -72,8 +79,12 @@ describe('EventRegistrationsService', () => {
       eventsService.isRegistrationOpen = jest.fn().mockReturnValue(true);
       registrationRepository.findOne = jest.fn().mockResolvedValue(null);
       registrationRepository.count = jest.fn().mockResolvedValue(0);
-      registrationRepository.create = jest.fn().mockReturnValue(mockRegistration);
-      registrationRepository.save = jest.fn().mockResolvedValue(mockRegistration);
+      registrationRepository.create = jest
+        .fn()
+        .mockReturnValue(mockRegistration);
+      registrationRepository.save = jest
+        .fn()
+        .mockResolvedValue(mockRegistration);
 
       const result = await service.register('event-id', 'user-id');
 
@@ -93,7 +104,9 @@ describe('EventRegistrationsService', () => {
     it('should throw ConflictException for duplicate registration', async () => {
       eventsService.findOne = jest.fn().mockResolvedValue(mockEvent);
       eventsService.isRegistrationOpen = jest.fn().mockReturnValue(true);
-      registrationRepository.findOne = jest.fn().mockResolvedValue(mockRegistration);
+      registrationRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(mockRegistration);
 
       await expect(service.register('event-id', 'user-id')).rejects.toThrow(
         ConflictException,
@@ -113,10 +126,15 @@ describe('EventRegistrationsService', () => {
     });
 
     it('should re-register cancelled registration', async () => {
-      const cancelledReg = { ...mockRegistration, status: RegistrationStatus.CANCELLED };
+      const cancelledReg = {
+        ...mockRegistration,
+        status: RegistrationStatus.CANCELLED,
+      };
       eventsService.findOne = jest.fn().mockResolvedValue(mockEvent);
       eventsService.isRegistrationOpen = jest.fn().mockReturnValue(true);
-      registrationRepository.findOne = jest.fn().mockResolvedValue(cancelledReg);
+      registrationRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(cancelledReg);
       registrationRepository.save = jest.fn().mockResolvedValue({
         ...cancelledReg,
         status: RegistrationStatus.REGISTERED,
@@ -130,7 +148,9 @@ describe('EventRegistrationsService', () => {
 
   describe('cancelRegistration', () => {
     it('should cancel a registration', async () => {
-      registrationRepository.findOne = jest.fn().mockResolvedValue(mockRegistration);
+      registrationRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(mockRegistration);
       registrationRepository.save = jest.fn().mockResolvedValue({
         ...mockRegistration,
         status: RegistrationStatus.CANCELLED,
@@ -154,8 +174,13 @@ describe('EventRegistrationsService', () => {
     });
 
     it('should throw BadRequestException when already cancelled', async () => {
-      const cancelledReg = { ...mockRegistration, status: RegistrationStatus.CANCELLED };
-      registrationRepository.findOne = jest.fn().mockResolvedValue(cancelledReg);
+      const cancelledReg = {
+        ...mockRegistration,
+        status: RegistrationStatus.CANCELLED,
+      };
+      registrationRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(cancelledReg);
 
       await expect(
         service.cancelRegistration('event-id', 'user-id'),
@@ -163,8 +188,13 @@ describe('EventRegistrationsService', () => {
     });
 
     it('should throw BadRequestException when already checked in', async () => {
-      const checkedInReg = { ...mockRegistration, status: RegistrationStatus.CHECKED_IN };
-      registrationRepository.findOne = jest.fn().mockResolvedValue(checkedInReg);
+      const checkedInReg = {
+        ...mockRegistration,
+        status: RegistrationStatus.CHECKED_IN,
+      };
+      registrationRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(checkedInReg);
 
       await expect(
         service.cancelRegistration('event-id', 'user-id'),
@@ -181,7 +211,9 @@ describe('EventRegistrationsService', () => {
         data_pendaftaran: {},
         status: RegistrationStatus.REGISTERED,
       };
-      registrationRepository.findOne = jest.fn().mockResolvedValue(registeredReg);
+      registrationRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(registeredReg);
       registrationRepository.save = jest.fn().mockResolvedValue({
         id: 'reg-id',
         event_id: 'event-id',
@@ -191,7 +223,11 @@ describe('EventRegistrationsService', () => {
         checked_in_at: expect.any(Date),
       });
 
-      const result = await service.checkIn('event-id', 'user-id', 'organizer-id');
+      const result = await service.checkIn(
+        'event-id',
+        'user-id',
+        'organizer-id',
+      );
 
       expect(result.status).toBe(RegistrationStatus.CHECKED_IN);
       expect(result.checked_in_at).toBeDefined();
@@ -213,7 +249,9 @@ describe('EventRegistrationsService', () => {
         data_pendaftaran: {},
         status: RegistrationStatus.CHECKED_IN,
       };
-      registrationRepository.findOne = jest.fn().mockResolvedValue(checkedInReg);
+      registrationRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(checkedInReg);
 
       await expect(
         service.checkIn('event-id', 'user-id', 'organizer-id'),
@@ -228,7 +266,9 @@ describe('EventRegistrationsService', () => {
         data_pendaftaran: {},
         status: RegistrationStatus.CANCELLED,
       };
-      registrationRepository.findOne = jest.fn().mockResolvedValue(cancelledReg);
+      registrationRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(cancelledReg);
 
       await expect(
         service.checkIn('event-id', 'user-id', 'organizer-id'),
@@ -238,15 +278,24 @@ describe('EventRegistrationsService', () => {
 
   describe('undoCheckIn', () => {
     it('should undo check in', async () => {
-      const checkedInReg = { ...mockRegistration, status: RegistrationStatus.CHECKED_IN };
-      registrationRepository.findOne = jest.fn().mockResolvedValue(checkedInReg);
+      const checkedInReg = {
+        ...mockRegistration,
+        status: RegistrationStatus.CHECKED_IN,
+      };
+      registrationRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(checkedInReg);
       registrationRepository.save = jest.fn().mockResolvedValue({
         ...checkedInReg,
         status: RegistrationStatus.REGISTERED,
         checked_in_at: null,
       });
 
-      const result = await service.undoCheckIn('event-id', 'user-id', 'organizer-id');
+      const result = await service.undoCheckIn(
+        'event-id',
+        'user-id',
+        'organizer-id',
+      );
 
       expect(result.status).toBe(RegistrationStatus.REGISTERED);
       expect(result.checked_in_at).toBeNull();
@@ -261,7 +310,9 @@ describe('EventRegistrationsService', () => {
     });
 
     it('should throw BadRequestException when not checked in', async () => {
-      registrationRepository.findOne = jest.fn().mockResolvedValue(mockRegistration);
+      registrationRepository.findOne = jest
+        .fn()
+        .mockResolvedValue(mockRegistration);
 
       await expect(
         service.undoCheckIn('event-id', 'user-id', 'organizer-id'),

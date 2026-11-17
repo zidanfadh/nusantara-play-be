@@ -10,13 +10,13 @@ import { EventsModule } from '../events/events.module';
 import { DaerahModule } from '../daerah/daerah.module';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([CalendarItem, CalendarInvite, User]),
-        EventsModule,
-        DaerahModule,
-    ],
-    controllers: [CalendarController],
-    providers: [CalendarService, CalendarInviteService],
-    exports: [CalendarService, CalendarInviteService],
+  imports: [
+    TypeOrmModule.forFeature([CalendarItem, CalendarInvite, User]),
+    EventsModule,
+    DaerahModule,
+  ],
+  controllers: [CalendarController],
+  providers: [CalendarService, CalendarInviteService],
+  exports: [CalendarService, CalendarInviteService],
 })
-export class CalendarModule { }
+export class CalendarModule {}

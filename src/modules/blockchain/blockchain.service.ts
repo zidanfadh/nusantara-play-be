@@ -1,4 +1,10 @@
-import { Injectable, Logger, OnModuleInit, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -43,12 +49,14 @@ export class BlockchainService implements OnModuleInit {
     @InjectRepository(PROT)
     private readonly protRepository: Repository<PROT>,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   onModuleInit() {
     const rpcUrl = this.configService.get<string>('BLOCKCHAIN_RPC_URL');
     const privateKey = this.configService.get<string>('BLOCKCHAIN_PRIVATE_KEY');
-    const contractAddress = this.configService.get<string>('BLOCKCHAIN_CONTRACT_ADDRESS');
+    const contractAddress = this.configService.get<string>(
+      'BLOCKCHAIN_CONTRACT_ADDRESS',
+    );
 
     if (!rpcUrl || !privateKey || !contractAddress) {
       this.logger.warn(
@@ -64,7 +72,9 @@ export class BlockchainService implements OnModuleInit {
       ProtVerificationABI.abi,
       wallet,
     );
-    this.logger.log(`BlockchainService initialized. Contract: ${contractAddress}`);
+    this.logger.log(
+      `BlockchainService initialized. Contract: ${contractAddress}`,
+    );
   }
 
   /**
@@ -78,9 +88,9 @@ export class BlockchainService implements OnModuleInit {
     }
     // Strip media URL fields from peralatan before hashing
     if (Array.isArray(payload['peralatan'])) {
-      payload['peralatan'] = (payload['peralatan'] as Array<Record<string, unknown>>).map(
-        ({ fotoAlat: _f, urlPembelian: _u, ...rest }) => rest,
-      );
+      payload['peralatan'] = (
+        payload['peralatan'] as Array<Record<string, unknown>>
+      ).map(({ fotoAlat: _f, urlPembelian: _u, ...rest }) => rest);
     }
     const json = JSON.stringify(payload);
     return crypto.createHash('sha256').update(json).digest('hex');
@@ -98,13 +108,17 @@ export class BlockchainService implements OnModuleInit {
       });
 
       if (!verifikasi) {
-        this.logger.error(`Verifikasi ${verifikasiId} not found for blockchain anchoring`);
+        this.logger.error(
+          `Verifikasi ${verifikasiId} not found for blockchain anchoring`,
+        );
         return;
       }
 
       const prot = verifikasi.prot;
       if (!prot) {
-        this.logger.error(`PROT not loaded for verifikasi ${verifikasiId} — cannot anchor`);
+        this.logger.error(
+          `PROT not loaded for verifikasi ${verifikasiId} — cannot anchor`,
+        );
         return;
       }
       const dataHash = this.computeHash(prot);
@@ -122,7 +136,8 @@ export class BlockchainService implements OnModuleInit {
         version,
         data_hash: dataHash,
         blockchain_network:
-          this.configService.get<string>('BLOCKCHAIN_NETWORK') ?? 'polygon-amoy',
+          this.configService.get<string>('BLOCKCHAIN_NETWORK') ??
+          'polygon-amoy',
         status: BlockchainProofStatus.PENDING,
       });
       await this.proofRepository.save(proof);
@@ -154,7 +169,9 @@ export class BlockchainService implements OnModuleInit {
       const tx = await this.contract['recordVerification'](protId, hashBytes);
       const receipt = await tx.wait();
       if (!receipt) {
-        throw new Error('Transaction dropped from mempool — no receipt received');
+        throw new Error(
+          'Transaction dropped from mempool — no receipt received',
+        );
       }
 
       proof.tx_hash = receipt.hash;
@@ -259,7 +276,9 @@ export class BlockchainService implements OnModuleInit {
    * Returns null if no proof exists.
    * Integrity check (hash recomputation + chain query) is only performed for CONFIRMED proofs.
    */
-  async getProofForProt(protId: string): Promise<BlockchainProofResponseDto | null> {
+  async getProofForProt(
+    protId: string,
+  ): Promise<BlockchainProofResponseDto | null> {
     const proof = await this.proofRepository.findOne({
       where: { prot_id: protId },
       order: { version: 'DESC' },
@@ -301,7 +320,11 @@ export class BlockchainService implements OnModuleInit {
           }
         }
 
-        response.integrity = { dbIntact, chainIntact, fullyVerified: dbIntact && chainIntact };
+        response.integrity = {
+          dbIntact,
+          chainIntact,
+          fullyVerified: dbIntact && chainIntact,
+        };
       }
     }
 
@@ -313,7 +336,9 @@ export class BlockchainService implements OnModuleInit {
    * Throws NotFoundException if no proof row exists for this PROT.
    * Throws ConflictException if the proof is already CONFIRMED.
    */
-  async triggerReanchor(protId: string): Promise<{ message: string; proofId: string }> {
+  async triggerReanchor(
+    protId: string,
+  ): Promise<{ message: string; proofId: string }> {
     const proof = await this.proofRepository.findOne({
       where: { prot_id: protId },
       order: { version: 'DESC' },
@@ -321,11 +346,15 @@ export class BlockchainService implements OnModuleInit {
     });
 
     if (!proof) {
-      throw new NotFoundException(`No blockchain proof record found for PROT ${protId}`);
+      throw new NotFoundException(
+        `No blockchain proof record found for PROT ${protId}`,
+      );
     }
 
     if (!proof.prot) {
-      throw new NotFoundException(`PROT data not loaded for blockchain proof ${proof.id}`);
+      throw new NotFoundException(
+        `PROT data not loaded for blockchain proof ${proof.id}`,
+      );
     }
 
     if (proof.status === BlockchainProofStatus.CONFIRMED) {
@@ -342,7 +371,9 @@ export class BlockchainService implements OnModuleInit {
 
     // Fire-and-forget — sendToChain will update the proof row on completion
     this.sendToChain(proof, protId, proof.data_hash).catch((err: Error) => {
-      this.logger.error(`Manual reanchor failed for PROT ${protId}: ${err.message}`);
+      this.logger.error(
+        `Manual reanchor failed for PROT ${protId}: ${err.message}`,
+      );
     });
 
     return { message: 'Reanchor initiated', proofId: proof.id };

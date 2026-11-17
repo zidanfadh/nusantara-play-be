@@ -1,4 +1,10 @@
-import { IsString, IsNotEmpty, IsOptional, Matches, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateTokoDto {
   @IsString()
@@ -8,7 +14,9 @@ export class CreateTokoDto {
 
   @IsString()
   @IsNotEmpty()
-  @Matches(/^[a-z0-9-]+$/, { message: 'slug hanya boleh huruf kecil, angka, dan tanda hubung' })
+  @Matches(/^[a-z0-9-]+$/, {
+    message: 'slug hanya boleh huruf kecil, angka, dan tanda hubung',
+  })
   @MaxLength(100)
   slug: string;
 

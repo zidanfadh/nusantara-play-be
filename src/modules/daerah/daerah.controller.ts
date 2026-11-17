@@ -5,7 +5,7 @@ import { DaerahLevel } from './entities/daerah.entity';
 
 @Controller('daerah')
 export class DaerahController {
-  constructor(private readonly daerahService: DaerahService) { }
+  constructor(private readonly daerahService: DaerahService) {}
 
   @Get()
   @Public()

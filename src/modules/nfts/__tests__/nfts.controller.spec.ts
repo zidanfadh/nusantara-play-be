@@ -47,13 +47,16 @@ describe('NftsController', () => {
     });
 
     it('throws BadRequestException when file is missing', () => {
-      expect(() => controller.uploadImage(undefined as unknown as Express.Multer.File)).toThrow(
-        BadRequestException,
-      );
+      expect(() =>
+        controller.uploadImage(undefined as unknown as Express.Multer.File),
+      ).toThrow(BadRequestException);
     });
 
     it('is restricted to admin_kpoti role', () => {
-      const roles = Reflect.getMetadata(ROLES_KEY, NftsController.prototype.uploadImage);
+      const roles = Reflect.getMetadata(
+        ROLES_KEY,
+        NftsController.prototype.uploadImage,
+      );
       expect(roles).toEqual([UserRole.ADMIN_KPOTI]);
     });
   });
@@ -76,7 +79,10 @@ describe('NftsController', () => {
     });
 
     it('restricts admin listing to admin_kpoti role', () => {
-      const roles = Reflect.getMetadata(ROLES_KEY, NftsController.prototype.findAllForAdmin);
+      const roles = Reflect.getMetadata(
+        ROLES_KEY,
+        NftsController.prototype.findAllForAdmin,
+      );
       expect(roles).toEqual([UserRole.ADMIN_KPOTI]);
     });
   });

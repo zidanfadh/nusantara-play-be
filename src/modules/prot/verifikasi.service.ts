@@ -50,14 +50,20 @@ export class VerifikasiService {
 
     if (user?.role === UserRole.KURATOR_DAERAH) {
       if (!user.daerah_id) {
-        throw new BadRequestException('Kurator Daerah must have daerah_id assigned');
+        throw new BadRequestException(
+          'Kurator Daerah must have daerah_id assigned',
+        );
       }
 
       const ancestors = await this.daerahService.findAncestors(user.daerah_id);
-      const province = ancestors.find((daerah) => daerah.level === DaerahLevel.PROVINSI);
+      const province = ancestors.find(
+        (daerah) => daerah.level === DaerahLevel.PROVINSI,
+      );
 
       if (!province) {
-        throw new BadRequestException('Kurator Daerah province could not be resolved');
+        throw new BadRequestException(
+          'Kurator Daerah province could not be resolved',
+        );
       }
 
       where.prot = { provinsiKode: province.kode };
@@ -242,11 +248,13 @@ export class VerifikasiService {
 
     // Fire-and-forget blockchain anchoring — does not block the response
     if (reviewDto.status === VerifikasiStatus.APPROVED) {
-      this.blockchainService.anchorVerification(verifikasi.id).catch((err: Error) => {
-        new Logger('VerifikasiService').error(
-          `Blockchain anchor failed for verifikasi ${verifikasi.id}: ${err.message}`,
-        );
-      });
+      this.blockchainService
+        .anchorVerification(verifikasi.id)
+        .catch((err: Error) => {
+          new Logger('VerifikasiService').error(
+            `Blockchain anchor failed for verifikasi ${verifikasi.id}: ${err.message}`,
+          );
+        });
     }
 
     // 4. Remove from queue
@@ -275,10 +283,14 @@ export class VerifikasiService {
     reviewer: ReviewerContext,
   ): Promise<string> {
     if (!reviewer.daerah_id) {
-      throw new BadRequestException('Kurator Daerah must have daerah_id assigned');
+      throw new BadRequestException(
+        'Kurator Daerah must have daerah_id assigned',
+      );
     }
 
-    const ancestors = await this.daerahService.findAncestors(reviewer.daerah_id);
+    const ancestors = await this.daerahService.findAncestors(
+      reviewer.daerah_id,
+    );
     const province = ancestors.find(
       (daerah) => daerah.level === DaerahLevel.PROVINSI,
     );

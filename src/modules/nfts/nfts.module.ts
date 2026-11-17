@@ -8,7 +8,11 @@ import { NftsController } from './nfts.controller';
 import { NftsService } from './nfts.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([NftCatalog, PROT]), StorageModule, AuditModule],
+  imports: [
+    TypeOrmModule.forFeature([NftCatalog, PROT]),
+    StorageModule,
+    AuditModule,
+  ],
   controllers: [NftsController],
   providers: [NftsService],
 })

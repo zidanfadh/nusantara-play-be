@@ -7,7 +7,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Event, EventStatus } from './entities/event.entity';
-import { EventRegistration, RegistrationStatus } from './entities/event-registration.entity';
+import {
+  EventRegistration,
+  RegistrationStatus,
+} from './entities/event-registration.entity';
 import { RegisterEventDto } from './dto/event.dto';
 import { EventsService } from './events.service';
 
@@ -19,7 +22,11 @@ export class EventRegistrationsService {
     private eventsService: EventsService,
   ) {}
 
-  async register(eventId: string, userId: string, data?: RegisterEventDto): Promise<EventRegistration> {
+  async register(
+    eventId: string,
+    userId: string,
+    data?: RegisterEventDto,
+  ): Promise<EventRegistration> {
     const event = await this.eventsService.findOne(eventId);
 
     // Check if registration is open
@@ -45,7 +52,10 @@ export class EventRegistrationsService {
     // Check quota
     if (event.kuota_peserta) {
       const count = await this.registrationRepository.count({
-        where: { event_id: eventId, status: RegistrationStatus.REGISTERED } as any,
+        where: {
+          event_id: eventId,
+          status: RegistrationStatus.REGISTERED,
+        } as any,
       });
       if (count >= event.kuota_peserta) {
         throw new BadRequestException('Event is fully booked');
@@ -81,7 +91,9 @@ export class EventRegistrationsService {
     }
 
     if (registration.status === RegistrationStatus.CHECKED_IN) {
-      throw new BadRequestException('Cannot cancel registration after check-in');
+      throw new BadRequestException(
+        'Cannot cancel registration after check-in',
+      );
     }
 
     registration.status = RegistrationStatus.CANCELLED;
@@ -151,7 +163,10 @@ export class EventRegistrationsService {
 
   private async updateParticipantCount(eventId: string): Promise<void> {
     const count = await this.registrationRepository.count({
-      where: { event_id: eventId, status: RegistrationStatus.REGISTERED } as any,
+      where: {
+        event_id: eventId,
+        status: RegistrationStatus.REGISTERED,
+      } as any,
     });
 
     await this.registrationRepository.manager.update(Event, eventId, {

@@ -5,7 +5,11 @@ import { VerifikasiService } from './verifikasi.service';
 import { Verifikasi, VerifikasiStatus } from './entities/verifikasi.entity';
 import { VerifikasiQueue } from './entities/verifikasi-queue.entity';
 import { PROT, PROTStatus } from './entities/prot.entity';
-import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { BlockchainService } from '../blockchain/blockchain.service';
 import { DaerahService } from '../daerah/daerah.service';
 import { DaerahLevel } from '../daerah/entities/daerah.entity';
@@ -78,8 +82,12 @@ describe('VerifikasiService', () => {
     }).compile();
 
     service = module.get<VerifikasiService>(VerifikasiService);
-    verifikasiRepository = module.get<Repository<Verifikasi>>(getRepositoryToken(Verifikasi));
-    queueRepository = module.get<Repository<VerifikasiQueue>>(getRepositoryToken(VerifikasiQueue));
+    verifikasiRepository = module.get<Repository<Verifikasi>>(
+      getRepositoryToken(Verifikasi),
+    );
+    queueRepository = module.get<Repository<VerifikasiQueue>>(
+      getRepositoryToken(VerifikasiQueue),
+    );
     protRepository = module.get<Repository<PROT>>(getRepositoryToken(PROT));
   });
 
@@ -336,7 +344,11 @@ describe('VerifikasiService', () => {
       });
       mockQueueRepository.remove.mockResolvedValue(mockQueue);
 
-      const result = await service.submitReview('prot-1', 'pakar-1', mockReviewDto);
+      const result = await service.submitReview(
+        'prot-1',
+        'pakar-1',
+        mockReviewDto,
+      );
 
       expect(result.status).toBe(VerifikasiStatus.APPROVED);
       expect(protRepository.save).toHaveBeenCalled();

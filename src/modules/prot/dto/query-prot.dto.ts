@@ -1,4 +1,10 @@
-import { IsOptional, IsEnum, IsString, IsNumber, IsUUID } from 'class-validator';
+import {
+  IsOptional,
+  IsEnum,
+  IsString,
+  IsNumber,
+  IsUUID,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { PROTJenis, TargetUsia, PROTStatus } from '../entities/prot.entity';
 

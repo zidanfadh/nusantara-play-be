@@ -32,12 +32,16 @@ export class OrderService {
     await qr.connect();
     await qr.startTransaction();
     try {
-      const toko = await qr.manager.findOne(Toko, { where: { id: dto.toko_id } });
+      const toko = await qr.manager.findOne(Toko, {
+        where: { id: dto.toko_id },
+      });
       if (!toko) {
         throw new NotFoundException('Toko tidak ditemukan');
       }
       if (toko.user_id === buyerId) {
-        throw new BadRequestException('Anda tidak dapat membeli dari toko sendiri');
+        throw new BadRequestException(
+          'Anda tidak dapat membeli dari toko sendiri',
+        );
       }
 
       let totalHarga = 0;
@@ -48,10 +52,14 @@ export class OrderService {
           where: { id: item.produk_id, toko_id: dto.toko_id, is_active: true },
         });
         if (!produk) {
-          throw new NotFoundException(`Produk '${item.produk_id}' tidak ditemukan di toko ini`);
+          throw new NotFoundException(
+            `Produk '${item.produk_id}' tidak ditemukan di toko ini`,
+          );
         }
         if (produk.stok < item.qty) {
-          throw new BadRequestException(`Stok produk '${produk.nama}' tidak mencukupi`);
+          throw new BadRequestException(
+            `Stok produk '${produk.nama}' tidak mencukupi`,
+          );
         }
         produk.stok -= item.qty;
         await qr.manager.save(Produk, produk);
@@ -78,7 +86,10 @@ export class OrderService {
       const savedOrder = await qr.manager.save(Order, order);
 
       for (const item of itemEntities) {
-        const orderItem = qr.manager.create(OrderItem, { ...item, order_id: savedOrder.id });
+        const orderItem = qr.manager.create(OrderItem, {
+          ...item,
+          order_id: savedOrder.id,
+        });
         await qr.manager.save(OrderItem, orderItem);
       }
 
@@ -130,10 +141,15 @@ export class OrderService {
   }
 
   async konfirmasi(id: string, userId: string): Promise<Order> {
-    const order = await this.orderRepo.findOne({ where: { id }, relations: ['toko'] });
+    const order = await this.orderRepo.findOne({
+      where: { id },
+      relations: ['toko'],
+    });
     if (!order) throw new NotFoundException('Order tidak ditemukan');
     if (order.toko.user_id !== userId) {
-      throw new ForbiddenException('Hanya penjual yang dapat mengkonfirmasi order');
+      throw new ForbiddenException(
+        'Hanya penjual yang dapat mengkonfirmasi order',
+      );
     }
     if (order.status !== OrderStatus.MENUNGGU) {
       throw new BadRequestException('Order tidak dalam status MENUNGGU');
@@ -143,13 +159,20 @@ export class OrderService {
   }
 
   async kirim(id: string, userId: string, dto: KirimOrderDto): Promise<Order> {
-    const order = await this.orderRepo.findOne({ where: { id }, relations: ['toko'] });
+    const order = await this.orderRepo.findOne({
+      where: { id },
+      relations: ['toko'],
+    });
     if (!order) throw new NotFoundException('Order tidak ditemukan');
     if (order.toko.user_id !== userId) {
-      throw new ForbiddenException('Hanya penjual yang dapat memperbarui pengiriman');
+      throw new ForbiddenException(
+        'Hanya penjual yang dapat memperbarui pengiriman',
+      );
     }
     if (order.status !== OrderStatus.DIKONFIRMASI) {
-      throw new BadRequestException('Order harus dalam status DIKONFIRMASI untuk dikirim');
+      throw new BadRequestException(
+        'Order harus dalam status DIKONFIRMASI untuk dikirim',
+      );
     }
     order.status = OrderStatus.DIKIRIM;
     order.kurir_pengiriman = dto.kurir_pengiriman;
@@ -158,13 +181,20 @@ export class OrderService {
   }
 
   async selesai(id: string, userId: string): Promise<Order> {
-    const order = await this.orderRepo.findOne({ where: { id }, relations: ['toko'] });
+    const order = await this.orderRepo.findOne({
+      where: { id },
+      relations: ['toko'],
+    });
     if (!order) throw new NotFoundException('Order tidak ditemukan');
     if (order.buyer_id !== userId) {
-      throw new ForbiddenException('Hanya pembeli yang dapat menandai order selesai');
+      throw new ForbiddenException(
+        'Hanya pembeli yang dapat menandai order selesai',
+      );
     }
     if (order.status !== OrderStatus.DIKIRIM) {
-      throw new BadRequestException('Order harus dalam status DIKIRIM untuk diselesaikan');
+      throw new BadRequestException(
+        'Order harus dalam status DIKIRIM untuk diselesaikan',
+      );
     }
     order.status = OrderStatus.SELESAI;
     return this.orderRepo.save(order);
@@ -186,7 +216,8 @@ export class OrderService {
     const cancellableByBuyer = isBuyer && order.status === OrderStatus.MENUNGGU;
     const cancellableBySeller =
       isSeller &&
-      (order.status === OrderStatus.MENUNGGU || order.status === OrderStatus.DIKONFIRMASI);
+      (order.status === OrderStatus.MENUNGGU ||
+        order.status === OrderStatus.DIKONFIRMASI);
     if (!cancellableByBuyer && !cancellableBySeller) {
       throw new BadRequestException(
         `Order tidak dapat dibatalkan pada status ${order.status}`,
@@ -198,7 +229,9 @@ export class OrderService {
     await qr.startTransaction();
     try {
       for (const item of order.items) {
-        const produk = await qr.manager.findOne(Produk, { where: { id: item.produk_id } });
+        const produk = await qr.manager.findOne(Produk, {
+          where: { id: item.produk_id },
+        });
         if (produk) {
           produk.stok += item.qty;
           await qr.manager.save(Produk, produk);

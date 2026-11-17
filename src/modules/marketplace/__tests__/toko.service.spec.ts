@@ -1,6 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { TokoService } from '../toko.service';
 import { Toko } from '../entities/toko.entity';
 
@@ -30,16 +34,32 @@ describe('TokoService', () => {
     it('should create a new toko for user', async () => {
       mockRepo.findOne.mockResolvedValueOnce(null); // no existing toko for user
       mockRepo.findOne.mockResolvedValueOnce(null); // slug not taken
-      mockRepo.create.mockReturnValue({ id: 'uuid', user_id: 'user-1', nama: 'Toko A', slug: 'toko-a' });
-      mockRepo.save.mockResolvedValue({ id: 'uuid', user_id: 'user-1', nama: 'Toko A', slug: 'toko-a' });
+      mockRepo.create.mockReturnValue({
+        id: 'uuid',
+        user_id: 'user-1',
+        nama: 'Toko A',
+        slug: 'toko-a',
+      });
+      mockRepo.save.mockResolvedValue({
+        id: 'uuid',
+        user_id: 'user-1',
+        nama: 'Toko A',
+        slug: 'toko-a',
+      });
 
-      const result = await service.create('user-1', { nama: 'Toko A', slug: 'toko-a' });
+      const result = await service.create('user-1', {
+        nama: 'Toko A',
+        slug: 'toko-a',
+      });
 
       expect(result.nama).toBe('Toko A');
     });
 
     it('should throw ConflictException when user already has a toko', async () => {
-      mockRepo.findOne.mockResolvedValueOnce({ id: 'existing', user_id: 'user-1' });
+      mockRepo.findOne.mockResolvedValueOnce({
+        id: 'existing',
+        user_id: 'user-1',
+      });
 
       await expect(
         service.create('user-1', { nama: 'Toko B', slug: 'toko-b' }),

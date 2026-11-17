@@ -1,22 +1,22 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CreateCalendar1740600000000 implements MigrationInterface {
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        // Create enum types
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // Create enum types
+    await queryRunner.query(`
       CREATE TYPE "calendar_item_type" AS ENUM ('important_date', 'personal_schedule');
     `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
       CREATE TYPE "calendar_item_visibility" AS ENUM ('public', 'internal', 'private');
     `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
       CREATE TYPE "calendar_invite_status" AS ENUM ('pending', 'accepted', 'declined');
     `);
 
-        // Create calendar_items table
-        await queryRunner.query(`
+    // Create calendar_items table
+    await queryRunner.query(`
       CREATE TABLE "calendar_items" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "title" varchar NOT NULL,
@@ -42,29 +42,29 @@ export class CreateCalendar1740600000000 implements MigrationInterface {
       );
     `);
 
-        // Create indexes for calendar_items
-        await queryRunner.query(`
+    // Create indexes for calendar_items
+    await queryRunner.query(`
       CREATE INDEX "IDX_calendar_items_start_date_visibility"
         ON "calendar_items" ("start_date", "visibility");
     `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
       CREATE INDEX "IDX_calendar_items_created_by"
         ON "calendar_items" ("created_by");
     `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
       CREATE INDEX "IDX_calendar_items_daerah_id"
         ON "calendar_items" ("daerah_id");
     `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
       CREATE INDEX "IDX_calendar_items_type"
         ON "calendar_items" ("type");
     `);
 
-        // Create calendar_invites table
-        await queryRunner.query(`
+    // Create calendar_invites table
+    await queryRunner.query(`
       CREATE TABLE "calendar_invites" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "calendar_item_id" uuid NOT NULL,
@@ -81,22 +81,22 @@ export class CreateCalendar1740600000000 implements MigrationInterface {
       );
     `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
       CREATE INDEX "IDX_calendar_invites_user_id"
         ON "calendar_invites" ("user_id");
     `);
 
-        await queryRunner.query(`
+    await queryRunner.query(`
       CREATE INDEX "IDX_calendar_invites_calendar_item_id"
         ON "calendar_invites" ("calendar_item_id");
     `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`DROP TABLE IF EXISTS "calendar_invites";`);
-        await queryRunner.query(`DROP TABLE IF EXISTS "calendar_items";`);
-        await queryRunner.query(`DROP TYPE IF EXISTS "calendar_invite_status";`);
-        await queryRunner.query(`DROP TYPE IF EXISTS "calendar_item_visibility";`);
-        await queryRunner.query(`DROP TYPE IF EXISTS "calendar_item_type";`);
-    }
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TABLE IF EXISTS "calendar_invites";`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "calendar_items";`);
+    await queryRunner.query(`DROP TYPE IF EXISTS "calendar_invite_status";`);
+    await queryRunner.query(`DROP TYPE IF EXISTS "calendar_item_visibility";`);
+    await queryRunner.query(`DROP TYPE IF EXISTS "calendar_item_type";`);
+  }
 }

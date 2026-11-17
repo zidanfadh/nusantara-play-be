@@ -54,8 +54,12 @@ export class CreateMarketplace1743000000000 implements MigrationInterface {
     `);
 
     await queryRunner.query(`CREATE INDEX idx_produk_toko ON produk(toko_id)`);
-    await queryRunner.query(`CREATE INDEX idx_produk_kategori ON produk(kategori_id)`);
-    await queryRunner.query(`CREATE INDEX idx_produk_active ON produk(is_active)`);
+    await queryRunner.query(
+      `CREATE INDEX idx_produk_kategori ON produk(kategori_id)`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX idx_produk_active ON produk(is_active)`,
+    );
 
     await queryRunner.query(`
       CREATE TABLE produk_prot (
@@ -87,9 +91,15 @@ export class CreateMarketplace1743000000000 implements MigrationInterface {
       )
     `);
 
-    await queryRunner.query(`CREATE INDEX idx_order_buyer ON marketplace_order(buyer_id)`);
-    await queryRunner.query(`CREATE INDEX idx_order_toko ON marketplace_order(toko_id)`);
-    await queryRunner.query(`CREATE INDEX idx_order_status ON marketplace_order(status)`);
+    await queryRunner.query(
+      `CREATE INDEX idx_order_buyer ON marketplace_order(buyer_id)`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX idx_order_toko ON marketplace_order(toko_id)`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX idx_order_status ON marketplace_order(status)`,
+    );
 
     await queryRunner.query(`
       CREATE TABLE order_item (
@@ -103,7 +113,9 @@ export class CreateMarketplace1743000000000 implements MigrationInterface {
       )
     `);
 
-    await queryRunner.query(`CREATE INDEX idx_order_item_order ON order_item(order_id)`);
+    await queryRunner.query(
+      `CREATE INDEX idx_order_item_order ON order_item(order_id)`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

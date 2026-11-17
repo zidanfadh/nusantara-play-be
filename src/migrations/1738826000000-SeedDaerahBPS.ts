@@ -247,7 +247,11 @@ export class SeedDaerahBPS1738826000000 implements MigrationInterface {
       { kode: '12.04', nama: 'Kabupaten Tapanuli Tengah', level: 'kabupaten' },
       { kode: '12.05', nama: 'Kabupaten Tapanuli Utara', level: 'kabupaten' },
       { kode: '12.06', nama: 'Kabupaten Toba', level: 'kabupaten' },
-      { kode: '12.07', nama: 'Kabupaten Humbang Hasundutan', level: 'kabupaten' },
+      {
+        kode: '12.07',
+        nama: 'Kabupaten Humbang Hasundutan',
+        level: 'kabupaten',
+      },
       { kode: '12.08', nama: 'Kabupaten Pakpak Bharat', level: 'kabupaten' },
       { kode: '12.09', nama: 'Kabupaten Simalungun', level: 'kabupaten' },
       { kode: '12.10', nama: 'Kabupaten Dairi', level: 'kabupaten' },
@@ -258,13 +262,25 @@ export class SeedDaerahBPS1738826000000 implements MigrationInterface {
       { kode: '12.15', nama: 'Kabupaten Batubara', level: 'kabupaten' },
       { kode: '12.16', nama: 'Kabupaten Asahan', level: 'kabupaten' },
       { kode: '12.17', nama: 'Kabupaten Labuhanbatu', level: 'kabupaten' },
-      { kode: '12.18', nama: 'Kabupaten Labuhanbatu Selatan', level: 'kabupaten' },
-      { kode: '12.19', nama: 'Kabupaten Labuhanbatu Utara', level: 'kabupaten' },
+      {
+        kode: '12.18',
+        nama: 'Kabupaten Labuhanbatu Selatan',
+        level: 'kabupaten',
+      },
+      {
+        kode: '12.19',
+        nama: 'Kabupaten Labuhanbatu Utara',
+        level: 'kabupaten',
+      },
       { kode: '12.20', nama: 'Kabupaten Nias Utara', level: 'kabupaten' },
       { kode: '12.21', nama: 'Kabupaten Nias Barat', level: 'kabupaten' },
       { kode: '12.22', nama: 'Kabupaten Nias Selatan', level: 'kabupaten' },
       { kode: '12.23', nama: 'Kabupaten Padang Lawas', level: 'kabupaten' },
-      { kode: '12.24', nama: 'Kabupaten Padang Lawas Utara', level: 'kabupaten' },
+      {
+        kode: '12.24',
+        nama: 'Kabupaten Padang Lawas Utara',
+        level: 'kabupaten',
+      },
       { kode: '12.25', nama: 'Kabupaten Samosir', level: 'kabupaten' },
       { kode: '12.71', nama: 'Kota Medan', level: 'kota' },
       { kode: '12.72', nama: 'Kota Binjai', level: 'kota' },
@@ -278,7 +294,11 @@ export class SeedDaerahBPS1738826000000 implements MigrationInterface {
 
     // SUMATERA BARAT (13)
     await insertKabKota(queryRunner, 'Sumatera Barat', '13', [
-      { kode: '13.01', nama: 'Kabupaten Kepulauan Mentawai', level: 'kabupaten' },
+      {
+        kode: '13.01',
+        nama: 'Kabupaten Kepulauan Mentawai',
+        level: 'kabupaten',
+      },
       { kode: '13.02', nama: 'Kabupaten Pesisir Selatan', level: 'kabupaten' },
       { kode: '13.03', nama: 'Kabupaten Solok', level: 'kabupaten' },
       { kode: '13.04', nama: 'Kabupaten Sijunjung', level: 'kabupaten' },
@@ -329,7 +349,9 @@ export class SeedDaerahBPS1738826000000 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Delete all seeded data (rollback)
-    await queryRunner.query(`DELETE FROM daerah WHERE level IN ('kabupaten', 'kota');`);
+    await queryRunner.query(
+      `DELETE FROM daerah WHERE level IN ('kabupaten', 'kota');`,
+    );
     await queryRunner.query(`DELETE FROM daerah WHERE level = 'provinsi';`);
   }
 }

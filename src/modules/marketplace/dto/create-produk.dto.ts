@@ -19,7 +19,9 @@ export class CreateProdukDto {
 
   @IsString()
   @IsNotEmpty()
-  @Matches(/^[a-z0-9-]+$/, { message: 'slug hanya boleh huruf kecil, angka, dan tanda hubung' })
+  @Matches(/^[a-z0-9-]+$/, {
+    message: 'slug hanya boleh huruf kecil, angka, dan tanda hubung',
+  })
   @MaxLength(200)
   slug: string;
 

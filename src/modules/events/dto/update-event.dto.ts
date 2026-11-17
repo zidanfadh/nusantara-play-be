@@ -1,4 +1,12 @@
-import { IsString, IsEnum, IsOptional, IsInt, IsEmail, IsObject, IsArray } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsInt,
+  IsEmail,
+  IsObject,
+  IsArray,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { EventJenis } from '../entities/event.entity';
 

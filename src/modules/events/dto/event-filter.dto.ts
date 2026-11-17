@@ -1,4 +1,10 @@
-import { IsOptional, IsEnum, IsString, IsInt, IsDateString } from 'class-validator';
+import {
+  IsOptional,
+  IsEnum,
+  IsString,
+  IsInt,
+  IsDateString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { EventJenis, EventStatus } from '../entities/event.entity';
 

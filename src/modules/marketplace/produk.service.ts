@@ -35,9 +35,15 @@ export class ProdukService {
       where: { toko_id: toko.id, slug: dto.slug },
     });
     if (slugTaken) {
-      throw new ConflictException(`Slug '${dto.slug}' sudah digunakan di toko ini`);
+      throw new ConflictException(
+        `Slug '${dto.slug}' sudah digunakan di toko ini`,
+      );
     }
-    const produk = this.produkRepo.create({ ...dto, toko_id: toko.id, prots: [] });
+    const produk = this.produkRepo.create({
+      ...dto,
+      toko_id: toko.id,
+      prots: [],
+    });
     return this.produkRepo.save(produk);
   }
 
@@ -53,7 +59,9 @@ export class ProdukService {
       qb.andWhere('produk.toko_id = :toko_id', { toko_id: query.toko_id });
     }
     if (query.kategori_id) {
-      qb.andWhere('produk.kategori_id = :kategori_id', { kategori_id: query.kategori_id });
+      qb.andWhere('produk.kategori_id = :kategori_id', {
+        kategori_id: query.kategori_id,
+      });
     }
     if (query.prot_id) {
       qb.andWhere('prot.id = :prot_id', { prot_id: query.prot_id });
@@ -76,8 +84,15 @@ export class ProdukService {
     return produk;
   }
 
-  async update(id: string, userId: string, dto: UpdateProdukDto): Promise<Produk> {
-    const produk = await this.produkRepo.findOne({ where: { id }, relations: ['toko'] });
+  async update(
+    id: string,
+    userId: string,
+    dto: UpdateProdukDto,
+  ): Promise<Produk> {
+    const produk = await this.produkRepo.findOne({
+      where: { id },
+      relations: ['toko'],
+    });
     if (!produk) {
       throw new NotFoundException(`Produk dengan id '${id}' tidak ditemukan`);
     }
@@ -89,7 +104,9 @@ export class ProdukService {
         where: { toko_id: produk.toko_id, slug: dto.slug },
       });
       if (slugTaken) {
-        throw new ConflictException(`Slug '${dto.slug}' sudah digunakan di toko ini`);
+        throw new ConflictException(
+          `Slug '${dto.slug}' sudah digunakan di toko ini`,
+        );
       }
     }
     Object.assign(produk, dto);
@@ -97,7 +114,10 @@ export class ProdukService {
   }
 
   async remove(id: string, userId: string): Promise<void> {
-    const produk = await this.produkRepo.findOne({ where: { id }, relations: ['toko'] });
+    const produk = await this.produkRepo.findOne({
+      where: { id },
+      relations: ['toko'],
+    });
     if (!produk) {
       throw new NotFoundException(`Produk dengan id '${id}' tidak ditemukan`);
     }

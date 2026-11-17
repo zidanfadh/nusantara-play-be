@@ -56,12 +56,20 @@ function getPrefix(code: string): string {
     else if (level2Code === '15.08') return 'Dusun';
     else if (level2Code === '18.12') return 'Tiyuh';
     else if (
-      ['64.03', '64.07', '64.11', '18.02', '18.05', '18.12', '18.11', '18.08'].includes(
-        level2Code,
-      )
+      [
+        '64.03',
+        '64.07',
+        '64.11',
+        '18.02',
+        '18.05',
+        '18.12',
+        '18.11',
+        '18.08',
+      ].includes(level2Code)
     )
       return 'Kampung';
-    else if (['18.06', '18.10', '18.04', '18.13'].includes(level2Code)) return 'Pekon';
+    else if (['18.06', '18.10', '18.04', '18.13'].includes(level2Code))
+      return 'Pekon';
 
     return 'Desa';
   }
@@ -132,7 +140,10 @@ export class SeedKecamatanKelurahanDesa1740500100000 implements MigrationInterfa
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // ── 1. Read & parse CSV ──────────────────────────────────────────
-    const csvPath = path.resolve(__dirname, '../../docs/kecamatan_kelurahan_desa.csv');
+    const csvPath = path.resolve(
+      __dirname,
+      '../../docs/kecamatan_kelurahan_desa.csv',
+    );
     if (!fs.existsSync(csvPath)) {
       throw new Error(
         `CSV file not found at ${csvPath}. ` +
@@ -172,9 +183,8 @@ export class SeedKecamatanKelurahanDesa1740500100000 implements MigrationInterfa
     );
 
     // ── 2. Build kode→id map from existing data ─────────────────────
-    const existingRows: { id: string; kode: string }[] = await queryRunner.query(
-      `SELECT id, kode FROM daerah`,
-    );
+    const existingRows: { id: string; kode: string }[] =
+      await queryRunner.query(`SELECT id, kode FROM daerah`);
     const kodeToId = new Map<string, string>();
     for (const row of existingRows) {
       kodeToId.set(row.kode, row.id);

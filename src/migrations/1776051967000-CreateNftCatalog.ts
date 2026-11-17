@@ -41,12 +41,18 @@ export class CreateNftCatalog1776051967000 implements MigrationInterface {
       )
     `);
 
-    await queryRunner.query(`CREATE INDEX idx_nft_catalog_status ON nft_catalog(status)`);
-    await queryRunner.query(`CREATE INDEX idx_nft_catalog_active ON nft_catalog(is_active)`);
+    await queryRunner.query(
+      `CREATE INDEX idx_nft_catalog_status ON nft_catalog(status)`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX idx_nft_catalog_active ON nft_catalog(is_active)`,
+    );
     await queryRunner.query(`
       CREATE INDEX idx_nft_catalog_blockchain_network ON nft_catalog(blockchain_network)
     `);
-    await queryRunner.query(`CREATE INDEX idx_nft_catalog_prot ON nft_catalog(prot_id)`);
+    await queryRunner.query(
+      `CREATE INDEX idx_nft_catalog_prot ON nft_catalog(prot_id)`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

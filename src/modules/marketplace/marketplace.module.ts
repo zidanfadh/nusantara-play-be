@@ -34,11 +34,6 @@ import { OrderController } from './order.controller';
     ProdukController,
     OrderController,
   ],
-  providers: [
-    KategoriProdukService,
-    TokoService,
-    ProdukService,
-    OrderService,
-  ],
+  providers: [KategoriProdukService, TokoService, ProdukService, OrderService],
 })
 export class MarketplaceModule {}

@@ -2,11 +2,20 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PROTService } from './prot.service';
-import { PROT, PROTStatus, PROTJenis, TargetUsia } from './entities/prot.entity';
+import {
+  PROT,
+  PROTStatus,
+  PROTJenis,
+  TargetUsia,
+} from './entities/prot.entity';
 import { VerifikasiQueue } from './entities/verifikasi-queue.entity';
 import { DaerahService } from '../daerah/daerah.service';
 import { StorageService } from '../storage/storage.service';
-import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { UserRole } from '../users/entities/user.entity';
 
 describe('PROTService', () => {
@@ -62,7 +71,9 @@ describe('PROTService', () => {
 
     service = module.get<PROTService>(PROTService);
     protRepository = module.get<Repository<PROT>>(getRepositoryToken(PROT));
-    queueRepository = module.get<Repository<VerifikasiQueue>>(getRepositoryToken(VerifikasiQueue));
+    queueRepository = module.get<Repository<VerifikasiQueue>>(
+      getRepositoryToken(VerifikasiQueue),
+    );
   });
 
   afterEach(() => {
@@ -84,7 +95,12 @@ describe('PROTService', () => {
       };
 
       const mockUser = { id: 'user-1', role: UserRole.KURATOR_DAERAH } as any;
-      const mockProt = { id: 'prot-1', ...createDto, status: PROTStatus.DRAFT, created_by: 'user-1' };
+      const mockProt = {
+        id: 'prot-1',
+        ...createDto,
+        status: PROTStatus.DRAFT,
+        created_by: 'user-1',
+      };
 
       mockDaerahService.findByKode.mockResolvedValue({});
       mockProtRepository.create.mockReturnValue(mockProt);
@@ -116,7 +132,12 @@ describe('PROTService', () => {
         daerah_id: 'daerah-1',
       } as any;
 
-      const mockProt = { id: 'prot-1', ...createDto, status: PROTStatus.DRAFT, created_by: 'user-1' };
+      const mockProt = {
+        id: 'prot-1',
+        ...createDto,
+        status: PROTStatus.DRAFT,
+        created_by: 'user-1',
+      };
 
       mockDaerahService.findByKode.mockResolvedValue({});
       mockDaerahService.findAncestors.mockResolvedValue([
@@ -150,7 +171,9 @@ describe('PROTService', () => {
         { kode: '11', nama: 'Aceh' },
       ]);
 
-      await expect(service.create(createDto, mockUser)).rejects.toThrow(ForbiddenException);
+      await expect(service.create(createDto, mockUser)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('should reject pakar without daerah_id', async () => {
@@ -169,7 +192,9 @@ describe('PROTService', () => {
 
       mockDaerahService.findByKode.mockResolvedValue({});
 
-      await expect(service.create(createDto, mockUser)).rejects.toThrow(BadRequestException);
+      await expect(service.create(createDto, mockUser)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -188,7 +213,10 @@ describe('PROTService', () => {
         status: PROTStatus.DIKURASI,
         submitted_at: expect.any(Date),
       });
-      mockQueueRepository.create.mockReturnValue({ prot_id: 'prot-1', priority: 0 });
+      mockQueueRepository.create.mockReturnValue({
+        prot_id: 'prot-1',
+        priority: 0,
+      });
       mockQueueRepository.save.mockResolvedValue({});
 
       const result = await service.submitKurasi('prot-1', 'user-1');
@@ -244,7 +272,10 @@ describe('PROTService', () => {
         status: PROTStatus.DIKURASI,
         submitted_at: expect.any(Date),
       });
-      mockQueueRepository.create.mockReturnValue({ prot_id: 'prot-1', priority: 0 });
+      mockQueueRepository.create.mockReturnValue({
+        prot_id: 'prot-1',
+        priority: 0,
+      });
       mockQueueRepository.save.mockResolvedValue({});
 
       const result = await service.resubmitAfterRevisi('prot-1', 'user-1');
@@ -261,9 +292,9 @@ describe('PROTService', () => {
 
       mockProtRepository.findOne.mockResolvedValue(mockProt);
 
-      await expect(service.resubmitAfterRevisi('prot-1', 'user-1')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.resubmitAfterRevisi('prot-1', 'user-1'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -296,9 +327,9 @@ describe('PROTService', () => {
 
       mockProtRepository.findOne.mockResolvedValue(mockProt);
 
-      await expect(service.publishToArsipNasional('prot-1', 'admin-1')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.publishToArsipNasional('prot-1', 'admin-1'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -316,7 +347,12 @@ describe('PROTService', () => {
       mockDaerahService.findByKode.mockResolvedValue({});
       mockProtRepository.save.mockResolvedValue({ ...mockProt, ...updateDto });
 
-      const result = await service.update('prot-1', updateDto, 'admin-1', UserRole.ADMIN_KPOTI);
+      const result = await service.update(
+        'prot-1',
+        updateDto,
+        'admin-1',
+        UserRole.ADMIN_KPOTI,
+      );
 
       expect(result).toBeDefined();
     });
@@ -334,7 +370,12 @@ describe('PROTService', () => {
       mockDaerahService.findByKode.mockResolvedValue({});
       mockProtRepository.save.mockResolvedValue({ ...mockProt, ...updateDto });
 
-      const result = await service.update('prot-1', updateDto, 'user-1', UserRole.KURATOR_DAERAH);
+      const result = await service.update(
+        'prot-1',
+        updateDto,
+        'user-1',
+        UserRole.KURATOR_DAERAH,
+      );
 
       expect(result).toBeDefined();
     });
@@ -410,7 +451,9 @@ describe('PROTService', () => {
       };
       mockProtRepository.findOne.mockResolvedValue(prot);
 
-      await expect(service.findOneForRead('draft-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOneForRead('draft-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('allows kurator to read own draft PROT detail', async () => {
@@ -444,9 +487,9 @@ describe('PROTService', () => {
       };
       mockProtRepository.findOne.mockResolvedValue(prot);
 
-      await expect(service.findOneForRead('other-draft-id', user)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.findOneForRead('other-draft-id', user),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 });

@@ -38,14 +38,27 @@ describe('ProdukService', () => {
       mockTokoRepo.findOne.mockResolvedValue(null);
 
       await expect(
-        service.create('user-1', { nama: 'Produk A', slug: 'produk-a', harga: 50000, stok: 10 }),
+        service.create('user-1', {
+          nama: 'Produk A',
+          slug: 'produk-a',
+          harga: 50000,
+          stok: 10,
+        }),
       ).rejects.toThrow(NotFoundException);
     });
 
     it('should create product for toko owner', async () => {
-      mockTokoRepo.findOne.mockResolvedValue({ id: 'toko-1', user_id: 'user-1' });
+      mockTokoRepo.findOne.mockResolvedValue({
+        id: 'toko-1',
+        user_id: 'user-1',
+      });
       mockProdukRepo.findOne.mockResolvedValue(null);
-      const product = { id: 'prod-1', toko_id: 'toko-1', nama: 'Produk A', prots: [] };
+      const product = {
+        id: 'prod-1',
+        toko_id: 'toko-1',
+        nama: 'Produk A',
+        prots: [],
+      };
       mockProdukRepo.create.mockReturnValue(product);
       mockProdukRepo.save.mockResolvedValue(product);
 
@@ -64,7 +77,9 @@ describe('ProdukService', () => {
     it('should throw NotFoundException when product not found', async () => {
       mockProdukRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

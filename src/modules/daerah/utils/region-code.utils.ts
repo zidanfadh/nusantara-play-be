@@ -100,9 +100,16 @@ export function getPrefix(code: string): string {
         // Kab. Tulang Bawang Barat, Lampung
         return 'Tiyuh';
       } else if (
-        ['64.03', '64.07', '64.11', '18.02', '18.05', '18.12', '18.11', '18.08'].includes(
-          level2Code,
-        )
+        [
+          '64.03',
+          '64.07',
+          '64.11',
+          '18.02',
+          '18.05',
+          '18.12',
+          '18.11',
+          '18.08',
+        ].includes(level2Code)
       ) {
         return 'Kampung';
       } else if (['18.06', '18.10', '18.04', '18.13'].includes(level2Code)) {

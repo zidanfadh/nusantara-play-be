@@ -30,10 +30,21 @@ describe('KategoriProdukService', () => {
   describe('create', () => {
     it('should create a new category', async () => {
       mockRepo.findOne.mockResolvedValue(null);
-      mockRepo.create.mockReturnValue({ id: 'uuid', nama: 'Peralatan', slug: 'peralatan' });
-      mockRepo.save.mockResolvedValue({ id: 'uuid', nama: 'Peralatan', slug: 'peralatan' });
+      mockRepo.create.mockReturnValue({
+        id: 'uuid',
+        nama: 'Peralatan',
+        slug: 'peralatan',
+      });
+      mockRepo.save.mockResolvedValue({
+        id: 'uuid',
+        nama: 'Peralatan',
+        slug: 'peralatan',
+      });
 
-      const result = await service.create({ nama: 'Peralatan', slug: 'peralatan' });
+      const result = await service.create({
+        nama: 'Peralatan',
+        slug: 'peralatan',
+      });
 
       expect(result.nama).toBe('Peralatan');
       expect(mockRepo.save).toHaveBeenCalled();
@@ -72,7 +83,9 @@ describe('KategoriProdukService', () => {
     it('should throw NotFoundException when category not found', async () => {
       mockRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

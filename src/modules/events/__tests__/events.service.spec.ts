@@ -2,10 +2,17 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EventsService } from '../events.service';
-import { EventRegistration, RegistrationStatus } from '../entities/event-registration.entity';
+import {
+  EventRegistration,
+  RegistrationStatus,
+} from '../entities/event-registration.entity';
 import { Event, EventStatus, EventJenis } from '../entities/event.entity';
 import { DaerahService } from '../../daerah/daerah.service';
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { User, UserRole } from '../../users/entities/user.entity';
 
 describe('EventsService', () => {
@@ -110,7 +117,9 @@ describe('EventsService', () => {
         daerah_id: 'invalid-daerah-id',
       };
 
-      daerahService.findById = jest.fn().mockRejectedValue(new NotFoundException());
+      daerahService.findById = jest
+        .fn()
+        .mockRejectedValue(new NotFoundException());
 
       await expect(service.create(createEventDto, 'user-id')).rejects.toThrow(
         BadRequestException,
@@ -150,7 +159,11 @@ describe('EventsService', () => {
     });
 
     it('should throw ForbiddenException for draft event accessed by non-creator', async () => {
-      const draftEvent = { ...mockEvent, status: EventStatus.DRAFT, created_by: 'other-user-id' };
+      const draftEvent = {
+        ...mockEvent,
+        status: EventStatus.DRAFT,
+        created_by: 'other-user-id',
+      };
       const otherUser = { ...mockUser, id: 'different-user' };
       const qb = {
         leftJoinAndSelect: jest.fn().mockReturnThis(),
@@ -175,7 +188,11 @@ describe('EventsService', () => {
         published_at: expect.any(Date),
       });
 
-      const result = await service.publish('test-id', 'user-id', UserRole.KURATOR_DAERAH);
+      const result = await service.publish(
+        'test-id',
+        'user-id',
+        UserRole.KURATOR_DAERAH,
+      );
 
       expect(result.status).toBe(EventStatus.PUBLISHED);
       expect(result.published_at).toBeDefined();
@@ -200,7 +217,11 @@ describe('EventsService', () => {
         status: EventStatus.CANCELLED,
       });
 
-      const result = await service.cancel('test-id', 'user-id', UserRole.KURATOR_DAERAH);
+      const result = await service.cancel(
+        'test-id',
+        'user-id',
+        UserRole.KURATOR_DAERAH,
+      );
 
       expect(result.status).toBe(EventStatus.CANCELLED);
     });

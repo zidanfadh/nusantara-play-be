@@ -9,10 +9,7 @@ import { EventRegistration } from './entities/event-registration.entity';
 import { DaerahModule } from '../daerah/daerah.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Event, EventRegistration]),
-    DaerahModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Event, EventRegistration]), DaerahModule],
   controllers: [EventsController],
   providers: [EventsService, EventRegistrationsService, EventsScheduler],
   exports: [EventsService, EventRegistrationsService],

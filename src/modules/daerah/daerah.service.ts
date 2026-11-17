@@ -8,7 +8,7 @@ export class DaerahService {
   constructor(
     @InjectRepository(Daerah)
     private daerahRepository: Repository<Daerah>,
-  ) { }
+  ) {}
 
   private paginate(total: number, page: number, limit: number) {
     const totalPages = Math.ceil(total / limit);
@@ -84,11 +84,7 @@ export class DaerahService {
     );
   }
 
-  async findByProvinsi(
-    provinsi: string,
-    page: number = 1,
-    limit: number = 10,
-  ) {
+  async findByProvinsi(provinsi: string, page: number = 1, limit: number = 10) {
     return this.findAll({ provinsi, page, limit });
   }
 
@@ -118,11 +114,7 @@ export class DaerahService {
   /**
    * Get children of a daerah identified by its kode (useful for cascading dropdowns).
    */
-  async findChildrenByKode(
-    kode: string,
-    page: number = 1,
-    limit: number = 50,
-  ) {
+  async findChildrenByKode(kode: string, page: number = 1, limit: number = 50) {
     const parent = await this.findByKode(kode);
     return this.findChildren(parent.id, page, limit);
   }

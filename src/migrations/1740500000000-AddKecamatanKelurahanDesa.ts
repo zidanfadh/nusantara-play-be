@@ -58,9 +58,7 @@ export class AddKecamatanKelurahanDesa1740500000000 implements MigrationInterfac
     );
 
     // Drop prefix column
-    await queryRunner.query(
-      `ALTER TABLE daerah DROP COLUMN IF EXISTS prefix;`,
-    );
+    await queryRunner.query(`ALTER TABLE daerah DROP COLUMN IF EXISTS prefix;`);
 
     // Drop prefix index
     await queryRunner.query(`DROP INDEX IF EXISTS idx_daerah_prefix;`);
