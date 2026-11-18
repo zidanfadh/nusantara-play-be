@@ -7,6 +7,7 @@ import {
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { AuditService } from './audit.service';
+import { redactSecrets } from './redact';
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
@@ -41,7 +42,8 @@ export class AuditInterceptor implements NestInterceptor {
             action,
             entity_type: entityType,
             entity_id: entityId,
-            changes: body,
+            // Never store passwords, tokens or secrets (P2).
+            changes: redactSecrets(body),
             ip_address: ip,
             user_agent: userAgent,
           });

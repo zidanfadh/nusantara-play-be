@@ -44,9 +44,16 @@ export class EmailService {
         html: this.buildHtml(payload),
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unknown email error';
-      this.logger.error(`Failed to send credential email: ${message}`);
+      // SMTP error messages often quote the recipient address, so log only
+      // the error name and SMTP codes, never the message (P2).
+      const { name, code, responseCode } = (error ?? {}) as {
+        name?: string;
+        code?: string;
+        responseCode?: number;
+      };
+      this.logger.error(
+        `Failed to send credential email (${name ?? 'UnknownError'}, code ${code ?? '-'}, SMTP ${responseCode ?? '-'})`,
+      );
       throw new BadRequestException('Failed to send credential email');
     }
   }
