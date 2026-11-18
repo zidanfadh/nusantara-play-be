@@ -188,6 +188,25 @@ frontend cannot sign in. Public pages and public endpoints work.
 - Never log secrets, tokens, or passwords.
 - If a requirement is ambiguous or conflicts with existing code, stop and ask instead of guessing.
 
+### Migration rules (Phase 06)
+
+The local schema is built from the entities and differs from production (enum type names,
+constraints, extra legacy tables), so migrations must not assume anything about existing objects.
+
+- New migrations are hand-written raw SQL in `src/migrations/<timestamp>-<Name>.ts`. Never use
+  `migration:generate`, and never run `synchronize` against anything except a local `_dev` or `_test` database.
+- Migrations only ADD things (new tables, new nullable columns or columns with defaults, new indexes)
+  and use `IF NOT EXISTS` where PostgreSQL allows it. They must not depend on the names of existing
+  enum types or constraints, and must not alter or drop existing columns, types or constraints
+  unless a phase explicitly asks for it.
+- Every migration has a working `down()`.
+- Every migration is tested locally: run it with `npm run migration:run` on the dev database after
+  `npm run db:setup`, and revert it with `npm run migration:revert`. Note: `db:setup` records every
+  migration in `src/migrations/` as already applied (and `synchronize()` has already created the
+  column), so test in this order: `migration:revert` (down), `migration:run` (up), `migration:revert`,
+  `migration:run`, checking the schema after each step.
+- The entity is updated in the same commit, so local `synchronize()` and the migration produce the same column.
+
 ## Lint baseline (after Phase 02)
 
 Phases must not add lint errors in the files they touch. Counts below are the whole-repo baseline.
