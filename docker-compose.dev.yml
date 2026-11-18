@@ -29,6 +29,19 @@ services:
       retries: 20
       start_period: 10s
 
+  # Local mail catcher (Phase 09). Catches every email the backend sends in
+  # development; nothing is delivered to a real mailbox. No volume: the
+  # caught emails are lost when the container is removed.
+  #   SMTP:   127.0.0.1:1025 (SMTP_HOST / SMTP_PORT in .env.local)
+  #   Web UI: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.33.1
+    container_name: nusantara-dev-mailpit
+    ports:
+      # Bound to loopback only: not reachable from other machines.
+      - '127.0.0.1:1025:1025'
+      - '127.0.0.1:8025:8025'
+
 volumes:
   nusantara-dev-db-data:
     name: nusantara-dev-db-data
