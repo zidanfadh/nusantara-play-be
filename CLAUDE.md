@@ -55,8 +55,11 @@ Never chain navigation with git using `&&` — always run them as separate comma
 strategies in order:
 1. `local-jwt` (`src/modules/auth-core/strategies/local-jwt.strategy.ts`): our own RS256 access tokens
    (`TokenService`, keys from `JWT_*`). Verifies signature, `kid`, `iss`, `aud`, `exp`, loads the user by
-   `sub` (= users.id) and rejects unknown, `suspended` and `inactive` users. One read-only query; no
-   Supabase call, no database write. Without keys (local auth disabled) every token simply fails here.
+   `sub` (= users.id) and rejects unknown, `suspended` and `inactive` users. Since Phase 09 it also rejects a
+   token whose `iat` is more than 5 s (`PASSWORD_CHANGE_SKEW_MS`) before `user_credentials.password_changed_at`.
+   One read-only query (users LEFT JOIN user_credentials LEFT JOIN email_verifications, `email-verification.ts`)
+   that also yields "email verified"; that state is attached to `req.user` under a symbol (never serialized).
+   No Supabase call, no database write. Without keys (local auth disabled) every token simply fails here.
 2. `supabase-jwt` (LEGACY, `src/modules/auth/legacy/supabase-jwt.strategy.ts`), only while
    `AUTH_ACCEPT_SUPABASE_TOKENS` is true (default). Unchanged behavior, described below.
 
@@ -64,8 +67,9 @@ strategies in order:
 all under `/api/auth` (browser path `/backend-api/auth/*` in production, `/api/auth/*` locally):
 - `POST /register` `{email, password, full_name}` → always 201 with the same generic body, no tokens. Creates
   `users` (publik, active, no Supabase id) + `user_credentials` (Argon2id) in one transaction only if NO user
-  has the email; an existing account (Supabase-only included) is never changed. Phase 09 hooks
-  (`onRegistered`, `onDuplicateRegistration`) are marked in the service.
+  has the email; an existing account (Supabase-only included) is never changed. Since Phase 09 the hooks
+  `onRegistered` / `onDuplicateRegistration` queue the verification email or the "akun Anda sudah ada" email
+  (background; the response is unchanged).
 - `POST /login` `{email, password}` → 200 `{ accessToken, expiresIn, user }` (`user` = the same object
   `GET /api/users/me` returns) + cookies. Generic 401 for unknown email (dummy Argon2 verify), wrong password,
   locked account and users without `user_credentials`; generic 403 for suspended/inactive users (only after a
@@ -94,6 +98,37 @@ all under `/api/auth` (browser path `/backend-api/auth/*` in production, `/api/a
   counted in the in-memory throttler storage. See Risks.
 - Emails are trimmed + lower-cased; lookups use `LOWER(email) = LOWER(:email)` (no unique index on
   lower(email)); several matches → refused (generic error) with a warning that contains no email.
+- `user` in the login/refresh body and `GET /api/users/me` carry `emailVerified` (boolean) since Phase 09.
+
+**Email verification and password reset** (Phase 09, `auth-core/email-flows.controller.ts` +
+`email-flows.service.ts` + `auth-token.service.ts`), all `@Public()` under `/api/auth`, per-tracker limit 30 / min:
+- One-time tokens in `auth_tokens` (32 random bytes, base64url, only the SHA-256 hash stored; `type`
+  `email_verification` 24 h / `password_reset` 1 h). A new token deletes the user's older unused tokens of that
+  type (advisory lock per user and type). Consuming = ONE conditional `UPDATE ... SET used_at = now() WHERE
+  token_hash AND type AND used_at IS NULL AND expires_at > now() RETURNING user_id` (race-safe, single use).
+- `POST /verify-email {token}` → 200 `{success, message}`; sets `user_credentials.email_verified_at`, or for an
+  account without credentials inserts `email_verifications` (method `email_link`). Unusable token → 400
+  `{code: "invalid_or_expired_token"}` (kept by `AuthErrorFilter`).
+- `POST /resend-verification {email}` / `POST /forgot-password {email}` → always 200 with one fixed body each.
+  The work runs in the BACKGROUND after the response (timing reveals nothing): exactly one matching account →
+  new link (resend: only while unverified; forgot: any account, Supabase-only included); several matches →
+  nothing + warning without the email. `EmailSendLimiter`: 3 emails per normalized address per hour per purpose
+  (`verification` = registration emails + resend; `password_reset`), in-memory, over the limit the email is
+  silently skipped (still 200).
+- `POST /reset-password {token, newPassword}` → policy check, read-only token check, then ONE transaction:
+  consume the token, upsert `user_credentials` (Argon2id, `password_changed_at`, `email_verified_at` if null,
+  `failed_login_count = 0`, `locked_until = NULL`), revoke ALL refresh tokens (`password_reset`). Then the
+  "password Anda telah diubah" email. A Supabase-only account gets local credentials this way (self-service
+  migration). 200 `{success, message}`; unusable token → 400 `invalid_or_expired_token`.
+- Emails (`notifications/auth-email.templates.ts`, Indonesian, text + HTML): verification, "akun sudah ada",
+  password reset, "password telah diubah" (after reset and local change-password). Links:
+  `{APP_PUBLIC_URL}/verify-email?token=...`, `{APP_PUBLIC_URL}/reset-password?token=...` (frontend pages come
+  later). `EmailService.sendTransactional()` never throws and logs only error name/codes; nothing logs an
+  address, a token or a link. `EmailFlowsService.whenIdle()` waits for queued email work (tests, shutdown).
+- `@RequireVerifiedEmail()` (`common/decorators/`, guard + filter in `common/guards/verified-email.guard.ts`):
+  403 `{code: "EMAIL_NOT_VERIFIED"}`; not applied to any route yet (Points will use it).
+- `AuthCleanupScheduler` (daily 03:15): deletes refresh tokens expired > 7 days and email tokens used or expired
+  > 7 days; logs only counts.
 
 Legacy Supabase path: Frontend gets a JWT from Supabase → sends `Authorization: Bearer <token>` →
 `SupabaseJwtStrategy` verifies it through Supabase's JWKS
@@ -106,7 +141,7 @@ with the default `publik` role (JIT sync).
 
 **Module structure** (`src/modules/`):
 - `auth/` — Supabase client, `POST /auth/change-password` (local accounts → `LocalAuthService`, Supabase accounts → legacy flow), legacy Supabase strategy in `auth/legacy/`
-- `auth-core/` — self-hosted auth (Phase 07): `PasswordService` (Argon2id, legacy bcrypt verify, policy), `KeyService` + `TokenService` (RS256 access tokens, JWKS), `RefreshTokenService` (rotation, reuse detection, cleanup), `local-jwt` strategy, `GET /api/auth/jwks.json`, entities `user_credentials`, `refresh_tokens`, `auth_identities`. No Supabase dependency. Since Phase 08: `LocalAuthController` (register, login, refresh, logout, logout-all), `LocalAuthService`, `LoginEmailLimiter`, `AuthErrorFilter` (keeps the `error` code of refresh errors), cookie helpers.
+- `auth-core/` — self-hosted auth (Phase 07): `PasswordService` (Argon2id, legacy bcrypt verify, policy), `KeyService` + `TokenService` (RS256 access tokens, JWKS), `RefreshTokenService` (rotation, reuse detection, cleanup), `local-jwt` strategy, `GET /api/auth/jwks.json`, entities `user_credentials`, `refresh_tokens`, `auth_identities`. No Supabase dependency. Since Phase 08: `LocalAuthController` (register, login, refresh, logout, logout-all), `LocalAuthService`, `LoginEmailLimiter`, `AuthErrorFilter` (keeps the `error` code of refresh errors and the `code` of email-token errors), cookie helpers. Since Phase 09: `EmailFlowsController`/`EmailFlowsService` (verify-email, resend-verification, forgot-password, reset-password), `AuthTokenService`, `EmailSendLimiter`, `AuthCleanupScheduler`, entities `auth_tokens`, `email_verifications`, helpers `auth-users.ts` and `email-verification.ts`.
 - `users/` — profile management, admin role assignment, admin-created users
 - `prot/` — PROT CRUD + verification workflow (`verifikasi.service.ts`)
 - `blockchain/` — Polygon anchoring via ethers.js (deprioritized)
@@ -118,12 +153,12 @@ with the default `publik` role (JIT sync).
 - `marketplace/` — marketplace: toko, produk, order
 - `nfts/` — NFT catalog
 - `stats/` — landing page stats
-- `notifications/` — SMTP email (admin-created user credentials)
+- `notifications/` — SMTP email (admin-created user credentials; Phase 09 auth emails via `sendTransactional()` + `auth-email.templates.ts`)
 - `supabase/` — shared Supabase admin client
 
 **Common utilities** (`src/common/`):
-- `decorators/` — `@Public()`, `@Roles()`, `@CurrentUser()`
-- `guards/` — `JwtAuthGuard` (global; tries `local-jwt`, then legacy `supabase-jwt`; since Phase 08 a second run in the same request, e.g. from `@UseGuards(JwtAuthGuard, RolesGuard)`, reuses the first result), `RolesGuard`, `UserThrottlerGuard` (global), `CsrfGuard` (Phase 08, cookie-based auth endpoints)
+- `decorators/` — `@Public()`, `@Roles()`, `@CurrentUser()`, `@RequireVerifiedEmail()` (Phase 09)
+- `guards/` — `JwtAuthGuard` (global; tries `local-jwt`, then legacy `supabase-jwt`; since Phase 08 a second run in the same request, e.g. from `@UseGuards(JwtAuthGuard, RolesGuard)`, reuses the first result), `RolesGuard`, `UserThrottlerGuard` (global), `CsrfGuard` (Phase 08, cookie-based auth endpoints), `VerifiedEmailGuard` + `EmailNotVerifiedFilter` (Phase 09, used through `@RequireVerifiedEmail()`)
 - `filters/` — `HttpExceptionFilter` for consistent error responses; logs only name, message and stack of unexpected errors (never the whole exception object)
 - `serializers/user-shape.ts` — `toPublicUser()` (public user shape) and `stripPrivateUserFields()` (Phase 06)
 - `http/trust-proxy.ts` — Express `trust proxy` from `TRUST_PROXY`
@@ -164,12 +199,12 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
 - App: `NODE_ENV`, `PORT`, `APP_NAME`, `FRONTEND_URLS` (comma-separated CORS origins; falls back to `FRONTEND_URL`), `TRUST_PROXY` (Express `trust proxy`, default `loopback`; `"true"`/`"false"`, a hop count, or names/addresses/subnets such as `loopback, uniquelocal`; never `true`) (Phase 06)
 - Database: `DATABASE_URL` (takes precedence) or `DATABASE_HOST` (default `localhost`), `DATABASE_PORT` (5432), `DATABASE_USER` (`postgres`), `DATABASE_PASSWORD`, `DATABASE_NAME` (`nusantara_play`); `DATABASE_SSL` (`'true'` = SSL with `rejectUnauthorized: false`). One builder, `src/config/data-source-options.ts`, is used by both the app (`src/database/database.module.ts`) and the migration CLI (`src/config/typeorm.config.ts`, which also loads `.env.local` then `.env`). The CLI alone still accepts the deprecated `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`, `DB_SSL` as a per-variable fallback and prints one warning; the app ignores `DB_*`. (`src/config/database.config.ts` still registers the same values under `database.*`, but nothing reads them any more.)
 - Supabase: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`; `SUPABASE_JWT_SECRET` and `SUPABASE_JWT_PUBLIC_KEY_JWK` are read into config but not used for token validation
-- Self-hosted auth (Phase 07, parsed by `src/config/auth.config.ts`): `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY` (PEM, base64-encoded on one line; a raw PEM also works), `JWT_KEY_ID`, `JWT_ISSUER`, `JWT_AUDIENCE` (all five required, otherwise local auth is disabled with one startup warning and the app still boots), `ACCESS_TOKEN_TTL_SECONDS` (900), `REFRESH_TOKEN_TTL_DAYS` (30), `REFRESH_REUSE_GRACE_SECONDS` (20), `AUTH_ACCEPT_SUPABASE_TOKENS` (default true; `false`/`0`/`no`/`off` turn the legacy path off). Phase 08: `AUTH_COOKIE_PATH` (default `/backend-api/auth`; `.env.local.example` uses `/api/auth`; must start with `/`), `AUTH_COOKIE_SECURE` (`true`/`false`; empty = true only when `NODE_ENV=production`), `FRONTEND_ORIGIN_PATTERNS` (comma-separated regular expressions, full match, case-insensitive; empty by default; extra allowed Origins for the CSRF check, meant for Vercel preview domains), `LOGIN_MAX_FAILED` (5), `LOGIN_LOCK_MINUTES` (15)
+- Self-hosted auth (Phase 07, parsed by `src/config/auth.config.ts`): `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY` (PEM, base64-encoded on one line; a raw PEM also works), `JWT_KEY_ID`, `JWT_ISSUER`, `JWT_AUDIENCE` (all five required, otherwise local auth is disabled with one startup warning and the app still boots), `ACCESS_TOKEN_TTL_SECONDS` (900), `REFRESH_TOKEN_TTL_DAYS` (30), `REFRESH_REUSE_GRACE_SECONDS` (20), `AUTH_ACCEPT_SUPABASE_TOKENS` (default true; `false`/`0`/`no`/`off` turn the legacy path off). Phase 08: `AUTH_COOKIE_PATH` (default `/backend-api/auth`; `.env.local.example` uses `/api/auth`; must start with `/`), `AUTH_COOKIE_SECURE` (`true`/`false`; empty = true only when `NODE_ENV=production`), `FRONTEND_ORIGIN_PATTERNS` (comma-separated regular expressions, full match, case-insensitive; empty by default; extra allowed Origins for the CSRF check, meant for Vercel preview domains), `LOGIN_MAX_FAILED` (5), `LOGIN_LOCK_MINUTES` (15). Phase 09: `APP_PUBLIC_URL` (frontend base URL for email links; http(s), no query; trailing slash removed; unset or invalid = verification and reset emails are not sent; production `https://nusantaralegacy.org`), `EMAIL_VERIFICATION_TTL_HOURS` (24), `PASSWORD_RESET_TTL_MINUTES` (60)
 - AWS: `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET`
-- Email: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `USER_CREDENTIAL_EMAIL_ENABLED`
+- Email: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `USER_CREDENTIAL_EMAIL_ENABLED` (only for admin-created credentials; the Phase 09 auth emails need just `SMTP_HOST` + `SMTP_FROM`). Local: Mailpit (`SMTP_HOST=127.0.0.1`, `SMTP_PORT=1025`, no user/password, `SMTP_SECURE=false`)
 - Blockchain: `BLOCKCHAIN_RPC_URL`, `BLOCKCHAIN_PRIVATE_KEY`, `BLOCKCHAIN_CONTRACT_ADDRESS`, `BLOCKCHAIN_NETWORK`
 
-`.env.example` lists all of the above with placeholders (Phase 02; `TRUST_PROXY` since Phase 06; auth vars since Phase 07; cookie/CSRF/lockout vars since Phase 08). `RATE_LIMIT_TTL` and `RATE_LIMIT_MAX` were removed from it: the code never read them (the throttler is hard-coded to 100 requests / 60 s in `app.module.ts`). Node version: `.nvmrc` (24).
+`.env.example` lists all of the above with placeholders (Phase 02; `TRUST_PROXY` since Phase 06; auth vars since Phase 07; cookie/CSRF/lockout vars since Phase 08; `APP_PUBLIC_URL` and the link lifetimes since Phase 09). `RATE_LIMIT_TTL` and `RATE_LIMIT_MAX` were removed from it: the code never read them (the throttler is hard-coded to 100 requests / 60 s in `app.module.ts`). Node version: `.nvmrc` (24).
 
 ## Current direction
 
@@ -186,6 +221,8 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
    - Endpoints (Phase 08, backend only; the frontend still signs in through Supabase until a later phase): `POST /api/auth/register`, `/login`, `/refresh`, `/logout`, `/logout-all`, and `/change-password` (local accounts locally, Supabase accounts through the unchanged legacy flow). Browser paths: `/backend-api/auth/*` in production, `/api/auth/*` locally. Login returns `{ accessToken, expiresIn, user }` (`user` = `GET /api/users/me`); the refresh token travels ONLY in a cookie. Register always answers 201 with the same body and never touches an existing account. Generic errors never reveal whether an email exists. Backend CLAUDE.md "Architecture" has the details.
    - Cookies (Phase 08): `np_refresh` = raw refresh token, httpOnly, Secure in production (`AUTH_COOKIE_SECURE`), SameSite=Lax, Path=`AUTH_COOKIE_PATH` (`/backend-api/auth` in production, `/api/auth` locally), host-only (no Domain: each frontend domain has its own session), Max-Age 30 days. `np_logged_in=1` = readable marker, same flags, Path=/, no secret; the frontend middleware may use it ONLY to decide redirects, never as proof of a session. Both are cleared with the same attributes.
    - CSRF (Phase 08): the cookie-based endpoints (`/refresh`, `/logout`, `/logout-all`, and `/change-password` when it reads the cookie) require `X-Requested-With: nusantara-play` and an `Origin` that is in `FRONTEND_URLS` or fully matches a regex in `FRONTEND_ORIGIN_PATTERNS` (Vercel previews); otherwise 403. The frontend must send that header on these calls.
+   - Email flows (Phase 09): email verification (24 h link) and password reset (1 h link) with one-time tokens in `auth_tokens` (hash only, single use, a new link invalidates the older one), endpoints `POST /api/auth/verify-email`, `/resend-verification`, `/forgot-password`, `/reset-password`; generic answers that never reveal an account; at most 3 emails per address per hour per purpose; Indonesian emails with links to `{APP_PUBLIC_URL}/verify-email?token=...` and `{APP_PUBLIC_URL}/reset-password?token=...` (the frontend pages are built in a later phase). Users may log in without a verified email; `emailVerified` is on `GET /api/users/me` and `@RequireVerifiedEmail()` (403 `EMAIL_NOT_VERIFIED`) is ready for Points. "Verified" lives in `user_credentials.email_verified_at` for accounts with a password and in `email_verifications` for accounts without one (Supabase-only now; Google-only accounts in Phase 10 write a row with method `google`). A password reset clears the lockout, revokes all refresh tokens and makes every access token issued more than 5 s before it invalid (also after change-password; the own session continues through its next refresh).
+   - Self-service migration (Phase 09, owner decision): forgot-password works for EVERY account with that email, including Supabase-only accounts without local credentials; completing the reset creates their `user_credentials` (and marks the email verified), so the user can sign in with the self-hosted login from then on. The reset link proves ownership of the address.
    - Brute force (Phase 08): per-account lockout (`LOGIN_MAX_FAILED` 5 wrong passwords → locked `LOGIN_LOCK_MINUTES` 15, atomic counter in SQL), per-email limit (10 login attempts / 15 min, in memory), generous per-IP limits (login and register 30 / min, refresh 60 / min). See Risks.
 5. Multiplayer will run on a separate realtime server (Colyseus, Node.js, TypeScript) in nusantara-play-be/realtime/, with one room per province.
 6. Hardware target: a mid-range Android phone (4 GB RAM, Chrome). Performance budget: at least 30 fps, initial 3D download max 5 MB, max 8 MB per province, max 100k triangles and 100 draw calls per scene, textures max 1024x1024 and compressed, max 20 visible avatars per room. A 2D fallback must exist for weak devices.
@@ -256,6 +293,16 @@ column, so running the migration first is safe for the old code too.
    passwords from old `POST /auth/change-password` requests. Redact them in the database (replace the
    values of `currentPassword`, `newPassword`, `confirmPassword` with `[REDACTED]`) after a backup.
    Until then the admin audit page hides secret-looking values on display (frontend, Phase 07).
+8. Phase 09 (run the migration BEFORE the new code; the old code never reads the new tables):
+   - Migration `1795200000000-CreateEmailAuthTokens`: creates `auth_tokens` and `email_verifications`
+     (`IF NOT EXISTS`, explicit names; down drops both tables).
+   - Env: `APP_PUBLIC_URL=https://nusantaralegacy.org` (required: without it no verification or reset email is
+     sent), optionally `EMAIL_VERIFICATION_TTL_HOURS=24`, `PASSWORD_RESET_TTL_MINUTES=60`.
+   - **Real SMTP credentials** (`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` with
+     a sender address of the production domain, ideally with SPF/DKIM). Until then emails fail and are only logged
+     (error name/code); the endpoints still answer normally. Never point production at Mailpit.
+   - Effects: access tokens issued before a password change are rejected; `/users/me`, login and refresh carry
+     `emailVerified`; a daily cleanup job deletes old refresh and email tokens.
 
 ## Local development
 
@@ -268,7 +315,12 @@ public endpoints work.
 
 1. Database (in `nusantara-play-be`): `npm run db:up` starts `postgres:15-alpine` (container
    `nusantara-dev-db`, port bound to `127.0.0.1:5432`, volume `nusantara-dev-db-data`, local-only
-   password `localdev`) and creates `nusantara_play_dev` and `nusantara_play_test` on first start.
+   password `localdev`) and creates `nusantara_play_dev` and `nusantara_play_test` on first start. Since Phase 09
+   it also starts Mailpit (`axllent/mailpit:v1.33.1`, container `nusantara-dev-mailpit`, SMTP `127.0.0.1:1025`,
+   web UI http://localhost:8025, no volume): every email the backend sends locally lands there; nothing is
+   delivered. `.env.local.example` has the matching `SMTP_*` lines and `APP_PUBLIC_URL=http://localhost:3001`.
+   Walk-through: `nusantara-play-be/docs/auth-local-testing.md`. Tests never use Mailpit (capturing double,
+   `SMTP_HOST` forced empty in `test/test-env.ts`).
 2. Backend env: `cp .env.local.example .env.local` (fake placeholders only; never put real secrets there).
    Then run `npm run auth:generate-keys` and paste the printed `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `JWT_KEY_ID`
    lines into `.env.local` (DEV-ONLY keys; `.env.local` is git-ignored). Without them local auth stays disabled.
@@ -310,9 +362,18 @@ public endpoints work.
   attempts per window, and a restart resets it. **Trade-off:** anyone who knows an email address can lock that
   account for 15 minutes (5 wrong passwords) and keep it locked by repeating; the per-email 429 also blocks the
   real owner for up to 15 minutes. Accepted for now; a later phase could add CAPTCHA or email-based unlock.
-- Access tokens (15 minutes) stay valid after logout, logout-all and a password change until they expire; only
-  refresh tokens are revoked. A suspended or inactive user is rejected at once (the `local-jwt` strategy checks
-  the status on every request).
+- Access tokens (15 minutes) stay valid after logout and logout-all until they expire; only refresh tokens are
+  revoked. Since Phase 09 a password change or reset rejects every access token issued more than 5 s before it
+  (clock skew allowance; a token issued in those 5 s stays valid until it expires). A suspended or inactive user
+  is rejected at once (the `local-jwt` strategy checks the status on every request). Legacy Supabase tokens of a
+  Supabase-only account stay valid after that account resets its password through the self-hosted flow (the
+  legacy strategy does not look at `password_changed_at`) until `AUTH_ACCEPT_SUPABASE_TOKENS` is turned off.
+- Email limits (Phase 09): the 3-emails-per-address-per-hour limit lives in process memory like the login limit
+  (N instances → N × 3, a restart resets it). Anyone can make the backend send up to 3 verification / "akun sudah
+  ada" and 3 reset emails per hour to any address (generous per-IP limit only). The emails contain no account data
+  and the links only work for the mailbox owner. A later phase could add CAPTCHA.
+- Email delivery (Phase 09): production has no SMTP credentials yet; until they are set, verification and reset
+  emails are not delivered (logged as failures) while the endpoints still answer 200.
 - Same-origin cookies (including Supabase `sb-*` auth cookies) are now forwarded to the backend with every browser API call. Large cookie headers could exceed nginx header buffer limits (unknown production config).
 
 ## Engineering rules
@@ -358,6 +419,9 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Frontend after Phase 07: unchanged, 44 errors, 87 warnings (touched files clean).
 - Backend after Phase 08: 220 errors, 29 warnings (`auth.module.ts` went from 1 error to 0; no touched file gained errors; all new files are clean).
 - Frontend after Phase 08: unchanged (only CLAUDE.md changed).
+- Backend after Phase 09: unchanged, 220 errors, 29 warnings (every touched and new file is clean; `users.controller.spec.ts` and the
+  rewritten `local-jwt.strategy.spec.ts` have 0 problems).
+- Frontend after Phase 09: unchanged (only CLAUDE.md changed).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -404,6 +468,14 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - 2026-11-18: `JwtAuthGuard` marks the request (a symbol) after authenticating; a second run in the same request reuses `req.user` instead of running the strategies again. A `req.user` set by anything else is not trusted (Phase 08).
 - 2026-11-18: The unused `JwtModule` (configured with `SUPABASE_JWT_SECRET`) was removed from `auth.module.ts`; nothing injected `JwtService`. The `@nestjs/jwt` package stays in package.json for now (Phase 08).
 - 2026-11-18: No migration in Phase 08: `user_credentials` (Phase 07) already has `failed_login_count`, `locked_until`, `password_changed_at`.
+- 2026-11-18: Owner decisions for Phase 09: users may log in without a verified email (earning Points, a later phase, will require one; Phase 09 only provides `emailVerified` and `@RequireVerifiedEmail()`); a successful password reset also clears the login lockout; access tokens issued before the last password change are rejected; password reset works for every account with that email, Supabase-only accounts included, and completing it creates their local credentials (self-service migration; the link proves ownership of the address).
+- 2026-11-18: Where "email verified" lives (Phase 09): `user_credentials.email_verified_at` for accounts with a password; a new table `email_verifications` (user_id PK, method `email_link` | `google`, verified_at) for accounts WITHOUT one, because `user_credentials.password_hash` is NOT NULL and the `users` entity was outside the phase's allowed files. `emailVerified = credentials.email_verified_at IS NOT NULL OR an email_verifications row`. Phase 10: a Google-only account whose Google `email_verified` is true writes a row with method `google`; when such an account later gets a password (reset), the reset also sets `email_verified_at`. Both tables are created by the one Phase 09 migration.
+- 2026-11-18: Email work runs in the background (Phase 09): registration hooks, resend-verification, forgot-password and the "password changed" email are queued after the response, so neither body nor timing depends on whether an account exists. Failures are logged with the error name only. `EmailFlowsService.whenIdle()` (also called on shutdown) waits for queued tasks.
+- 2026-11-18: Per-address email limit (Phase 09): `EmailSendLimiter`, same in-memory throttler storage and SHA-256 keys as the login limit, 3 per hour per address and purpose (`verification` = registration emails + resend-verification; `password_reset` = forgot-password). Counted for every request (known or unknown address); over the limit the email is silently skipped and the endpoint still answers 200 ("always 200" wins over a 429). verify-email and reset-password only have the per-tracker limit (30 / min).
+- 2026-11-18: Email tokens (Phase 09): consuming includes the token `type`, so a verification link never resets a password. A new token DELETES the user's older unused tokens of that type, serialized with `pg_advisory_xact_lock` per (user, type). reset-password checks the length policy, then the token read-only, then "not the email" (needs the user), hashes, and only then consumes the token inside the write transaction, so a policy error or a failed write never burns the link. `password_changed_at` uses the app clock (like change-password), compared with the token's `iat` (also app clock) with a 5 s skew.
+- 2026-11-18: After a local change-password the own session continues through its next refresh (the kept refresh family issues a new access token); the change-password response stays 204 (Phase 09). The "password telah diubah" email is sent after a reset and after a LOCAL change-password, not after the legacy Supabase change-password (unchanged).
+- 2026-11-18: `emailVerified` is added to the `user` object of login and refresh as well, so it stays the same object as `GET /api/users/me` (Phase 08 contract) (Phase 09).
+- 2026-11-18: Without `APP_PUBLIC_URL` (or with an invalid one) no email with a link is sent (warning per attempt, without the address) instead of falling back to a guessed URL; the "akun sudah ada" email is still sent, without the login link (Phase 09).
 - 2026-11-17: Local daerah seed reuses `src/database/migrations/002_replace_daerah_data.sql` (34 provinsi + 514 kab/kota, Kemendagri codes) and the `up()` of `src/migrations/1740500100000-SeedKecamatanKelurahanDesa.ts`; `1738826000000-SeedDaerahBPS.ts` is not used (12 provinces only, codes that do not match the kecamatan CSV) (Phase 05).
 
 ## Phase workflow
@@ -411,6 +483,7 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Work happens in numbered phases. Each phase uses its own branch phase-XX-<short-slug>, created from the latest main.
 - Do only what the phase prompt asks. Anything else you notice goes under "Out-of-scope observations" in the report.
 - Every phase ends with a report at nusantara-play-be/docs/phase-reports/phase-XX.md that follows nusantara-play-be/docs/phase-reports/TEMPLATE.md, and the full report is printed as the final message.
+- Commit after each completed step of a phase on the phase branch, so an interruption loses as little work as possible.
 
 ## Local machine
 
