@@ -552,6 +552,20 @@ describe('LocalAuthService.changePassword (Phase 08)', () => {
     );
   });
 
+  it('Phase 09: success queues the "password changed" email; a failed change does not', async () => {
+    const t = setup();
+    const emailFlows = { notifyPasswordChanged: jest.fn() };
+    Object.assign(t.service, { emailFlows });
+    await change(t);
+    expect(emailFlows.notifyPasswordChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ id: USER_ID }),
+    );
+    emailFlows.notifyPasswordChanged.mockClear();
+    t.passwords.verify.mockResolvedValue({ ok: false, needsRehash: false });
+    await expect(change(t)).rejects.toBeInstanceOf(UnauthorizedException);
+    expect(emailFlows.notifyPasswordChanged).not.toHaveBeenCalled();
+  });
+
   it('success with the own refresh cookie -> that family is kept', async () => {
     const t = setup();
     t.refreshTokens.findActive.mockResolvedValue({

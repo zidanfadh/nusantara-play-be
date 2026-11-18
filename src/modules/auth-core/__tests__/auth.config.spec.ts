@@ -1,5 +1,6 @@
 import {
   decodePemEnv,
+  parseAppPublicUrl,
   parseAcceptSupabaseTokens,
   parseCookiePath,
   parseCookieSecure,
@@ -119,5 +120,58 @@ describe('readAuthConfig: Phase 08 settings', () => {
   it('parseOriginPatterns splits on commas and drops empty entries', () => {
     expect(parseOriginPatterns(undefined)).toEqual([]);
     expect(parseOriginPatterns(' a , ,b ')).toEqual(['a', 'b']);
+  });
+});
+
+describe('readAuthConfig: Phase 09 settings', () => {
+  const read = (env: Record<string, string | undefined>) =>
+    readAuthConfig((key) => env[key]);
+
+  it('defaults: verification 24 hours, reset 60 minutes, no APP_PUBLIC_URL', () => {
+    const config = read({});
+    expect(config.emailVerificationTtlHours).toBe(24);
+    expect(config.passwordResetTtlMinutes).toBe(60);
+    expect(config.appPublicUrl).toBeNull();
+  });
+
+  it('reads EMAIL_VERIFICATION_TTL_HOURS, PASSWORD_RESET_TTL_MINUTES and APP_PUBLIC_URL', () => {
+    const config = read({
+      EMAIL_VERIFICATION_TTL_HOURS: '48',
+      PASSWORD_RESET_TTL_MINUTES: '30',
+      APP_PUBLIC_URL: 'https://nusantaralegacy.org/',
+    });
+    expect(config.emailVerificationTtlHours).toBe(48);
+    expect(config.passwordResetTtlMinutes).toBe(30);
+    expect(config.appPublicUrl).toBe('https://nusantaralegacy.org');
+  });
+
+  it('invalid TTLs fall back to the defaults', () => {
+    const config = read({
+      EMAIL_VERIFICATION_TTL_HOURS: '0',
+      PASSWORD_RESET_TTL_MINUTES: 'soon',
+    });
+    expect(config.emailVerificationTtlHours).toBe(24);
+    expect(config.passwordResetTtlMinutes).toBe(60);
+  });
+
+  it.each([
+    ['http://localhost:3001', 'http://localhost:3001'],
+    ['  https://nusantaralegacy.org//  ', 'https://nusantaralegacy.org'],
+    ['https://example.test/app/', 'https://example.test/app'],
+  ])('APP_PUBLIC_URL %j -> %j', (value, expected) => {
+    expect(parseAppPublicUrl(value)).toBe(expected);
+  });
+
+  it.each([
+    undefined,
+    '',
+    'nusantaralegacy.org',
+    'javascript:alert(1)',
+    'ftp://example.test',
+    'https://example.test/?a=1',
+    'https://example.test/#x',
+    'https://user:pw@example.test',
+  ])('APP_PUBLIC_URL %j is rejected (null)', (value) => {
+    expect(parseAppPublicUrl(value)).toBeNull();
   });
 });
