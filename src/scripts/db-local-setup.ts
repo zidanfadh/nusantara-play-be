@@ -78,7 +78,18 @@ export const DEMO_IDS = {
     '00000000-0000-4000-8000-00000000de13',
   ],
   event: '00000000-0000-4000-8000-00000000de21',
+  /** DEMO PROT in Sumatera Selatan (kode 16) for the Jelajah pilot scene (Phase 11). */
+  protSumsel: [
+    '00000000-0000-4000-8000-00000000de31',
+    '00000000-0000-4000-8000-00000000de32',
+    '00000000-0000-4000-8000-00000000de33',
+    '00000000-0000-4000-8000-00000000de34',
+  ],
 } as const;
+
+/** Neutral placeholder text of the DEMO Sumatera Selatan PROT (no cultural facts). */
+export const DEMO_SUMSEL_TEXT =
+  'Contoh data untuk pengembangan, bukan data budaya asli.';
 
 export const DEMO_USER_EMAIL = 'demo-kurator@example.test';
 
@@ -331,7 +342,8 @@ async function countLevel(
 }
 
 /**
- * Small, clearly fake DEMO dataset: one fake kurator user, three PROT with
+ * Small, clearly fake DEMO dataset: one fake kurator user, three PROT plus four
+ * Sumatera Selatan PROT (Phase 11) with
  * status ARSIP_NASIONAL (publicly visible) and one published event.
  * Every name starts with "DEMO". Fixed ids + orIgnore() keep it idempotent.
  */
@@ -402,6 +414,38 @@ async function seedDemoData(
     .orIgnore()
     .execute();
 
+  // Phase 11: four DEMO PROT in Sumatera Selatan (Jelajah pilot scene). Neutral
+  // placeholder text only, no photos; never real cultural content.
+  const sumselKabkota = ['16.71', '16.01', '16.10', '16.74'];
+  await dataSource
+    .createQueryBuilder()
+    .insert()
+    .into(PROT)
+    .values(
+      DEMO_IDS.protSumsel.map((id, index) => ({
+        id,
+        nama: `DEMO PROT Sumsel ${index + 1}`,
+        jenis:
+          index % 2 === 0
+            ? PROTJenis.PERMAINAN_RAKYAT
+            : PROTJenis.OLAHRAGA_TRADISIONAL,
+        targetUsia: TargetUsia.SEMUA_USIA,
+        provinsiKode: '16',
+        kabkotaKode: sumselKabkota[index],
+        deskripsi: DEMO_SUMSEL_TEXT,
+        caraBermain: DEMO_SUMSEL_TEXT,
+        nilaiMoral: DEMO_SUMSEL_TEXT,
+        jumlahPemain: 4,
+        status: PROTStatus.ARSIP_NASIONAL,
+        created_by: DEMO_IDS.user,
+        submitted_at: now,
+        verified_at: now,
+        published_at: now,
+      })),
+    )
+    .orIgnore()
+    .execute();
+
   const jawaBarat = await dataSource
     .getRepository(Daerah)
     .findOneByOrFail({ kode: '32' });
@@ -428,7 +472,7 @@ async function seedDemoData(
     .execute();
 
   log(
-    `[db:setup] DEMO data present: 1 user (${DEMO_USER_EMAIL}), ${demoProts.length} PROT (ARSIP_NASIONAL), 1 event (published).`,
+    `[db:setup] DEMO data present: 1 user (${DEMO_USER_EMAIL}), ${demoProts.length + DEMO_IDS.protSumsel.length} PROT (ARSIP_NASIONAL, ${DEMO_IDS.protSumsel.length} in Sumatera Selatan), 1 event (published).`,
   );
 }
 
