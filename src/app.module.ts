@@ -11,6 +11,7 @@ import { DatabaseModule } from './database/database.module';
 
 // Feature modules
 import { AuthModule } from './modules/auth/auth.module';
+import { AuthCoreModule } from './modules/auth-core/auth-core.module';
 import { UsersModule } from './modules/users/users.module';
 import { DaerahModule } from './modules/daerah/daerah.module';
 import { StorageModule } from './modules/storage/storage.module';
@@ -46,6 +47,7 @@ import { UserThrottlerGuard } from './common/guards/user-throttler.guard';
     ]),
 
     // Feature modules
+    AuthCoreModule, // self-hosted auth core (Phase 07): 'local-jwt' strategy, JWKS
     AuthModule,
     UsersModule,
     DaerahModule,
