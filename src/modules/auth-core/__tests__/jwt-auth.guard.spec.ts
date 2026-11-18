@@ -173,6 +173,34 @@ describe('JwtAuthGuard (Phase 07)', () => {
     expect(legacy.req.user).toBe(LEGACY_USER);
   });
 
+  it('runs the strategies ONCE per request even when the guard runs twice (global + @UseGuards, Phase 08)', async () => {
+    const g = guard();
+    const { ctx, req } = context('local-ok');
+    await expect(g.canActivate(ctx)).resolves.toBe(true);
+    await expect(g.canActivate(ctx)).resolves.toBe(true);
+    // A second guard instance (as created by @UseGuards) reuses it too.
+    await expect(guard().canActivate(ctx)).resolves.toBe(true);
+    expect(calls).toEqual([LOCAL_JWT_STRATEGY]);
+    expect(req.user).toBe(LOCAL_USER);
+  });
+
+  it('the second run of an unauthenticated public request also skips the strategies', async () => {
+    const { ctx, req } = context(null, true);
+    await guard().canActivate(ctx);
+    await guard().canActivate(ctx);
+    expect(calls).toEqual([LOCAL_JWT_STRATEGY, SUPABASE_JWT_STRATEGY]);
+    expect(req.user).toBe(false);
+  });
+
+  it('a user set by something else (no marker) is NOT trusted: the strategies still run', async () => {
+    const { ctx, req } = context('garbage');
+    req.user = { id: 'injected' };
+    await expect(guard().canActivate(ctx)).rejects.toThrow(
+      'Authentication required',
+    );
+    expect(calls).toEqual([LOCAL_JWT_STRATEGY, SUPABASE_JWT_STRATEGY]);
+  });
+
   it('@Public(): a strategy error is ignored and req.user stays unset', async () => {
     const { ctx, req } = context('local-boom', true);
     await expect(guard().canActivate(ctx)).resolves.toBe(true);

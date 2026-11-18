@@ -27,6 +27,14 @@ export function jwtAuthStrategies(acceptSupabaseTokens: boolean): string[] {
 }
 
 /**
+ * Marks a request this guard has already authenticated. Routes with
+ * @UseGuards(JwtAuthGuard, ...) run the guard a second time after the global
+ * APP_GUARD; the second run reuses the first result instead of verifying the
+ * token (and querying the user) again (Phase 08).
+ */
+export const JWT_AUTH_DONE = Symbol('jwtAuthDone');
+
+/**
  * Global auth guard (registered first in app.module.ts, before
  * UserThrottlerGuard, which needs req.user).
  *
@@ -59,8 +67,15 @@ export class JwtAuthGuard implements CanActivate {
     const http = context.switchToHttp();
     const request = http.getRequest<Request>();
     // Written through a plain record: the property is typed by passport.
-    const target = request as unknown as Record<string, unknown>;
+    const target = request as unknown as Record<string | symbol, unknown>;
     const response = http.getResponse<Response>();
+
+    if (target[JWT_AUTH_DONE] === true && 'user' in target) {
+      if (!isPublic && !target.user) {
+        throw new UnauthorizedException('Authentication required');
+      }
+      return true;
+    }
 
     let user: unknown;
     try {
@@ -75,6 +90,7 @@ export class JwtAuthGuard implements CanActivate {
 
     if (isPublic) {
       target.user = user;
+      target[JWT_AUTH_DONE] = true;
       return true;
     }
 
@@ -86,6 +102,7 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     target.user = user;
+    target[JWT_AUTH_DONE] = true;
     return true;
   }
 
