@@ -86,92 +86,104 @@ export class PROTController {
 
   @Post(':id/foto-kegiatan')
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
-  @UseInterceptors(FilesInterceptor('files', 10))
+  @UseInterceptors(FilesInterceptor('files', 10), AuditInterceptor)
   async addFotoKegiatan(
     @Param('id') id: string,
     @UploadedFiles() files: Express.Multer.File[],
+    @CurrentUser() user: User,
   ) {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files provided');
     }
-    return this.protService.addFotoKegiatan(id, files);
+    return this.protService.addFotoKegiatan(id, files, user);
   }
 
   @Post(':id/video-kegiatan')
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
-  @UseInterceptors(FilesInterceptor('files', 10))
+  @UseInterceptors(FilesInterceptor('files', 10), AuditInterceptor)
   async addVideoKegiatan(
     @Param('id') id: string,
     @UploadedFiles() files: Express.Multer.File[],
+    @CurrentUser() user: User,
   ) {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files provided');
     }
-    return this.protService.addVideoKegiatan(id, files);
+    return this.protService.addVideoKegiatan(id, files, user);
   }
 
   @Delete(':id/foto-kegiatan/:index')
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
+  @UseInterceptors(AuditInterceptor)
   async removeFotoKegiatan(
     @Param('id') id: string,
     @Param('index', ParseIntPipe) index: number,
+    @CurrentUser() user: User,
   ) {
-    return this.protService.removeFotoKegiatan(id, index);
+    return this.protService.removeFotoKegiatan(id, index, user);
   }
 
   @Delete(':id/video-kegiatan/:index')
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
+  @UseInterceptors(AuditInterceptor)
   async removeVideoKegiatan(
     @Param('id') id: string,
     @Param('index', ParseIntPipe) index: number,
+    @CurrentUser() user: User,
   ) {
-    return this.protService.removeVideoKegiatan(id, index);
+    return this.protService.removeVideoKegiatan(id, index, user);
   }
 
   @Post(':id/dokumen-kurikulum')
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
-  @UseInterceptors(FilesInterceptor('files', 10))
+  @UseInterceptors(FilesInterceptor('files', 10), AuditInterceptor)
   async addDokumenKurikulum(
     @Param('id') id: string,
     @UploadedFiles() files: Express.Multer.File[],
+    @CurrentUser() user: User,
   ) {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files provided');
     }
-    return this.protService.addDokumenKurikulum(id, files);
+    return this.protService.addDokumenKurikulum(id, files, user);
   }
 
   @Delete(':id/dokumen-kurikulum/:index')
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
+  @UseInterceptors(AuditInterceptor)
   async removeDokumenKurikulum(
     @Param('id') id: string,
     @Param('index', ParseIntPipe) index: number,
+    @CurrentUser() user: User,
   ) {
-    return this.protService.removeDokumenKurikulum(id, index);
+    return this.protService.removeDokumenKurikulum(id, index, user);
   }
 
   @Post(':id/peralatan/:peralatanIndex/foto-alat')
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
-  @UseInterceptors(FilesInterceptor('files', 10))
+  @UseInterceptors(FilesInterceptor('files', 10), AuditInterceptor)
   async addFotoAlat(
     @Param('id') id: string,
     @Param('peralatanIndex', ParseIntPipe) peralatanIndex: number,
     @UploadedFiles() files: Express.Multer.File[],
+    @CurrentUser() user: User,
   ) {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files provided');
     }
-    return this.protService.addFotoAlat(id, peralatanIndex, files);
+    return this.protService.addFotoAlat(id, peralatanIndex, files, user);
   }
 
   @Delete(':id/peralatan/:peralatanIndex/foto-alat/:fotoIndex')
   @Roles(UserRole.KURATOR_DAERAH, UserRole.ADMIN_KPOTI)
+  @UseInterceptors(AuditInterceptor)
   async removeFotoAlat(
     @Param('id') id: string,
     @Param('peralatanIndex', ParseIntPipe) peralatanIndex: number,
     @Param('fotoIndex', ParseIntPipe) fotoIndex: number,
+    @CurrentUser() user: User,
   ) {
-    return this.protService.removeFotoAlat(id, peralatanIndex, fotoIndex);
+    return this.protService.removeFotoAlat(id, peralatanIndex, fotoIndex, user);
   }
 
   @Post(':id/submit-kurasi')
@@ -182,7 +194,7 @@ export class PROTController {
     @CurrentUser() user: User,
     @Body() submitDto: SubmitKurasiDto,
   ) {
-    return this.protService.submitKurasi(id, user.id);
+    return this.protService.submitKurasi(id, user.id, submitDto.catatan);
   }
 
   @Post(':id/resubmit')

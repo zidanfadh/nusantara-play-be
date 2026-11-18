@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
   ForbiddenException,
@@ -20,8 +21,18 @@ import { StorageService } from '../storage/storage.service';
 import { VerifikasiQueue } from './entities/verifikasi-queue.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 
+/** The fields of the acting user that the edit rules need. */
+type ActingUser = Pick<User, 'id' | 'role'>;
+
+const EDITABLE_STATUSES: readonly PROTStatus[] = [
+  PROTStatus.DRAFT,
+  PROTStatus.REVISI,
+];
+
 @Injectable()
 export class PROTService {
+  private readonly logger = new Logger(PROTService.name);
+
   constructor(
     @InjectRepository(PROT)
     private protRepository: Repository<PROT>,
@@ -118,37 +129,22 @@ export class PROTService {
     const limit = query.limit || 10;
     const skip = (page - 1) * limit;
 
-    // DEBUG: Log user info
-    console.log(
-      '[PROT findAll] User:',
-      user ? { id: user.id, role: user.role, email: user.email } : 'No user',
-    );
-
     const queryBuilder = this.protRepository.createQueryBuilder('prot');
 
-    // Status filter based on role
+    // Status filter based on role. Never log the user's id or email (P2).
     if (!user || user.role === UserRole.PUBLIK) {
       // Public users only see published
-      console.log(
-        '[PROT findAll] Applying PUBLIC filter (ARSIP_NASIONAL only)',
-      );
       queryBuilder.andWhere('prot.status = :roleStatus', {
         roleStatus: PROTStatus.ARSIP_NASIONAL,
       });
     } else if (user.role === UserRole.KURATOR_DAERAH) {
       // Kurator see own PROT or published
-      console.log(
-        '[PROT findAll] Applying KURATOR_DAERAH filter (own + ARSIP_NASIONAL)',
-      );
       queryBuilder.andWhere(
         '(prot.created_by = :userId OR prot.status = :roleStatus)',
         { userId: user.id, roleStatus: PROTStatus.ARSIP_NASIONAL },
       );
     } else if (user.role === UserRole.PAKAR) {
       // Pakar see DIKURASI + DIVERIFIKASI + ARSIP_NASIONAL
-      console.log(
-        '[PROT findAll] Applying PAKAR filter (DIKURASI + DIVERIFIKASI + ARSIP_NASIONAL)',
-      );
       queryBuilder.andWhere('prot.status IN (:...roleStatuses)', {
         roleStatuses: [
           PROTStatus.DIKURASI,
@@ -156,12 +152,9 @@ export class PROTService {
           PROTStatus.ARSIP_NASIONAL,
         ],
       });
-    } else {
-      // ADMIN_KPOTI sees all statuses (no filter applied)
-      console.log(
-        '[PROT findAll] Applying ADMIN filter (all statuses, no filter)',
-      );
     }
+    // ADMIN_KPOTI sees all statuses (no filter applied)
+    this.logger.debug(`findAll: role filter ${user?.role ?? 'guest'}`);
 
     if (query.jenis) {
       queryBuilder.andWhere('prot.jenis = :jenis', { jenis: query.jenis });
@@ -308,19 +301,7 @@ export class PROTService {
   ): Promise<PROT> {
     const prot = await this.findOne(id);
 
-    // Check ownership (kurator can only edit own PROT, admin can edit all)
-    if (userRole === UserRole.KURATOR_DAERAH && prot.created_by !== userId) {
-      throw new ForbiddenException(
-        'Anda tidak memiliki akses untuk edit PROT ini',
-      );
-    }
-
-    // Check status (only DRAFT or REVISI can be edited)
-    if (![PROTStatus.DRAFT, PROTStatus.REVISI].includes(prot.status)) {
-      throw new BadRequestException(
-        `PROT dengan status ${prot.status} tidak bisa diedit`,
-      );
-    }
+    this.assertCanEditMedia(prot, { id: userId, role: userRole });
 
     // Validate daerah cascade if provided
     const dto = updatePROTDto as Partial<CreatePROTDto>;
@@ -345,11 +326,53 @@ export class PROTService {
     await this.protRepository.remove(prot);
   }
 
+  /**
+   * The edit rules for a PROT and its media (B1), the same rules update()
+   * uses: only the owner or admin_kpoti (ForbiddenException), and only while
+   * the status is DRAFT or REVISI (BadRequestException). Media routes call
+   * this BEFORE any S3 upload or delete.
+   */
+  private assertCanEditMedia(prot: PROT, user: ActingUser): void {
+    if (user.role !== UserRole.ADMIN_KPOTI && prot.created_by !== user.id) {
+      throw new ForbiddenException(
+        'Anda tidak memiliki akses untuk edit PROT ini',
+      );
+    }
+
+    if (!EDITABLE_STATUSES.includes(prot.status)) {
+      throw new BadRequestException(
+        `PROT dengan status ${prot.status} tidak bisa diedit`,
+      );
+    }
+  }
+
+  /**
+   * Deletes an S3 object AFTER the database no longer points to it. A failed
+   * delete only leaves an orphaned object, so it is logged (error name only:
+   * no secrets, no personal data) and the request still succeeds.
+   */
+  private async deleteStoredFileAfterSave(
+    protId: string,
+    field: string,
+    fileUrl: string,
+  ): Promise<void> {
+    try {
+      await this.storageService.deleteFile(fileUrl);
+    } catch (error) {
+      const reason = error instanceof Error ? error.name : 'UnknownError';
+      this.logger.warn(
+        `S3 delete failed after removing ${field} from PROT ${protId} (${reason}); the object may be orphaned.`,
+      );
+    }
+  }
+
   async addFotoKegiatan(
     id: string,
     files: Express.Multer.File[],
+    user: ActingUser,
   ): Promise<PROT> {
     const prot = await this.findOne(id);
+    this.assertCanEditMedia(prot, user);
 
     const urls = await Promise.all(
       files.map((file) =>
@@ -366,8 +389,10 @@ export class PROTService {
   async addVideoKegiatan(
     id: string,
     files: Express.Multer.File[],
+    user: ActingUser,
   ): Promise<PROT> {
     const prot = await this.findOne(id);
+    this.assertCanEditMedia(prot, user);
 
     const urls = await Promise.all(
       files.map((file) =>
@@ -381,8 +406,13 @@ export class PROTService {
     return this.protRepository.save(prot);
   }
 
-  async removeFotoKegiatan(id: string, index: number): Promise<PROT> {
+  async removeFotoKegiatan(
+    id: string,
+    index: number,
+    user: ActingUser,
+  ): Promise<PROT> {
     const prot = await this.findOne(id);
+    this.assertCanEditMedia(prot, user);
 
     if (!prot.fotoKegiatan || prot.fotoKegiatan.length === 0) {
       throw new BadRequestException('No foto kegiatan to remove');
@@ -392,15 +422,19 @@ export class PROTService {
       throw new BadRequestException(`Invalid index: ${index}`);
     }
 
-    // Delete file from S3
-    await this.storageService.deleteFile(prot.fotoKegiatan[index]);
-
-    prot.fotoKegiatan.splice(index, 1);
-    return this.protRepository.save(prot);
+    const [removedUrl] = prot.fotoKegiatan.splice(index, 1);
+    const saved = await this.protRepository.save(prot);
+    await this.deleteStoredFileAfterSave(id, 'fotoKegiatan', removedUrl);
+    return saved;
   }
 
-  async removeVideoKegiatan(id: string, index: number): Promise<PROT> {
+  async removeVideoKegiatan(
+    id: string,
+    index: number,
+    user: ActingUser,
+  ): Promise<PROT> {
     const prot = await this.findOne(id);
+    this.assertCanEditMedia(prot, user);
 
     if (!prot.videoKegiatan || prot.videoKegiatan.length === 0) {
       throw new BadRequestException('No video kegiatan to remove');
@@ -410,18 +444,19 @@ export class PROTService {
       throw new BadRequestException(`Invalid index: ${index}`);
     }
 
-    // Delete file from S3
-    await this.storageService.deleteFile(prot.videoKegiatan[index]);
-
-    prot.videoKegiatan.splice(index, 1);
-    return this.protRepository.save(prot);
+    const [removedUrl] = prot.videoKegiatan.splice(index, 1);
+    const saved = await this.protRepository.save(prot);
+    await this.deleteStoredFileAfterSave(id, 'videoKegiatan', removedUrl);
+    return saved;
   }
 
   async addDokumenKurikulum(
     id: string,
     files: Express.Multer.File[],
+    user: ActingUser,
   ): Promise<PROT> {
     const prot = await this.findOne(id);
+    this.assertCanEditMedia(prot, user);
 
     const urls = await Promise.all(
       files.map((file) =>
@@ -435,8 +470,13 @@ export class PROTService {
     return this.protRepository.save(prot);
   }
 
-  async removeDokumenKurikulum(id: string, index: number): Promise<PROT> {
+  async removeDokumenKurikulum(
+    id: string,
+    index: number,
+    user: ActingUser,
+  ): Promise<PROT> {
     const prot = await this.findOne(id);
+    this.assertCanEditMedia(prot, user);
 
     if (!prot.dokumenKurikulum || prot.dokumenKurikulum.length === 0) {
       throw new BadRequestException('No dokumen kurikulum to remove');
@@ -446,18 +486,20 @@ export class PROTService {
       throw new BadRequestException(`Invalid index: ${index}`);
     }
 
-    await this.storageService.deleteFile(prot.dokumenKurikulum[index]);
-
-    prot.dokumenKurikulum.splice(index, 1);
-    return this.protRepository.save(prot);
+    const [removedUrl] = prot.dokumenKurikulum.splice(index, 1);
+    const saved = await this.protRepository.save(prot);
+    await this.deleteStoredFileAfterSave(id, 'dokumenKurikulum', removedUrl);
+    return saved;
   }
 
   async addFotoAlat(
     id: string,
     peralatanIndex: number,
     files: Express.Multer.File[],
+    user: ActingUser,
   ): Promise<PROT> {
     const prot = await this.findOne(id);
+    this.assertCanEditMedia(prot, user);
 
     if (
       !prot.peralatan ||
@@ -486,8 +528,10 @@ export class PROTService {
     id: string,
     peralatanIndex: number,
     fotoIndex: number,
+    user: ActingUser,
   ): Promise<PROT> {
     const prot = await this.findOne(id);
+    this.assertCanEditMedia(prot, user);
 
     if (
       !prot.peralatan ||
@@ -508,13 +552,17 @@ export class PROTService {
       throw new BadRequestException(`Invalid foto index: ${fotoIndex}`);
     }
 
-    await this.storageService.deleteFile(fotoAlat[fotoIndex]);
-
-    fotoAlat.splice(fotoIndex, 1);
-    return this.protRepository.save(prot);
+    const [removedUrl] = fotoAlat.splice(fotoIndex, 1);
+    const saved = await this.protRepository.save(prot);
+    await this.deleteStoredFileAfterSave(id, 'fotoAlat', removedUrl);
+    return saved;
   }
 
-  async submitKurasi(protId: string, userId: string): Promise<PROT> {
+  async submitKurasi(
+    protId: string,
+    userId: string,
+    catatan?: string | null,
+  ): Promise<PROT> {
     const prot = await this.protRepository.findOne({
       where: { id: protId },
     });
@@ -541,10 +589,12 @@ export class PROTService {
 
     await this.protRepository.save(prot);
 
-    // Create queue entry
+    // Create queue entry; the kurator's submission note travels with it to
+    // the pakar (B7).
     const queue = this.queueRepository.create({
       prot_id: protId,
       priority: 0,
+      catatan_kurator: catatan?.trim() || null,
     });
 
     await this.queueRepository.save(queue);

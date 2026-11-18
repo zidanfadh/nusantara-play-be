@@ -27,6 +27,11 @@ export class VerifikasiQueue {
   @Column({ type: 'timestamp', nullable: true, name: 'assigned_at' })
   assigned_at: Date | null;
 
+  // Kurator's note when submitting for kurasi (B7, Phase 06). Added by
+  // migration 1795000000000-AddCatatanKuratorToVerifikasiQueue.
+  @Column({ type: 'text', nullable: true, name: 'catatan_kurator' })
+  catatan_kurator: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   created_at: Date;
 

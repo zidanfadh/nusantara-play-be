@@ -16,7 +16,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
-import { UserRole } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 
 describe('PROTService', () => {
   let service: PROTService;
@@ -223,10 +223,62 @@ describe('PROTService', () => {
 
       expect(result.status).toBe(PROTStatus.DIKURASI);
       expect(result.submitted_at).toBeDefined();
+      // B7: no catatan -> the queue entry gets catatan_kurator null.
       expect(mockQueueRepository.create).toHaveBeenCalledWith({
         prot_id: 'prot-1',
         priority: 0,
+        catatan_kurator: null,
       });
+    });
+
+    it('stores the submission note (catatan) on the queue entry (B7)', async () => {
+      mockProtRepository.findOne.mockResolvedValue({
+        id: 'prot-1',
+        status: PROTStatus.DRAFT,
+        created_by: 'user-1',
+      });
+      mockProtRepository.save.mockImplementation((p: PROT) =>
+        Promise.resolve(p),
+      );
+      mockQueueRepository.create.mockImplementation(
+        (q: Partial<VerifikasiQueue>) => q,
+      );
+      mockQueueRepository.save.mockImplementation(
+        (q: Partial<VerifikasiQueue>) => Promise.resolve(q),
+      );
+
+      await service.submitKurasi(
+        'prot-1',
+        'user-1',
+        '  Mohon cek bagian cara bermain.  ',
+      );
+
+      expect(mockQueueRepository.create).toHaveBeenCalledWith({
+        prot_id: 'prot-1',
+        priority: 0,
+        catatan_kurator: 'Mohon cek bagian cara bermain.',
+      });
+    });
+
+    it('stores null when catatan is only whitespace (B7)', async () => {
+      mockProtRepository.findOne.mockResolvedValue({
+        id: 'prot-1',
+        status: PROTStatus.DRAFT,
+        created_by: 'user-1',
+      });
+      mockProtRepository.save.mockImplementation((p: PROT) =>
+        Promise.resolve(p),
+      );
+      mockQueueRepository.create.mockImplementation(
+        (q: Partial<VerifikasiQueue>) => q,
+      );
+      mockQueueRepository.save.mockResolvedValue({});
+
+      await service.submitKurasi('prot-1', 'user-1', '   ');
+
+      expect(mockQueueRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ catatan_kurator: null }),
+      );
     });
 
     it('should throw ForbiddenException if user is not owner', async () => {
@@ -427,6 +479,42 @@ describe('PROTService', () => {
         { roleStatus: PROTStatus.ARSIP_NASIONAL },
       );
     });
+
+    it('does not log the user email or id (P2)', async () => {
+      const queryBuilder = {
+        andWhere: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+      };
+      mockProtRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+      const consoleSpy = jest
+        .spyOn(console, 'log')
+        .mockImplementation(() => undefined);
+      const stdoutSpy = jest
+        .spyOn(process.stdout, 'write')
+        .mockImplementation(() => true);
+
+      try {
+        await service.findAll({ page: 1, limit: 10 }, {
+          id: 'user-secret-id',
+          role: UserRole.KURATOR_DAERAH,
+          email: 'someone@example.test',
+        } as User);
+
+        const printed = [
+          ...(consoleSpy.mock.calls.flat() as unknown[]),
+          ...stdoutSpy.mock.calls.map((c) => String(c[0])),
+        ]
+          .map((v) => (typeof v === 'string' ? v : JSON.stringify(v)))
+          .join('\n');
+        expect(printed).not.toContain('someone@example.test');
+        expect(printed).not.toContain('user-secret-id');
+      } finally {
+        consoleSpy.mockRestore();
+        stdoutSpy.mockRestore();
+      }
+    });
   });
 
   describe('findOneForRead', () => {
@@ -490,6 +578,224 @@ describe('PROTService', () => {
       await expect(
         service.findOneForRead('other-draft-id', user),
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('media routes: ownership and status (B1)', () => {
+    const owner = { id: 'owner-1', role: UserRole.KURATOR_DAERAH } as User;
+    const otherKurator = {
+      id: 'kurator-2',
+      role: UserRole.KURATOR_DAERAH,
+    } as User;
+    const admin = { id: 'admin-1', role: UserRole.ADMIN_KPOTI } as User;
+    const files = [{ originalname: 'a.jpg' }] as Express.Multer.File[];
+
+    const buildProt = (status: PROTStatus) => ({
+      id: 'prot-1',
+      nama: 'Gasing',
+      status,
+      created_by: 'owner-1',
+      fotoKegiatan: ['https://bucket/foto-1.jpg'],
+      videoKegiatan: ['https://bucket/video-1.mp4'],
+      dokumenKurikulum: ['https://bucket/dok-1.pdf'],
+      peralatan: [{ nama: 'Gasing', fotoAlat: ['https://bucket/alat-1.jpg'] }],
+    });
+
+    type MediaCall = {
+      name: string;
+      kind: 'add' | 'remove';
+      call: (user: User) => Promise<PROT>;
+    };
+
+    const mediaCalls: MediaCall[] = [
+      {
+        name: 'addFotoKegiatan',
+        kind: 'add',
+        call: (user) => service.addFotoKegiatan('prot-1', files, user),
+      },
+      {
+        name: 'addVideoKegiatan',
+        kind: 'add',
+        call: (user) => service.addVideoKegiatan('prot-1', files, user),
+      },
+      {
+        name: 'addDokumenKurikulum',
+        kind: 'add',
+        call: (user) => service.addDokumenKurikulum('prot-1', files, user),
+      },
+      {
+        name: 'addFotoAlat',
+        kind: 'add',
+        call: (user) => service.addFotoAlat('prot-1', 0, files, user),
+      },
+      {
+        name: 'removeFotoKegiatan',
+        kind: 'remove',
+        call: (user) => service.removeFotoKegiatan('prot-1', 0, user),
+      },
+      {
+        name: 'removeVideoKegiatan',
+        kind: 'remove',
+        call: (user) => service.removeVideoKegiatan('prot-1', 0, user),
+      },
+      {
+        name: 'removeDokumenKurikulum',
+        kind: 'remove',
+        call: (user) => service.removeDokumenKurikulum('prot-1', 0, user),
+      },
+      {
+        name: 'removeFotoAlat',
+        kind: 'remove',
+        call: (user) => service.removeFotoAlat('prot-1', 0, 0, user),
+      },
+    ];
+
+    beforeEach(() => {
+      mockStorageService.uploadFile.mockResolvedValue(
+        'https://bucket/new-file',
+      );
+      mockStorageService.deleteFile.mockResolvedValue(undefined);
+      mockProtRepository.save.mockImplementation((prot: PROT) =>
+        Promise.resolve(prot),
+      );
+    });
+
+    describe.each(mediaCalls)('$name', ({ kind, call }) => {
+      const storageCall = () =>
+        kind === 'add'
+          ? mockStorageService.uploadFile
+          : mockStorageService.deleteFile;
+
+      it.each([PROTStatus.DRAFT, PROTStatus.REVISI])(
+        'allows the owner when status is %s',
+        async (status) => {
+          mockProtRepository.findOne.mockResolvedValue(buildProt(status));
+
+          await expect(call(owner)).resolves.toBeDefined();
+          expect(storageCall()).toHaveBeenCalledTimes(1);
+          expect(mockProtRepository.save).toHaveBeenCalledTimes(1);
+        },
+      );
+
+      it('allows admin_kpoti on another user PROT', async () => {
+        mockProtRepository.findOne.mockResolvedValue(
+          buildProt(PROTStatus.DRAFT),
+        );
+
+        await expect(call(admin)).resolves.toBeDefined();
+        expect(storageCall()).toHaveBeenCalledTimes(1);
+      });
+
+      it('returns 403 for another kurator and never touches storage', async () => {
+        mockProtRepository.findOne.mockResolvedValue(
+          buildProt(PROTStatus.DRAFT),
+        );
+
+        await expect(call(otherKurator)).rejects.toThrow(
+          new ForbiddenException(
+            'Anda tidak memiliki akses untuk edit PROT ini',
+          ),
+        );
+        expect(mockStorageService.uploadFile).not.toHaveBeenCalled();
+        expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
+        expect(mockProtRepository.save).not.toHaveBeenCalled();
+      });
+
+      it.each([
+        PROTStatus.DIKURASI,
+        PROTStatus.DIVERIFIKASI,
+        PROTStatus.ARSIP_NASIONAL,
+      ])(
+        'returns 400 for the owner when status is %s and never touches storage',
+        async (status) => {
+          mockProtRepository.findOne.mockResolvedValue(buildProt(status));
+
+          await expect(call(owner)).rejects.toThrow(
+            new BadRequestException(
+              `PROT dengan status ${status} tidak bisa diedit`,
+            ),
+          );
+          expect(mockStorageService.uploadFile).not.toHaveBeenCalled();
+          expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
+          expect(mockProtRepository.save).not.toHaveBeenCalled();
+        },
+      );
+
+      it('returns 400 for admin_kpoti when status is ARSIP_NASIONAL', async () => {
+        mockProtRepository.findOne.mockResolvedValue(
+          buildProt(PROTStatus.ARSIP_NASIONAL),
+        );
+
+        await expect(call(admin)).rejects.toThrow(BadRequestException);
+        expect(mockStorageService.uploadFile).not.toHaveBeenCalled();
+        expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
+      });
+    });
+
+    describe.each(mediaCalls.filter((c) => c.kind === 'remove'))(
+      '$name (remove order)',
+      ({ call }) => {
+        it('saves the database before deleting the S3 object', async () => {
+          mockProtRepository.findOne.mockResolvedValue(
+            buildProt(PROTStatus.DRAFT),
+          );
+
+          await expect(call(owner)).resolves.toBeDefined();
+
+          const saveOrder = mockProtRepository.save.mock.invocationCallOrder[0];
+          const deleteOrder =
+            mockStorageService.deleteFile.mock.invocationCallOrder[0];
+          expect(saveOrder).toBeLessThan(deleteOrder);
+        });
+
+        it('does not delete the S3 object when the save fails', async () => {
+          mockProtRepository.findOne.mockResolvedValue(
+            buildProt(PROTStatus.DRAFT),
+          );
+          mockProtRepository.save.mockRejectedValueOnce(new Error('db down'));
+
+          await expect(call(owner)).rejects.toThrow('db down');
+          expect(mockStorageService.deleteFile).not.toHaveBeenCalled();
+        });
+
+        it('still succeeds when the S3 delete fails', async () => {
+          mockProtRepository.findOne.mockResolvedValue(
+            buildProt(PROTStatus.DRAFT),
+          );
+          mockStorageService.deleteFile.mockRejectedValueOnce(
+            new Error('S3 unavailable'),
+          );
+
+          await expect(call(owner)).resolves.toBeDefined();
+          expect(mockProtRepository.save).toHaveBeenCalledTimes(1);
+        });
+      },
+    );
+
+    it('removeFotoKegiatan removes the chosen URL and deletes that object', async () => {
+      const prot = buildProt(PROTStatus.DRAFT);
+      prot.fotoKegiatan = ['https://bucket/a.jpg', 'https://bucket/b.jpg'];
+      mockProtRepository.findOne.mockResolvedValue(prot);
+
+      const result = await service.removeFotoKegiatan('prot-1', 1, owner);
+
+      expect(result.fotoKegiatan).toEqual(['https://bucket/a.jpg']);
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+        'https://bucket/b.jpg',
+      );
+    });
+
+    it('removeFotoAlat removes the chosen URL and deletes that object', async () => {
+      mockProtRepository.findOne.mockResolvedValue(
+        buildProt(PROTStatus.REVISI),
+      );
+
+      const result = await service.removeFotoAlat('prot-1', 0, 0, owner);
+
+      expect(result.peralatan[0].fotoAlat).toEqual([]);
+      expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
+        'https://bucket/alat-1.jpg',
+      );
     });
   });
 });

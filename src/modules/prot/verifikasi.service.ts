@@ -15,10 +15,28 @@ import { VerifikasiReviewDto } from './dto/verifikasi-review.dto';
 import { DaerahService } from '../daerah/daerah.service';
 import { DaerahLevel } from '../daerah/entities/daerah.entity';
 import { UserRole } from '../users/entities/user.entity';
+import { stripPrivateUserFields } from '../../common/serializers/user-shape';
 
 interface ReviewerContext {
   role?: UserRole;
   daerah_id?: string | null;
+}
+
+/**
+ * Queue items go to other users (pakar, admin, kurator), so the PROT
+ * creator never includes supabase_user_id or last_login_at (P1).
+ */
+function withoutPrivateCreatorFields(item: VerifikasiQueue): VerifikasiQueue {
+  if (!item.prot?.createdBy) {
+    return item;
+  }
+  return {
+    ...item,
+    prot: {
+      ...item.prot,
+      createdBy: stripPrivateUserFields(item.prot.createdBy),
+    },
+  } as VerifikasiQueue;
 }
 
 @Injectable()
@@ -80,7 +98,7 @@ export class VerifikasiService {
     });
 
     return {
-      data,
+      data: data.map(withoutPrivateCreatorFields),
       pagination: {
         total,
         page,
@@ -105,7 +123,7 @@ export class VerifikasiService {
     });
 
     return {
-      data,
+      data: data.map(withoutPrivateCreatorFields),
       pagination: {
         total,
         page,
@@ -147,10 +165,29 @@ export class VerifikasiService {
 
     await this.ensureKuratorCanAccessProt(queue.prot, reviewer);
 
-    queue.assigned_pakar_id = pakarId;
-    queue.assigned_at = new Date();
+    // Race-safe claim (B5): only one concurrent pick can change the row from
+    // unassigned to assigned. assigned_at is a JS Date parameter, the same
+    // convention as before (timestamp without time zone, app clock).
+    const result = await this.queueRepository
+      .createQueryBuilder()
+      .update(VerifikasiQueue)
+      .set({ assigned_pakar_id: pakarId, assigned_at: new Date() })
+      .where('id = :queueId', { queueId })
+      .andWhere('assigned_pakar_id IS NULL')
+      .execute();
 
-    return this.queueRepository.save(queue);
+    if (!result.affected) {
+      throw new BadRequestException('PROT ini sudah di-claim oleh pakar lain');
+    }
+
+    const claimed = await this.queueRepository.findOne({
+      where: { id: queueId },
+      relations: ['prot'],
+    });
+    if (!claimed) {
+      throw new NotFoundException('Queue item tidak ditemukan');
+    }
+    return claimed;
   }
 
   /**
@@ -160,20 +197,26 @@ export class VerifikasiService {
     queueId: string,
     pakarId: string,
   ): Promise<VerifikasiQueue> {
-    const queue = await this.queueRepository.findOne({
-      where: { id: queueId, assigned_pakar_id: pakarId },
-    });
+    // Only the assigned pakar can release (B5), in one conditional UPDATE.
+    const result = await this.queueRepository
+      .createQueryBuilder()
+      .update(VerifikasiQueue)
+      .set({ assigned_pakar_id: null, assigned_at: null })
+      .where('id = :queueId', { queueId })
+      .andWhere('assigned_pakar_id = :pakarId', { pakarId })
+      .execute();
 
-    if (!queue) {
+    const released = result.affected
+      ? await this.queueRepository.findOne({ where: { id: queueId } })
+      : null;
+
+    if (!released) {
       throw new NotFoundException(
         'Queue item tidak ditemukan atau bukan milik Anda',
       );
     }
 
-    queue.assigned_pakar_id = null;
-    queue.assigned_at = null;
-
-    return this.queueRepository.save(queue);
+    return released;
   }
 
   /**
@@ -308,11 +351,16 @@ export class VerifikasiService {
    * Get verification history for a PROT
    */
   async getVerifikasiHistory(protId: string) {
-    return this.verifikasiRepository.find({
+    const history = await this.verifikasiRepository.find({
       where: { prot_id: protId },
       relations: ['pakar'],
       order: { created_at: 'DESC' },
     });
+    // The pakar is another user: no supabase_user_id / last_login_at (P1).
+    return history.map((item) => ({
+      ...item,
+      pakar: stripPrivateUserFields(item.pakar),
+    }));
   }
 
   /**

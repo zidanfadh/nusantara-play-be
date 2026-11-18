@@ -30,6 +30,15 @@ describe('VerifikasiService', () => {
     remove: jest.fn(),
   };
 
+  // Conditional UPDATE builder used by pickFromQueue/releaseFromQueue (B5).
+  const mockUpdateBuilder = {
+    update: jest.fn().mockReturnThis(),
+    set: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    andWhere: jest.fn().mockReturnThis(),
+    execute: jest.fn(),
+  };
+
   const mockQueueRepository = {
     findAndCount: jest.fn(),
     findOne: jest.fn(),
@@ -37,6 +46,7 @@ describe('VerifikasiService', () => {
     save: jest.fn(),
     count: jest.fn(),
     remove: jest.fn(),
+    createQueryBuilder: jest.fn(() => mockUpdateBuilder),
   };
 
   const mockProtRepository = {
@@ -212,24 +222,48 @@ describe('VerifikasiService', () => {
   });
 
   describe('pickFromQueue', () => {
-    it('should successfully pick a PROT from queue', async () => {
-      const mockQueue = {
-        id: 'queue-1',
-        prot: { id: 'prot-1', status: PROTStatus.DIKURASI },
-        assigned_pakar_id: null,
-      };
+    const openQueue = (provinsiKode?: string) => ({
+      id: 'queue-1',
+      prot: { id: 'prot-1', status: PROTStatus.DIKURASI, provinsiKode },
+      assigned_pakar_id: null,
+    });
 
-      mockQueueRepository.findOne.mockResolvedValue(mockQueue);
-      mockQueueRepository.save.mockResolvedValue({
-        ...mockQueue,
+    it('claims with one conditional UPDATE and returns the claimed row', async () => {
+      const claimed = {
+        ...openQueue(),
         assigned_pakar_id: 'pakar-1',
-        assigned_at: expect.any(Date),
-      });
+        assigned_at: new Date(),
+      };
+      mockQueueRepository.findOne
+        .mockResolvedValueOnce(openQueue())
+        .mockResolvedValueOnce(claimed);
+      mockUpdateBuilder.execute.mockResolvedValue({ affected: 1 });
 
       const result = await service.pickFromQueue('queue-1', 'pakar-1');
 
       expect(result.assigned_pakar_id).toBe('pakar-1');
-      expect(result.assigned_at).toBeDefined();
+      expect(result.assigned_at).toBeInstanceOf(Date);
+      expect(mockUpdateBuilder.update).toHaveBeenCalledWith(VerifikasiQueue);
+      expect(mockUpdateBuilder.set).toHaveBeenCalledWith({
+        assigned_pakar_id: 'pakar-1',
+        assigned_at: expect.any(Date),
+      });
+      expect(mockUpdateBuilder.where).toHaveBeenCalledWith('id = :queueId', {
+        queueId: 'queue-1',
+      });
+      expect(mockUpdateBuilder.andWhere).toHaveBeenCalledWith(
+        'assigned_pakar_id IS NULL',
+      );
+      expect(mockQueueRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('throws "sudah di-claim" when the conditional UPDATE changes no row (lost race)', async () => {
+      mockQueueRepository.findOne.mockResolvedValueOnce(openQueue());
+      mockUpdateBuilder.execute.mockResolvedValue({ affected: 0 });
+
+      await expect(service.pickFromQueue('queue-1', 'pakar-1')).rejects.toThrow(
+        new BadRequestException('PROT ini sudah di-claim oleh pakar lain'),
+      );
     });
 
     it('should throw NotFoundException if queue item not found', async () => {
@@ -238,43 +272,46 @@ describe('VerifikasiService', () => {
       await expect(service.pickFromQueue('queue-1', 'pakar-1')).rejects.toThrow(
         NotFoundException,
       );
+      expect(mockUpdateBuilder.execute).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException if already assigned', async () => {
-      const mockQueue = {
-        id: 'queue-1',
-        prot: { id: 'prot-1', status: PROTStatus.DIKURASI },
+      mockQueueRepository.findOne.mockResolvedValue({
+        ...openQueue(),
         assigned_pakar_id: 'pakar-2',
-      };
-
-      mockQueueRepository.findOne.mockResolvedValue(mockQueue);
+      });
 
       await expect(service.pickFromQueue('queue-1', 'pakar-1')).rejects.toThrow(
         BadRequestException,
       );
+      expect(mockUpdateBuilder.execute).not.toHaveBeenCalled();
+    });
+
+    it('rejects a PROT that is no longer DIKURASI without updating', async () => {
+      mockQueueRepository.findOne.mockResolvedValue({
+        ...openQueue(),
+        prot: { id: 'prot-1', status: PROTStatus.DIVERIFIKASI },
+      });
+
+      await expect(service.pickFromQueue('queue-1', 'pakar-1')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockUpdateBuilder.execute).not.toHaveBeenCalled();
     });
 
     it('should allow kurator daerah to pick a PROT from their province', async () => {
-      const mockQueue = {
-        id: 'queue-1',
-        prot: {
-          id: 'prot-1',
-          status: PROTStatus.DIKURASI,
-          provinsiKode: '32',
-        },
-        assigned_pakar_id: null,
-      };
-
-      mockQueueRepository.findOne.mockResolvedValue(mockQueue);
+      mockQueueRepository.findOne
+        .mockResolvedValueOnce(openQueue('32'))
+        .mockResolvedValueOnce({
+          ...openQueue('32'),
+          assigned_pakar_id: 'kurator-1',
+          assigned_at: new Date(),
+        });
       mockDaerahService.findAncestors.mockResolvedValue([
         { id: 'province-1', kode: '32', level: DaerahLevel.PROVINSI },
         { id: 'city-1', kode: '32.73', level: DaerahLevel.KOTA },
       ]);
-      mockQueueRepository.save.mockResolvedValue({
-        ...mockQueue,
-        assigned_pakar_id: 'kurator-1',
-        assigned_at: expect.any(Date),
-      });
+      mockUpdateBuilder.execute.mockResolvedValue({ affected: 1 });
 
       const result = await service.pickFromQueue('queue-1', 'kurator-1', {
         role: UserRole.KURATOR_DAERAH,
@@ -286,17 +323,7 @@ describe('VerifikasiService', () => {
     });
 
     it('should reject kurator daerah picking a PROT from another province', async () => {
-      const mockQueue = {
-        id: 'queue-1',
-        prot: {
-          id: 'prot-1',
-          status: PROTStatus.DIKURASI,
-          provinsiKode: '33',
-        },
-        assigned_pakar_id: null,
-      };
-
-      mockQueueRepository.findOne.mockResolvedValue(mockQueue);
+      mockQueueRepository.findOne.mockResolvedValue(openQueue('33'));
       mockDaerahService.findAncestors.mockResolvedValue([
         { id: 'province-1', kode: '32', level: DaerahLevel.PROVINSI },
         { id: 'city-1', kode: '32.73', level: DaerahLevel.KOTA },
@@ -309,8 +336,87 @@ describe('VerifikasiService', () => {
         }),
       ).rejects.toThrow(ForbiddenException);
 
+      expect(mockUpdateBuilder.execute).not.toHaveBeenCalled();
       expect(mockQueueRepository.save).not.toHaveBeenCalled();
     });
+  });
+
+  describe('releaseFromQueue', () => {
+    it('releases only the row assigned to this pakar', async () => {
+      mockUpdateBuilder.execute.mockResolvedValue({ affected: 1 });
+      mockQueueRepository.findOne.mockResolvedValue({
+        id: 'queue-1',
+        assigned_pakar_id: null,
+        assigned_at: null,
+      });
+
+      const result = await service.releaseFromQueue('queue-1', 'pakar-1');
+
+      expect(result.assigned_pakar_id).toBeNull();
+      expect(mockUpdateBuilder.set).toHaveBeenCalledWith({
+        assigned_pakar_id: null,
+        assigned_at: null,
+      });
+      expect(mockUpdateBuilder.where).toHaveBeenCalledWith('id = :queueId', {
+        queueId: 'queue-1',
+      });
+      expect(mockUpdateBuilder.andWhere).toHaveBeenCalledWith(
+        'assigned_pakar_id = :pakarId',
+        { pakarId: 'pakar-1' },
+      );
+    });
+
+    it('throws NotFoundException when the row is not assigned to this pakar', async () => {
+      mockUpdateBuilder.execute.mockResolvedValue({ affected: 0 });
+
+      await expect(
+        service.releaseFromQueue('queue-1', 'pakar-2'),
+      ).rejects.toThrow(
+        new NotFoundException(
+          'Queue item tidak ditemukan atau bukan milik Anda',
+        ),
+      );
+    });
+  });
+
+  describe('queue responses do not leak private user fields (P1)', () => {
+    const createdBy = {
+      id: 'kurator-1',
+      full_name: 'Kurator',
+      email: 'kurator@example.test',
+      supabase_user_id: '00000000-0000-0000-0000-000000000001',
+      last_login_at: new Date(),
+    };
+
+    it.each(['getAvailableQueue', 'getMyQueue'] as const)(
+      '%s strips supabase_user_id and last_login_at from prot.createdBy and keeps catatan_kurator',
+      async (method) => {
+        mockQueueRepository.findAndCount.mockResolvedValue([
+          [
+            {
+              id: 'queue-1',
+              catatan_kurator: 'Catatan kurator',
+              prot: { id: 'prot-1', createdBy },
+            },
+          ],
+          1,
+        ]);
+
+        const result =
+          method === 'getAvailableQueue'
+            ? await service.getAvailableQueue(1, 20)
+            : await service.getMyQueue('pakar-1', 1, 20);
+
+        const item = result.data[0];
+        expect(item.catatan_kurator).toBe('Catatan kurator');
+        expect(item.prot.createdBy).toMatchObject({
+          id: 'kurator-1',
+          full_name: 'Kurator',
+        });
+        expect(item.prot.createdBy).not.toHaveProperty('supabase_user_id');
+        expect(item.prot.createdBy).not.toHaveProperty('last_login_at');
+      },
+    );
   });
 
   describe('submitReview', () => {
@@ -485,6 +591,24 @@ describe('VerifikasiService', () => {
         relations: ['pakar'],
         order: { created_at: 'DESC' },
       });
+    });
+
+    it('strips supabase_user_id and last_login_at from the pakar (P1)', async () => {
+      mockVerifikasiRepository.find.mockResolvedValue([
+        {
+          id: 'verif-1',
+          pakar: {
+            id: 'pakar-1',
+            full_name: 'Pakar 1',
+            supabase_user_id: '00000000-0000-0000-0000-000000000002',
+            last_login_at: new Date(),
+          },
+        },
+      ]);
+
+      const [item] = await service.getVerifikasiHistory('prot-1');
+
+      expect(item.pakar).toEqual({ id: 'pakar-1', full_name: 'Pakar 1' });
     });
   });
 
