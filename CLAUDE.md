@@ -497,9 +497,12 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 
 ## Local machine
 
-Windows 11; repos live on drive D: (`D:/Project/Nusantara Legacy/`). C: has very little free space (~7.5 GB), so anything that takes disk space goes to D:.
+Windows 11; repos live on drive D: (`D:/Project/Nusantara Legacy/`). C: is small. **Standing rule (owner, 2026-11-18):
+everything that uses disk space goes to D:, never C:.** Every cache, temp folder, build output, browser profile,
+screenshot, Docker image, volume and container lives on D:; nothing new may be written to C:.
 
-- Before heavy work, check free space on C: and D:. If D: has less than 10 GB free, stop and tell the owner.
+- Before heavy work, check free space on C: and D:. **Stop and tell the owner if C: has less than 3 GB free** or D:
+  has less than 10 GB free. Check again after builds, test runs and browser automation.
 - Detect the shell first (Git Bash: `export`, PowerShell: `$env:`, cmd: `set`) and set these **session-only** variables for every command. Use forward slashes (`D:/...`):
   - npm cache (also used by npx): `npm_config_cache=D:/dev-cache/npm`
   - Temp files: `TEMP`, `TMP` and `TMPDIR` = `D:/dev-cache/tmp`
@@ -507,7 +510,15 @@ Windows 11; repos live on drive D: (`D:/Project/Nusantara Legacy/`). C: has very
   `pnpm install --frozen-lockfile --store-dir D:/.pnpm-store --config.cache-dir=D:/dev-cache/pnpm-cache --state-dir D:/dev-cache/pnpm-state`
   If pnpm complains that node_modules was linked from a different store, the frontend `node_modules` folder may be deleted and reinstalled. Delete nothing else.
 - Jest: `npm test -- --cacheDirectory D:/dev-cache/jest`
+- Browser automation (headless Chrome): always `--user-data-dir=D:/dev-cache/tmp/<phase>/chrome-profile`; screenshots go to
+  `D:/dev-cache/screens/<phase>/`. Downloads and scratch data go to `D:/dev-cache/tmp/<phase>/`.
+- Git Bash rewrites arguments that start with `/` into Windows paths (`/prot` → `C:/Program Files/Git/prot`); set
+  `MSYS_NO_PATHCONV=1` when passing URL paths to scripts.
 - Create these folders if they do not exist.
 - Do not change global settings (no `npm config set`, no `pnpm config set --global`, no edits to system or user environment variables) unless the owner asks.
-- Docker Desktop's data stays on C: (`%LOCALAPPDATA%\Docker\wsl\disk\docker_data.vhdx`) by the owner's decision (Phase 05); the owner freed space there. Phases may pull images and start containers when the phase asks for it (for example `npm run db:up`). Stop only if C: has less than 5 GB free.
+- Docker Desktop's data lives on D: since 2026-11-18 (owner moved it; Docker setting `CustomWslDistroDir` =
+  `D:\DockerData\wsl\DockerDesktopWSL`): images, containers and volumes are in
+  `D:\DockerData\wsl\DockerDesktopWSL\disk\docker_data.vhdx` (the distro itself in `...\main\ext4.vhdx`). Nothing Docker-related
+  remains under `%LOCALAPPDATA%\Docker\wsl`. Phases may pull images and start containers when the phase asks for it (for example
+  `npm run db:up`); the volume `nusantara-dev-db-data` survived the move.
 - Never connect to the production database. Local PostgreSQL uses port 5432 (Docker container `nusantara-dev-db`, bound to 127.0.0.1).
