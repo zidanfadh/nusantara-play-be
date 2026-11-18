@@ -167,6 +167,43 @@ export class RefreshTokenService {
   }
 
   /**
+   * Revokes every still-active token of a user except those of one family
+   * (the session that changed its password keeps working). Without
+   * keepFamilyId it behaves like revokeAllForUser() (Phase 08).
+   */
+  async revokeAllForUserExcept(
+    userId: string,
+    reason: string,
+    keepFamilyId: string | null,
+    manager: EntityManager = this.dataSource.manager,
+  ): Promise<number> {
+    const query = manager
+      .createQueryBuilder()
+      .update(RefreshToken)
+      .set({ revoked_at: new Date(), revoked_reason: reason })
+      .where('user_id = :userId AND revoked_at IS NULL', { userId });
+    if (keepFamilyId) {
+      query.andWhere('family_id <> :keepFamilyId', { keepFamilyId });
+    }
+    const result = await query.execute();
+    return result.affected ?? 0;
+  }
+
+  /**
+   * The row of a raw token if it is known, not revoked and not expired;
+   * otherwise null. Read-only (Phase 08: logout, change-password).
+   */
+  async findActive(rawToken: string): Promise<RefreshToken | null> {
+    const row = await this.dataSource
+      .getRepository(RefreshToken)
+      .findOneBy({ token_hash: hashRefreshToken(rawToken) });
+    if (!row || row.revoked_at || row.expires_at.getTime() <= Date.now()) {
+      return null;
+    }
+    return row;
+  }
+
+  /**
    * Deletes tokens that expired more than REFRESH_CLEANUP_AFTER_DAYS (7)
    * days ago. No cron yet (a later phase schedules it). Returns the count.
    */

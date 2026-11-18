@@ -1,5 +1,6 @@
 /**
- * Self-hosted auth configuration (Phase 07).
+ * Self-hosted auth configuration (Phase 07; cookies, CSRF origins and
+ * lockout since Phase 08).
  *
  * A pure parser over an env getter (same pattern as data-source-options.ts),
  * so the app (ConfigService), the guard and the tests read the same values.
@@ -28,6 +29,19 @@ export interface AuthConfig {
   refreshTokenTtlDays: number;
   refreshReuseGraceSeconds: number;
   acceptSupabaseTokens: boolean;
+  /** Path attribute of the np_refresh cookie (Phase 08). */
+  cookiePath: string;
+  /** Secure attribute of both auth cookies (Phase 08). */
+  cookieSecure: boolean;
+  /**
+   * Extra allowed Origins for the CSRF check, as anchored regular
+   * expressions (FRONTEND_ORIGIN_PATTERNS, comma-separated; Phase 08).
+   */
+  frontendOriginPatterns: string[];
+  /** Wrong passwords in a row before the account is locked (Phase 08). */
+  loginMaxFailed: number;
+  /** Lock duration after loginMaxFailed wrong passwords (Phase 08). */
+  loginLockMinutes: number;
 }
 
 export const AUTH_KEY_ENV_NAMES = [
@@ -42,6 +56,9 @@ export const AUTH_DEFAULTS = {
   accessTokenTtlSeconds: 900,
   refreshTokenTtlDays: 30,
   refreshReuseGraceSeconds: 20,
+  cookiePath: '/backend-api/auth',
+  loginMaxFailed: 5,
+  loginLockMinutes: 15,
 } as const;
 
 /**
@@ -81,6 +98,41 @@ export function parseAcceptSupabaseTokens(value: string | undefined): boolean {
   return !['false', '0', 'no', 'off'].includes(value.trim().toLowerCase());
 }
 
+/**
+ * AUTH_COOKIE_SECURE: explicit true/1/yes/on or false/0/no/off; anything
+ * else (including unset) falls back to NODE_ENV === 'production'.
+ */
+export function parseCookieSecure(
+  value: string | undefined,
+  nodeEnv: string | undefined,
+): boolean {
+  const normalized = value?.trim().toLowerCase() ?? '';
+  if (['true', '1', 'yes', 'on'].includes(normalized)) {
+    return true;
+  }
+  if (['false', '0', 'no', 'off'].includes(normalized)) {
+    return false;
+  }
+  return nodeEnv?.trim() === 'production';
+}
+
+/** AUTH_COOKIE_PATH must be an absolute path; otherwise the default. */
+export function parseCookiePath(value: string | undefined): string {
+  const trimmed = value?.trim() ?? '';
+  if (!trimmed.startsWith('/') || /[;,\s]/.test(trimmed)) {
+    return AUTH_DEFAULTS.cookiePath;
+  }
+  return trimmed;
+}
+
+/** Comma-separated list; empty entries dropped. Not compiled here. */
+export function parseOriginPatterns(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((pattern) => pattern.trim())
+    .filter(Boolean);
+}
+
 export function readAuthConfig(getEnv: EnvGetter): AuthConfig {
   const missing = AUTH_KEY_ENV_NAMES.filter((name) => !getEnv(name)?.trim());
   const keys: AuthKeyConfig | null =
@@ -111,6 +163,22 @@ export function readAuthConfig(getEnv: EnvGetter): AuthConfig {
     ),
     acceptSupabaseTokens: parseAcceptSupabaseTokens(
       getEnv('AUTH_ACCEPT_SUPABASE_TOKENS'),
+    ),
+    cookiePath: parseCookiePath(getEnv('AUTH_COOKIE_PATH')),
+    cookieSecure: parseCookieSecure(
+      getEnv('AUTH_COOKIE_SECURE'),
+      getEnv('NODE_ENV'),
+    ),
+    frontendOriginPatterns: parseOriginPatterns(
+      getEnv('FRONTEND_ORIGIN_PATTERNS'),
+    ),
+    loginMaxFailed: positiveInt(
+      getEnv('LOGIN_MAX_FAILED'),
+      AUTH_DEFAULTS.loginMaxFailed,
+    ),
+    loginLockMinutes: positiveInt(
+      getEnv('LOGIN_LOCK_MINUTES'),
+      AUTH_DEFAULTS.loginLockMinutes,
     ),
   };
 }

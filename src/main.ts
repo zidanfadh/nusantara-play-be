@@ -5,6 +5,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { applyTrustProxy } from './common/http/trust-proxy';
 
 async function bootstrap() {
@@ -20,12 +21,16 @@ async function bootstrap() {
   // Security headers with Helmet
   app.use(helmet());
 
+  // req.cookies for the np_refresh cookie of the auth endpoints (Phase 08).
+  app.use(cookieParser());
+
   // CORS configuration
   app.enableCors({
     origin: configService.get<string[]>('app.frontendUrls'),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    // X-Requested-With: CSRF header of the cookie-based auth endpoints (Phase 08).
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   });
 
   // Global validation pipe
