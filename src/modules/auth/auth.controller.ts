@@ -50,6 +50,15 @@ export class AuthController {
       );
     }
 
+    // Legacy path: the password lives in Supabase. Accounts created by the
+    // self-hosted auth (Phase 07+) have no Supabase id; their password
+    // change arrives with the Phase 08 endpoints.
+    if (!user.supabase_user_id) {
+      throw new BadRequestException(
+        'Password change is not available for this account yet',
+      );
+    }
+
     await this.authService.changePassword(
       user.supabase_user_id,
       changePasswordDto.currentPassword,

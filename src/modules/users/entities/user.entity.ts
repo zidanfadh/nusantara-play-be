@@ -26,8 +26,10 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'uuid', unique: true })
-  supabase_user_id: string;
+  // Nullable since Phase 07: users created by the self-hosted auth have no
+  // Supabase account. Still unique (NULLs never collide in PostgreSQL).
+  @Column({ type: 'uuid', unique: true, nullable: true })
+  supabase_user_id: string | null;
 
   @Column({ unique: true })
   email: string;
