@@ -242,6 +242,12 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
      code lives only in `app/jelajah/`, `components/jelajah/`, `lib/jelajah/`, `public/jelajah/`; details in the frontend
      CLAUDE.md "Jelajah Nusantara". Province counts are computed on the client from `GET /prot?status=ARSIP_NASIONAL`
      (all pages); a backend endpoint `GET /api/jelajah/provinces` should replace that later.
+   - Jelajah Nusantara V2 (Phase 11): `/jelajah/sumatera-selatan` is a walkable riverside village (procedural raised houses
+     "terinspirasi rumah limas", CC0 low-poly nature and player character, 6 procedural PROT stands around a plaza, joystick
+     or WASD/arrows, no bots). Stands fill automatically from the province's public PROT; production still has 0 there, so
+     every stand shows "Segera hadir". Local development uses the labelled DEMO PROT. The scene is generic: later provinces
+     add a scene data file (frontend CLAUDE.md "Province scene engine"). 3D assets are CC0 only, recorded in
+     `public/jelajah/assets/ASSET_LICENSES.md`; `pnpm check:jelajah` enforces 8 MB per province and textures <= 1024 px.
 
 ## Deployment facts
 
@@ -356,7 +362,8 @@ public endpoints work.
    Builds the schema from the entities, records all `src/migrations/` as applied, seeds daerah (34 provinsi,
    416 kabupaten, 98 kota, 7230 kecamatan, 74952 desa, 8487 kelurahan) and DEMO data (user
    `demo-kurator@example.test`, 3 PROT with status ARSIP_NASIONAL, 1 published event; names start with
-   "DEMO"). Idempotent. Flags: `-- --database=<name>`, `-- --no-demo`.
+   "DEMO"; since Phase 11 also `DEMO PROT Sumsel 1` to `4` in Sumatera Selatan (provinsi 16, ARSIP_NASIONAL, fixed UUIDs
+   `…de31` to `…de34`, neutral placeholder text) for the Jelajah scene). Idempotent. Flags: `-- --database=<name>`, `-- --no-demo`.
 4. Backend: `npm run start:dev` → http://localhost:3000/api. Blockchain vars stay empty, so
    BlockchainService logs a warning and is inactive.
 5. Frontend (in `nusantara-play-fe`): `.env.local` with `NEXT_PUBLIC_BACKEND_API_URL=http://localhost:3000/api`
@@ -448,6 +455,8 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Frontend after Phase 09: unchanged (only CLAUDE.md changed).
 - Frontend after Phase 10: unchanged, 44 errors, 87 warnings (every new and touched file is clean).
 - Backend after Phase 10: unchanged (only CLAUDE.md and the phase report changed).
+- Frontend after Phase 11: unchanged, 44 errors, 87 warnings (every new and touched file is clean).
+- Backend after Phase 11: unchanged, 220 errors, 29 warnings (`src/scripts/db-local-setup.ts` is clean).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -521,6 +530,24 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
   cached; the user's override is stored in localStorage (`jelajah.tier`). Budgets live in `lib/jelajah/budget.ts` (Phase 10).
 - 2026-11-18: Everything that uses disk space goes to D:, never C:; Docker Desktop data moved to D:\DockerData\wsl by the
   owner (see "Local machine").
+- 2026-11-18: Owner decisions for Phase 11 (visual track V2): 3D assets come from free CC0 low-poly packs (Kenney Nature
+  Kit 2.1 and Mini Characters 2.0 chosen); traditional buildings are built procedurally in code because no free pack has
+  Indonesian architecture, and are described only as "terinspirasi rumah limas"; no simulated other players (bots); the
+  scene must look good on phones (first test device iPhone 11; target stays a 4 GB mid-range Android); production has 0 public
+  PROT in Sumatera Selatan, so the scene must look intentional when empty ("Segera hadir" stands) and fill itself when real
+  PROT are published; local development uses clearly labelled DEMO data; no invented cultural facts (scene text comes only
+  from PROT data or neutral UI text).
+- 2026-11-18: Asset licence rule: only CC0 assets in `public/jelajah/assets/`, each pack recorded in `ASSET_LICENSES.md` (name,
+  author, source URL, licence as checked in the pack, files used). Raw packs are downloaded to D: and never committed; the
+  committed files are built by `scripts/optimize-jelajah-assets.mjs` (meshopt, WebP <= 1024 px, no KTX2). Dev dependency
+  `@gltf-transform/cli` 4.5.1 (its core/extensions/functions packages are resolved through it; lockfile stays 9.0, no new
+  build scripts) (Phase 11).
+- 2026-11-18: Province scenes are data files (`lib/jelajah/scenes/<slug>.ts`) rendered by one engine; collision is circles and
+  turned boxes with push-out (no physics library); stands get PROT in name order, the last stand turns into a notice board when
+  a province has more PROT than stands; signs are canvas sprites (not drei `<Html>`); no realtime shadows (blob shadows), one
+  directional + one ambient light; the player stays visible behind roofs through a silhouette pass (Phase 11).
+- 2026-11-18: Phase 11 was interrupted by a usage limit after the verification run and resumed; the resume finished the
+  player-silhouette fix, the dev-overlay measurements, fresh screenshots and the docs (Phase 11 report, "Deviations").
 - 2026-11-17: Local daerah seed reuses `src/database/migrations/002_replace_daerah_data.sql` (34 provinsi + 514 kab/kota, Kemendagri codes) and the `up()` of `src/migrations/1740500100000-SeedKecamatanKelurahanDesa.ts`; `1738826000000-SeedDaerahBPS.ts` is not used (12 provinces only, codes that do not match the kecamatan CSV) (Phase 05).
 
 ## Phase workflow
