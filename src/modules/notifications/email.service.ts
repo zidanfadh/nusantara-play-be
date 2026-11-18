@@ -9,6 +9,21 @@ interface CredentialEmailPayload {
   password: string;
 }
 
+/** Kinds of transactional email (used only in log lines). */
+export type TransactionalEmailKind =
+  | 'verification'
+  | 'account_exists'
+  | 'password_reset'
+  | 'password_changed';
+
+export interface TransactionalEmail {
+  kind: TransactionalEmailKind;
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+}
+
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
@@ -55,6 +70,40 @@ export class EmailService {
         `Failed to send credential email (${name ?? 'UnknownError'}, code ${code ?? '-'}, SMTP ${responseCode ?? '-'})`,
       );
       throw new BadRequestException('Failed to send credential email');
+    }
+  }
+
+  /**
+   * Sends one transactional email (Phase 09 auth emails). NEVER throws:
+   * returns false when SMTP is not configured or sending fails. Logs only
+   * the error name and codes, never the address, the content or a link.
+   */
+  async sendTransactional(message: TransactionalEmail): Promise<boolean> {
+    if (!this.getHost() || !this.getFrom()) {
+      this.logger.warn(
+        'Transactional email not sent: SMTP_HOST or SMTP_FROM is not set',
+      );
+      return false;
+    }
+    try {
+      await this.getTransporter().sendMail({
+        from: this.getFrom(),
+        to: message.to,
+        subject: message.subject,
+        text: message.text,
+        html: message.html,
+      });
+      return true;
+    } catch (error) {
+      const { name, code, responseCode } = (error ?? {}) as {
+        name?: string;
+        code?: string;
+        responseCode?: number;
+      };
+      this.logger.error(
+        `Failed to send ${message.kind} email (${name ?? 'UnknownError'}, code ${code ?? '-'}, SMTP ${responseCode ?? '-'})`,
+      );
+      return false;
     }
   }
 

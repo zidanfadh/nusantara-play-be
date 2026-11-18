@@ -13,8 +13,15 @@ import { DataSource, EntityManager, QueryFailedError } from 'typeorm';
 import { AuthConfig, readAuthConfig } from '../../config/auth.config';
 import { User, UserRole, UserStatus } from '../users/entities/user.entity';
 import { RefreshTokenInvalidError } from './auth-errors';
+import {
+  assertPasswordPolicy,
+  findUsersByEmail,
+  normalizeEmail,
+} from './auth-users';
+import { isEmailVerified } from './email-verification';
+import { EmailFlowsService } from './email-flows.service';
 import { UserCredential } from './entities/user-credential.entity';
-import { checkPasswordPolicy, PasswordService } from './password.service';
+import { PasswordService } from './password.service';
 import {
   IssuedRefreshToken,
   RefreshTokenMeta,
@@ -50,18 +57,9 @@ export const REVOKE_REASONS = {
   userUnavailable: 'user_unavailable',
 } as const;
 
-const POLICY_MESSAGES = {
-  too_short: 'Password must be at least 8 characters long',
-  too_long: 'Password must be at most 128 characters long',
-  equals_email: 'Password must not be the same as the email address',
-} as const;
-
 const PG_UNIQUE_VIOLATION = '23505';
 
-/** Every email is trimmed and lower-cased before any lookup or insert. */
-export function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
+export { normalizeEmail };
 
 export interface RegisterInput {
   email: string;
@@ -69,12 +67,15 @@ export interface RegisterInput {
   full_name: string;
 }
 
+/** The users row plus emailVerified: what GET /api/users/me returns. */
+export type SessionUser = User & { emailVerified: boolean };
+
 export interface AuthSession {
   accessToken: string;
   /** Seconds until the access token expires. */
   expiresIn: number;
-  /** Same shape as GET /api/users/me (the users row). */
-  user: User;
+  /** Same shape as GET /api/users/me (users row + emailVerified). */
+  user: SessionUser;
   /** Raw refresh token: goes ONLY into the np_refresh cookie. */
   refreshToken: IssuedRefreshToken;
 }
@@ -95,6 +96,8 @@ export class LocalAuthService {
     private readonly tokens: TokenService,
     private readonly refreshTokens: RefreshTokenService,
     @Optional() configService?: ConfigService,
+    /** Phase 09 emails; optional so the Phase 08 unit tests can omit it. */
+    @Optional() private readonly emailFlows?: EmailFlowsService,
   ) {
     this.config = readAuthConfig((key) =>
       configService ? configService.get<string>(key) : process.env[key],
@@ -111,13 +114,7 @@ export class LocalAuthService {
     email: string,
     manager: EntityManager = this.dataSource.manager,
   ): Promise<User[]> {
-    return manager
-      .getRepository(User)
-      .createQueryBuilder('u')
-      .where('LOWER(u.email) = LOWER(:email)', { email: normalizeEmail(email) })
-      .orderBy('u.created_at', 'ASC')
-      .limit(2)
-      .getMany();
+    return findUsersByEmail(manager, email);
   }
 
   async hasCredentials(userId: string): Promise<boolean> {
@@ -134,9 +131,9 @@ export class LocalAuthService {
    * password to it would allow an account takeover). The caller always
    * answers with REGISTER_RESPONSE.
    */
-  async register(input: RegisterInput): Promise<void> {
+  async register(input: RegisterInput, ip: string | null = null): Promise<void> {
     const email = normalizeEmail(input.email);
-    this.assertPolicy(input.password, email);
+    assertPasswordPolicy(input.password, email);
     // Hash first in every branch, so the response time does not depend on
     // whether the email exists.
     const passwordHash = await this.passwords.hash(input.password);
@@ -148,7 +145,7 @@ export class LocalAuthService {
       );
     }
     if (matches.length > 0) {
-      this.onDuplicateRegistration();
+      this.onDuplicateRegistration(email);
       return;
     }
 
@@ -173,29 +170,39 @@ export class LocalAuthService {
     } catch (error) {
       if (isUniqueViolation(error)) {
         // Lost a race with a parallel registration of the same email.
-        this.onDuplicateRegistration();
+        this.onDuplicateRegistration(email);
         return;
       }
       throw error;
     }
-    this.onRegistered(userId);
+    this.onRegistered(userId, email, input.full_name.trim(), ip);
   }
 
   /**
-   * ==== PHASE 09 HOOK: send the email verification link to the new user. ====
-   * Called after the transaction committed. Must not change the HTTP
-   * response (that would reveal which branch ran).
+   * Phase 09: queues the email verification link for the new user (in the
+   * background, so the response time and body do not depend on the branch).
+   * Called after the transaction committed.
    */
-  protected onRegistered(userId: string): void {
-    void userId;
+  protected onRegistered(
+    userId: string,
+    email: string,
+    fullName: string,
+    ip: string | null,
+  ): void {
+    this.emailFlows?.onRegistered(
+      { id: userId, email, full_name: fullName },
+      ip,
+    );
   }
 
   /**
-   * ==== PHASE 09 HOOK: send the "you already have an account" email. ====
-   * Called when the email already exists (or a parallel registration won).
-   * Must not change the HTTP response.
+   * Phase 09: queues the "akun Anda sudah ada" email. Called when the email
+   * already exists (or a parallel registration won). Never changes the HTTP
+   * response; the existing account is never touched.
    */
-  protected onDuplicateRegistration(): void {}
+  protected onDuplicateRegistration(email: string): void {
+    this.emailFlows?.onDuplicateRegistration(email);
+  }
 
   // ------------------------------------------------------------------- login
 
@@ -348,10 +355,11 @@ export class LocalAuthService {
     await users.update({ id: userId }, { last_login_at: new Date() });
     const user = await users.findOneByOrFail({ id: userId });
     const access = await this.tokens.signAccessToken(user);
+    const emailVerified = await isEmailVerified(this.dataSource, userId);
     return {
       accessToken: access.token,
       expiresIn: access.expiresIn,
-      user,
+      user: Object.assign(user, { emailVerified }),
       refreshToken,
     };
   }
@@ -388,7 +396,7 @@ export class LocalAuthService {
    * request carried its valid np_refresh cookie).
    */
   async changePassword(
-    user: Pick<User, 'id' | 'email'>,
+    user: Pick<User, 'id' | 'email'> & Partial<Pick<User, 'full_name'>>,
     currentPassword: string,
     newPassword: string,
     currentRefreshToken: string | null,
@@ -418,7 +426,7 @@ export class LocalAuthService {
         'New password must be different from current password',
       );
     }
-    this.assertPolicy(newPassword, user.email);
+    assertPasswordPolicy(newPassword, user.email);
 
     let keepFamilyId: string | null = null;
     if (currentRefreshToken) {
@@ -447,16 +455,11 @@ export class LocalAuthService {
         manager,
       );
     });
+    // Phase 09: "password Anda telah diubah" (background, never fails the request).
+    this.emailFlows?.notifyPasswordChanged(user);
   }
 
   // ----------------------------------------------------------------- helpers
-
-  private assertPolicy(password: string, email: string): void {
-    const policy = checkPasswordPolicy(password, email);
-    if (!policy.ok) {
-      throw new BadRequestException(POLICY_MESSAGES[policy.reason]);
-    }
-  }
 
   private assertEnabled(): void {
     if (!this.tokens.isEnabled()) {

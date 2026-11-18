@@ -1,6 +1,14 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../users/entities/user.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { AuthCleanupScheduler } from './auth-cleanup.scheduler';
+import { AuthTokenService } from './auth-token.service';
+import { EmailFlowsController } from './email-flows.controller';
+import { EmailFlowsService } from './email-flows.service';
+import { EmailSendLimiter } from './email-send-limiter.service';
+import { AuthToken } from './entities/auth-token.entity';
+import { EmailVerification } from './entities/email-verification.entity';
 import { AuthIdentity } from './entities/auth-identity.entity';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { UserCredential } from './entities/user-credential.entity';
@@ -21,6 +29,9 @@ import { TokenService } from './token.service';
  * Supabase, so the legacy path in src/modules/auth/legacy/ can later be
  * deleted without touching this module. Since Phase 08 also the register,
  * login, refresh, logout and logout-all endpoints (LocalAuthController).
+ * Since Phase 09: email verification and password reset
+ * (EmailFlowsController, EmailFlowsService, AuthTokenService), the
+ * per-address email limit and the daily token cleanup.
  */
 @Module({
   imports: [
@@ -29,9 +40,13 @@ import { TokenService } from './token.service';
       UserCredential,
       RefreshToken,
       AuthIdentity,
+      AuthToken,
+      EmailVerification,
     ]),
+    // EmailService for the Phase 09 emails.
+    NotificationsModule,
   ],
-  controllers: [JwksController, LocalAuthController],
+  controllers: [JwksController, LocalAuthController, EmailFlowsController],
   providers: [
     KeyService,
     TokenService,
@@ -41,8 +56,14 @@ import { TokenService } from './token.service';
     LocalAuthService,
     LoginEmailLimiter,
     CsrfGuard,
+    AuthTokenService,
+    EmailSendLimiter,
+    EmailFlowsService,
+    AuthCleanupScheduler,
   ],
   exports: [
+    AuthTokenService,
+    EmailFlowsService,
     KeyService,
     TokenService,
     PasswordService,

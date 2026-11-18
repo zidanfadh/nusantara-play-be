@@ -31,6 +31,7 @@ import {
   LocalAuthService,
   normalizeEmail,
   REGISTER_RESPONSE,
+  SessionUser,
 } from './local-auth.service';
 import { LoginEmailLimiter } from './login-email-limiter.service';
 import type { RefreshTokenMeta } from './refresh-token.service';
@@ -48,7 +49,8 @@ export const REFRESH_THROTTLE = { limit: 60, ttl: MINUTE_MS };
 export interface SessionResponse {
   accessToken: string;
   expiresIn: number;
-  user: User;
+  /** Same object as GET /api/users/me (users row + emailVerified). */
+  user: SessionUser;
 }
 
 function metaOf(req: Request): RefreshTokenMeta {
@@ -74,8 +76,11 @@ export class LocalAuthController {
   @Public()
   @Throttle({ default: LOGIN_REGISTER_THROTTLE })
   @HttpCode(HttpStatus.CREATED)
-  async register(@Body() dto: RegisterDto): Promise<typeof REGISTER_RESPONSE> {
-    await this.auth.register(dto);
+  async register(
+    @Body() dto: RegisterDto,
+    @Req() req: Request,
+  ): Promise<typeof REGISTER_RESPONSE> {
+    await this.auth.register(dto, req.ip ?? null);
     return REGISTER_RESPONSE;
   }
 

@@ -18,15 +18,25 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User, UserRole, UserStatus } from './entities/user.entity';
 import { toUserViewFor } from './user-views';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
+import { resolveEmailVerified } from '../auth-core/email-verification';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    @InjectDataSource() private readonly dataSource: DataSource,
+  ) {}
 
+  /** The caller's users row plus emailVerified (Phase 09). */
   @Get('me')
-  getCurrentUser(@CurrentUser() user: User) {
-    return user;
+  async getCurrentUser(
+    @CurrentUser() user: User,
+  ): Promise<User & { emailVerified: boolean }> {
+    const emailVerified = await resolveEmailVerified(this.dataSource, user);
+    return { ...user, emailVerified };
   }
 
   @Patch('me')

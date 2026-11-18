@@ -1,4 +1,25 @@
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  UnauthorizedException,
+} from '@nestjs/common';
+
+/**
+ * 400 invalid_or_expired_token (Phase 09): verify-email / reset-password
+ * with a token that is unknown, of another type, already used or expired.
+ * One answer for every case.
+ */
+export class InvalidOrExpiredTokenError extends BadRequestException {
+  readonly code = 'invalid_or_expired_token';
+
+  constructor() {
+    super({
+      statusCode: 400,
+      code: 'invalid_or_expired_token',
+      message: 'The link is invalid or has expired',
+    });
+  }
+}
 
 /**
  * Thrown by every KeyService/TokenService method that needs keys while
