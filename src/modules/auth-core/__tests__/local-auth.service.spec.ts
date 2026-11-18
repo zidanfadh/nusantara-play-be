@@ -205,7 +205,12 @@ describe('LocalAuthService.register (Phase 08)', () => {
       password_hash: '$argon2id$new',
       password_algo: 'argon2id',
     });
-    expect(t.hooks.registered).toHaveBeenCalledWith(USER_ID);
+    expect(t.hooks.registered).toHaveBeenCalledWith(
+      USER_ID,
+      'new.user@example.test',
+      'New User',
+      null,
+    );
     expect(t.hooks.duplicate).not.toHaveBeenCalled();
   });
 
@@ -335,7 +340,8 @@ describe('LocalAuthService.login (Phase 08)', () => {
     expect(session).toEqual({
       accessToken: 'access-token',
       expiresIn: 900,
-      user: makeUser(),
+      // Phase 09: the same object as GET /users/me, with emailVerified.
+      user: { ...makeUser(), emailVerified: false },
       refreshToken: t.issued,
     });
     expect(t.qb.execute).not.toHaveBeenCalled(); // no rehash

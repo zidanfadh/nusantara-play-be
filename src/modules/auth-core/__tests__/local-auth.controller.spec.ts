@@ -51,12 +51,16 @@ describe('LocalAuthController (Phase 08)', () => {
   it('register always answers with the generic body', async () => {
     const t = setup();
     await expect(
-      t.controller.register({
-        email: 'a@b.test',
-        password: 'x',
-        full_name: 'A',
-      }),
+      t.controller.register(
+        { email: 'a@b.test', password: 'x', full_name: 'A' },
+        t.req as never,
+      ),
     ).resolves.toBe(REGISTER_RESPONSE);
+    // Phase 09: the client IP goes along (stored with the verification token).
+    expect(t.auth.register).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'a@b.test' }),
+      '203.0.113.5',
+    );
   });
 
   it('login: per-email limit on the NORMALIZED email, then cookies + body without the refresh token', async () => {

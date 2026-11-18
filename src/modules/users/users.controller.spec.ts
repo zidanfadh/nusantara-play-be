@@ -3,6 +3,8 @@
  * supabase_user_id; last_login_at only to admin_kpoti (user management).
  */
 import { Test, TestingModule } from '@nestjs/testing';
+import { DataSource } from 'typeorm';
+import { attachAuthState } from '../auth-core/email-verification';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { User, UserRole, UserStatus } from './entities/user.entity';
@@ -21,6 +23,7 @@ const admin = { id: 'admin-1', role: UserRole.ADMIN_KPOTI } as User;
 const kurator = { id: 'kurator-1', role: UserRole.KURATOR_DAERAH } as User;
 
 describe('UsersController user views (P1)', () => {
+  const dataSource = { query: jest.fn() };
   let controller: UsersController;
   const usersService = {
     findAll: jest.fn(),
@@ -35,7 +38,10 @@ describe('UsersController user views (P1)', () => {
     jest.clearAllMocks();
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UsersController],
-      providers: [{ provide: UsersService, useValue: usersService }],
+      providers: [
+        { provide: UsersService, useValue: usersService },
+        { provide: DataSource, useValue: dataSource },
+      ],
     }).compile();
     controller = module.get(UsersController);
   });
@@ -93,7 +99,26 @@ describe('UsersController user views (P1)', () => {
     );
   });
 
-  it('GET /users/me still returns the caller in full', () => {
-    expect(controller.getCurrentUser(target)).toBe(target);
+  it('GET /users/me returns the caller in full plus emailVerified (Phase 09)', async () => {
+    dataSource.query.mockResolvedValueOnce([{ verified: true }]);
+    await expect(controller.getCurrentUser(target as User)).resolves.toEqual({
+      ...target,
+      emailVerified: true,
+    });
+    expect(dataSource.query).toHaveBeenCalledWith(expect.any(String), [
+      target.id,
+    ]);
+  });
+
+  it('GET /users/me uses the state attached by the local-jwt strategy (no query)', async () => {
+    const caller = attachAuthState({ ...target } as User, {
+      emailVerified: false,
+      passwordChangedAt: null,
+    });
+    await expect(controller.getCurrentUser(caller)).resolves.toMatchObject({
+      id: target.id,
+      emailVerified: false,
+    });
+    expect(dataSource.query).not.toHaveBeenCalled();
   });
 });
