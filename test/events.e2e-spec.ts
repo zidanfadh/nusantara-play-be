@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
+import { randomUUID } from 'node:crypto';
+import { DataSource } from 'typeorm';
 import { AppModule } from './../src/app.module';
 
 /** Fixed id of the DEMO event seeded by src/scripts/db-local-setup.ts. */
@@ -12,6 +14,8 @@ const DEMO_EVENT_ID = '00000000-0000-4000-8000-00000000de21';
 // with the same global prefix and ValidationPipe as src/main.ts.
 describe('Events (e2e)', () => {
   let app: INestApplication<App>;
+  let dataSource: DataSource;
+  const createdEmails: string[] = [];
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -29,11 +33,57 @@ describe('Events (e2e)', () => {
       }),
     );
     await app.init();
+    dataSource = moduleFixture.get(DataSource);
   });
 
   afterAll(async () => {
+    if (createdEmails.length) {
+      await dataSource.query(
+        `DELETE FROM event_registrations WHERE user_id IN (SELECT id FROM users WHERE email = ANY($1))`,
+        [createdEmails],
+      );
+      await dataSource.query(
+        `DELETE FROM events WHERE created_by IN (SELECT id FROM users WHERE email = ANY($1))`,
+        [createdEmails],
+      );
+      await dataSource.query(`DELETE FROM users WHERE email = ANY($1)`, [
+        createdEmails,
+      ]);
+    }
     await app.close();
   });
+
+  /**
+   * Phase 08: a real account through POST /api/auth/register, the role set
+   * in the database (register always creates publik), then
+   * POST /api/auth/login. Returns "Bearer <accessToken>" and the user id.
+   */
+  async function registerAndLogin(
+    label: string,
+    role?: string,
+  ): Promise<{ authHeader: string; userId: string }> {
+    const email = `e2e-events-${label}-${randomUUID().slice(0, 8)}@example.test`;
+    const password = 'events e2e password';
+    createdEmails.push(email);
+    await request(app.getHttpServer())
+      .post('/api/auth/register')
+      .send({ email, password, full_name: `E2E ${label}` })
+      .expect(201);
+    if (role) {
+      await dataSource.query(`UPDATE users SET role = $1 WHERE email = $2`, [
+        role,
+        email,
+      ]);
+    }
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email, password })
+      .expect(200);
+    return {
+      authHeader: `Bearer ${login.body.accessToken}`,
+      userId: login.body.user.id,
+    };
+  }
 
   describe('Health Check', () => {
     it('should get API info', async () => {
@@ -103,25 +153,21 @@ describe('Events (e2e)', () => {
     });
   });
 
-  // TODO(auth phase): these tests log in through POST /api/auth/login, which
-  // does not exist (auth is Supabase today). Re-enable and rewrite them when
-  // the self-hosted auth module lands. Kept as written, skipped.
-  describe.skip('Event CRUD Operations (needs login, see TODO)', () => {
+  // Phase 08: these tests log in through the self-hosted POST /api/auth/login
+  // (a kurator_daerah who creates events and a publik user who registers).
+  describe('Event CRUD Operations (logged in)', () => {
     let authToken: string;
+    let userToken: string;
+    let userId: string;
     let eventId: string;
     let daerahId: string;
 
     beforeAll(async () => {
-      // Get auth token first
-      const loginResponse = await request(app.getHttpServer())
-        .post('/api/auth/login')
-        .send({
-          email: 'kurator@test.com',
-          password: 'password123',
-        })
-        .expect(200);
-
-      authToken = `Bearer ${loginResponse.body.access_token}`;
+      authToken = (await registerAndLogin('kurator', 'kurator_daerah'))
+        .authHeader;
+      const publik = await registerAndLogin('user');
+      userToken = publik.authHeader;
+      userId = publik.userId;
 
       // Get a daerah for testing
       const daerahResponse = await request(app.getHttpServer())
@@ -220,24 +266,19 @@ describe('Events (e2e)', () => {
 
     describe('Event Registration', () => {
       describe('POST /api/events/:id/register', () => {
-        it('should register for event (requires user token)', async () => {
+        // Still skipped after Phase 08: fails for reasons other than login
+        // (it publishes the already-published event -> 400, the event starts
+        // 2026-03-01 so registration is closed, and the my-registrations
+        // test expects both an array and a .data property). Fix with the
+        // events tests, not in the auth phase.
+        it.skip('should register for event (requires user token)', async () => {
           // First publish event
           await request(app.getHttpServer())
             .patch(`/api/events/${eventId}/publish`)
             .set('Authorization', authToken)
             .expect(200);
 
-          // Registration requires user authentication
-          const userResponse = await request(app.getHttpServer())
-            .post('/api/auth/login')
-            .send({
-              email: 'user@test.com',
-              password: 'password123',
-            })
-            .expect(200);
-
-          const userToken = `Bearer ${userResponse.body.access_token}`;
-
+          // Registration requires user authentication (userToken, beforeAll)
           const response = await request(app.getHttpServer())
             .post(`/api/events/${eventId}/register`)
             .set('Authorization', userToken)
@@ -246,7 +287,7 @@ describe('Events (e2e)', () => {
             .expect((res) => {
               expect(res.body).toHaveProperty('id');
               expect(res.body.event_id).toBe(eventId);
-              expect(res.body.user_id).toBe('user@test.com');
+              expect(res.body.user_id).toBe(userId);
               expect(res.body.status).toBe('registered');
             });
         });
@@ -260,7 +301,12 @@ describe('Events (e2e)', () => {
       });
 
       describe('GET /api/events/my-registrations', () => {
-        it('should get user registrations', async () => {
+        // Still skipped after Phase 08: fails for reasons other than login
+        // (it publishes the already-published event -> 400, the event starts
+        // 2026-03-01 so registration is closed, and the my-registrations
+        // test expects both an array and a .data property). Fix with the
+        // events tests, not in the auth phase.
+        it.skip('should get user registrations', async () => {
           // First register
           await request(app.getHttpServer())
             .patch(`/api/events/${eventId}/publish`)
@@ -273,17 +319,7 @@ describe('Events (e2e)', () => {
             .send({})
             .expect(201);
 
-          // Get my registrations
-          const userResponse = await request(app.getHttpServer())
-            .post('/api/auth/login')
-            .send({
-              email: 'user@test.com',
-              password: 'password123',
-            })
-            .expect(200);
-
-          const userToken = `Bearer ${userResponse.body.access_token}`;
-
+          // Get my registrations (userToken, beforeAll)
           const response = await request(app.getHttpServer())
             .get('/api/events/my-registrations')
             .set('Authorization', userToken)
@@ -330,7 +366,7 @@ describe('Events (e2e)', () => {
         // Other user cannot access
         await request(app.getHttpServer())
           .get(`/api/events/${draftId}`)
-          .set('Authorization', authToken)
+          .set('Authorization', userToken)
           .expect(403);
       });
 

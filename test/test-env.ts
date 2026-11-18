@@ -18,6 +18,9 @@ export const TEST_DATABASE_NAME = 'nusantara_play_test';
 const TEST_AUTH_KEYS = generateAuthKeyPair('test');
 export const TEST_JWT_ISSUER = 'nusantara-play-test';
 export const TEST_JWT_AUDIENCE = 'nusantara-play-test';
+/** FRONTEND_ORIGIN_PATTERNS of the tests: a Vercel-preview-like origin. */
+export const TEST_ORIGIN_PATTERN =
+  'https://nusantara-play-fe-[a-z0-9-]+\\.vercel\\.app';
 
 export const TEST_ENV: Readonly<Record<string, string>> = {
   NODE_ENV: 'test',
@@ -55,6 +58,13 @@ export const TEST_ENV: Readonly<Record<string, string>> = {
   REFRESH_TOKEN_TTL_DAYS: '30',
   REFRESH_REUSE_GRACE_SECONDS: '20',
   AUTH_ACCEPT_SUPABASE_TOKENS: 'true',
+  // Phase 08: cookies and CSRF as in local development (the browser calls
+  // http://localhost:3000/api directly), lockout defaults.
+  AUTH_COOKIE_PATH: '/api/auth',
+  AUTH_COOKIE_SECURE: '',
+  FRONTEND_ORIGIN_PATTERNS: TEST_ORIGIN_PATTERN,
+  LOGIN_MAX_FAILED: '5',
+  LOGIN_LOCK_MINUTES: '15',
 };
 
 export function applyTestEnv(): void {
