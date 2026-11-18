@@ -67,7 +67,7 @@ with the default `publik` role (JIT sync).
 - `calendar/` — personal/team calendar, invites
 - `daerah/` — hierarchical Indonesian regional data; all endpoints `@Public()`
 - `storage/` — AWS S3 file uploads
-- `audit/` — audit logging via `AuditInterceptor` (applied per controller with `@UseInterceptors`, currently in auth, nfts, prot and verifikasi controllers — it is NOT global)
+- `audit/` — audit logging via `AuditInterceptor` (applied per route with `@UseInterceptors`, currently in auth, nfts, prot (incl. all media routes since Phase 06) and verifikasi controllers — it is NOT global). The stored request body goes through `redactSecrets()` (`audit/redact.ts`): keys like password/token/secret are stored as `[REDACTED]`.
 - `marketplace/` — marketplace: toko, produk, order
 - `nfts/` — NFT catalog
 - `stats/` — landing page stats
@@ -76,9 +76,11 @@ with the default `publik` role (JIT sync).
 
 **Common utilities** (`src/common/`):
 - `decorators/` — `@Public()`, `@Roles()`, `@CurrentUser()`
-- `guards/` — `JwtAuthGuard` (global), `RolesGuard`
-- `filters/` — `HttpExceptionFilter` for consistent error responses
-- Global `ThrottlerGuard`: 100 requests / 60 s.
+- `guards/` — `JwtAuthGuard` (global), `RolesGuard`, `UserThrottlerGuard` (global)
+- `filters/` — `HttpExceptionFilter` for consistent error responses; logs only name, message and stack of unexpected errors (never the whole exception object)
+- `serializers/user-shape.ts` — `toPublicUser()` (public user shape) and `stripPrivateUserFields()` (Phase 06)
+- `http/trust-proxy.ts` — Express `trust proxy` from `TRUST_PROXY`
+- Global guards, in this order (`app.module.ts`, `APP_GUARD` with `useExisting`): `JwtAuthGuard`, then `UserThrottlerGuard` (100 requests / 60 s, tracked per user id when logged in, per `req.ip` otherwise). The order matters: the throttler needs `req.user`.
 
 **Database schema has two sources**:
 - `src/migrations/*.ts` — TypeORM migrations, run with `npm run migration:run` (data source `src/config/typeorm.config.ts`).
@@ -103,7 +105,7 @@ They overlap (both create e.g. `verifikasi_status` and `verifikasi`) and cannot 
 
 - New DTOs must use `class-validator` decorators; global `ValidationPipe` has `whitelist: true` and `forbidNonWhitelisted: true`.
 - TypeORM entities live in `src/modules/<module>/entities/`.
-- Migrations use timestamp filenames: `src/migrations/<timestamp>-<Name>.ts`. Run raw SQL inside `queryRunner.query()`.
+- Migrations use timestamp filenames: `src/migrations/<timestamp>-<Name>.ts`, hand-written raw SQL inside `queryRunner.query()`; follow "Migration rules" under Engineering rules.
 - Ownership checks (ForbiddenException) go in the **service layer**, not guards.
 - Use TypeORM transactions (`DataSource.createQueryRunner()`) for any multi-table write that must be atomic (e.g. order creation + stock decrement).
 - For file uploads (multipart), the frontend uses raw `fetch` with `FormData` — do not set `Content-Type` manually.
@@ -112,14 +114,14 @@ They overlap (both create e.g. `verifikasi_status` and `verifikasi`) and cannot 
 
 Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.module.ts`).
 
-- App: `NODE_ENV`, `PORT`, `APP_NAME`, `FRONTEND_URLS` (comma-separated CORS origins; falls back to `FRONTEND_URL`)
+- App: `NODE_ENV`, `PORT`, `APP_NAME`, `FRONTEND_URLS` (comma-separated CORS origins; falls back to `FRONTEND_URL`), `TRUST_PROXY` (Express `trust proxy`, default `loopback`; `"true"`/`"false"`, a hop count, or names/addresses/subnets such as `loopback, uniquelocal`; never `true`) (Phase 06)
 - Database: `DATABASE_URL` (takes precedence) or `DATABASE_HOST` (default `localhost`), `DATABASE_PORT` (5432), `DATABASE_USER` (`postgres`), `DATABASE_PASSWORD`, `DATABASE_NAME` (`nusantara_play`); `DATABASE_SSL` (`'true'` = SSL with `rejectUnauthorized: false`). One builder, `src/config/data-source-options.ts`, is used by both the app (`src/database/database.module.ts`) and the migration CLI (`src/config/typeorm.config.ts`, which also loads `.env.local` then `.env`). The CLI alone still accepts the deprecated `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`, `DB_SSL` as a per-variable fallback and prints one warning; the app ignores `DB_*`. (`src/config/database.config.ts` still registers the same values under `database.*`, but nothing reads them any more.)
 - Supabase: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`; `SUPABASE_JWT_SECRET` and `SUPABASE_JWT_PUBLIC_KEY_JWK` are read into config but not used for token validation
 - AWS: `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET`
 - Email: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `USER_CREDENTIAL_EMAIL_ENABLED`
 - Blockchain: `BLOCKCHAIN_RPC_URL`, `BLOCKCHAIN_PRIVATE_KEY`, `BLOCKCHAIN_CONTRACT_ADDRESS`, `BLOCKCHAIN_NETWORK`
 
-`.env.example` lists all of the above with placeholders (Phase 02). `RATE_LIMIT_TTL` and `RATE_LIMIT_MAX` were removed from it: the code never read them (the throttler is hard-coded to 100 requests / 60 s in `app.module.ts`). Node version: `.nvmrc` (24).
+`.env.example` lists all of the above with placeholders (Phase 02; `TRUST_PROXY` since Phase 06). `RATE_LIMIT_TTL` and `RATE_LIMIT_MAX` were removed from it: the code never read them (the throttler is hard-coded to 100 requests / 60 s in `app.module.ts`). Node version: `.nvmrc` (24).
 
 ## Current direction
 
@@ -140,6 +142,35 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
 - Production backend CORS: its allowlist contains `https://nusantaravirtual.org` but **not** `nusantaralegacy.org` (Phase 03: `Access-Control-Allow-Origin` is returned only for `Origin: https://nusantaravirtual.org`). **Nobody currently has access to that server**, so its CORS config, nginx config and env cannot be changed or inspected.
 - Browser → backend: browser calls go to the same-origin path `/backend-api/*`, which a Vercel rewrite (frontend `next.config.ts`) proxies to `https://api.nusantaralegacy.org/api/*` (Phase 03). Server-side calls (server components, route handlers) go directly to `NEXT_PUBLIC_BACKEND_API_URL`.
 - Local development database: PostgreSQL 15 in Docker (`nusantara-play-be/docker-compose.dev.yml`, container `nusantara-dev-db`, `127.0.0.1:5432`), databases `nusantara_play_dev` and `nusantara_play_test` (Phase 05). See "Local development".
+
+### Pending deployment (backend, not yet on the production server)
+
+Nobody has access to the production backend server yet. These backend changes are merged-ready but
+NOT deployed. Frontend changes reach production through Vercel and are not listed here.
+
+**Order matters: run the migration on the production database BEFORE the new backend code starts.**
+The new `VerifikasiQueue` entity selects `verifikasi_queue.catatan_kurator`; old code ignores the
+column, so running the migration first is safe for the old code too.
+
+1. Migration `1795000000000-AddCatatanKuratorToVerifikasiQueue` (Phase 06, B7): adds one nullable
+   `text` column `verifikasi_queue.catatan_kurator` (`ADD COLUMN IF NOT EXISTS`; down drops it).
+2. Set `TRUST_PROXY` in the server env (Phase 06, P3). Default `loopback` fits Nest running directly on
+   the host behind a host nginx. If production runs `docker-compose.prod.yml` (Nest in Docker, port
+   published on `127.0.0.1:3000`), the peer is the Docker bridge gateway, so use `loopback, uniquelocal`.
+3. Phase 06 backend fixes (all in the same release):
+   - B1: PROT media routes (add/remove foto/video kegiatan, dokumen kurikulum, foto alat) check owner or
+     admin_kpoti and status DRAFT/REVISI before any S3 call; removes save the DB before deleting from S3;
+     media routes are audited.
+   - B7: `POST /prot/:id/submit-kurasi` stores `catatan` as `catatan_kurator` on the queue entry; queue
+     endpoints return it.
+   - B4: race-safe marketplace stock (conditional UPDATEs in `create()` and `batalkan()`).
+   - B5: race-safe verification queue claim/release (conditional UPDATEs).
+   - P1: public endpoints return only the public user shape (events list/featured/detail, calendar
+     item detail); other users' records lose `supabase_user_id` and `last_login_at`.
+   - P2: no personal data in logs (PROT findAll, exception filter, SMTP errors); audit_log no longer
+     stores passwords from `POST /auth/change-password`.
+   - P3: rate limit per user id (anonymous per IP) and `trust proxy` from `TRUST_PROXY`.
+   - P4: `avatar_url` must be an https URL of max 500 characters (null or empty clears it).
 
 ## Local development
 
@@ -173,7 +204,7 @@ frontend cannot sign in. Public pages and public endpoints work.
 ## Risks
 
 - `/backend-api` proxy (Phase 03): Vercel runs external rewrites in its CDN/router, not in a Function. The proxied request timeout is **120 s** (`ROUTER_EXTERNAL_TARGET_ERROR` after that). Vercel documents **no request body limit** for external rewrites (the documented 4.5 MB limit is for Functions). Uploads above 4.5 MB through the proxy are therefore unverified on Vercel until a large upload is tested on a preview deployment. Locally `next start` proxied a 6 MB multipart body intact. The backend (repo nginx) allows 50 MB and has `proxy_read_timeout 60s`, so a slow large upload can still fail on that side.
-- All browser API traffic now reaches the backend from Vercel's IP addresses. Vercel sets `X-Forwarded-For`/`X-Real-IP` to the visitor's IP, but whether production nginx/NestJS use them is unknown (no server access; the repo nginx has `limit_req` 10 r/s burst 20 per `$binary_remote_addr`, and NestJS has a global throttler of 100 requests / 60 s per IP without `trust proxy`). Per-IP rate limits could therefore hit many users at once (HTTP 429 or 503).
+- All browser API traffic now reaches the backend from Vercel's IP addresses. Vercel sets `X-Forwarded-For`/`X-Real-IP` to the visitor's IP, but whether production nginx/NestJS use them is unknown (no server access; the repo nginx has `limit_req` 10 r/s burst 20 per `$binary_remote_addr`). Since Phase 06 (not yet deployed) the NestJS throttler limits logged-in users per user id; anonymous requests are still limited per `req.ip`, which behind Vercel is a Vercel egress IP shared by many visitors (Vercel IPs are not a stable published list, so they cannot be trusted as proxies). Per-IP limits (nginx `limit_req`, anonymous throttling) can therefore still hit many users at once (HTTP 429 or 503).
 - Vercel CDN caching of proxied responses: projects created on or after 2026-04-06 honor upstream cache headers on external rewrites by default. `next.config.ts` sends `x-vercel-enable-rewrite-caching: 0` for `/backend-api/:path*` to turn that off. The backend currently sends no `Cache-Control` header.
 - Same-origin cookies (including Supabase `sb-*` auth cookies) are now forwarded to the backend with every browser API call. Large cookie headers could exceed nginx header buffer limits (unknown production config).
 
@@ -185,7 +216,8 @@ frontend cannot sign in. Public pages and public endpoints work.
 - Ownership and permission checks live in the service layer and throw ForbiddenException.
 - Any multi-table write that must be atomic uses a TypeORM transaction.
 - Any read-then-write on a shared counter or claim (stock, queue claims, points) must be race-safe: use a conditional UPDATE or a pessimistic lock.
-- Never log secrets, tokens, or passwords.
+- Never log secrets, tokens, or passwords. Never log personal data either (email, phone, user ids next to them, request bodies with personal data); log through the Nest `Logger`, not `console`.
+- Public endpoints only return the public user shape: a `@Public()` route returns other users ONLY as `{ id, full_name, avatar_url, institution }` (`toPublicUser()` in `src/common/serializers/user-shape.ts`). Logged-in endpoints that return OTHER users' records never include `supabase_user_id` or `last_login_at` (`stripPrivateUserFields()`); admin_kpoti user management keeps `last_login_at`. Add a test for every new endpoint that returns users.
 - If a requirement is ambiguous or conflicts with existing code, stop and ask instead of guessing.
 
 ### Migration rules (Phase 06)
@@ -213,6 +245,8 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 
 - Backend `npm run lint`: 406 errors, 30 warnings; `prettier/prettier` 0. Per rule: no-unsafe-member-access 174, no-unsafe-call 88, no-unsafe-assignment 84, no-unused-vars 29, no-unsafe-argument 27 (warn), unbound-method 13, no-unsafe-return 10, require-await 4, no-floating-promises 3 (warn), no-unsafe-enum-comparison 2, no-unnecessary-type-assertion 2 (all `@typescript-eslint/`).
 - Backend after Phase 05: 240 errors, 30 warnings (`test/events.e2e-spec.ts` went from 214 to 48 errors; all new files are clean).
+- Backend after Phase 06: 237 errors, 30 warnings (no touched file gained errors; all new files are clean).
+- Frontend after Phase 06: unchanged, 44 errors, 87 warnings.
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -226,12 +260,21 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - 2026-11-17: .superpowers/ and .claude/settings.local.json are no longer tracked and are git-ignored in both repos (Phase 02).
 - 2026-11-17: Frontend dev server runs on port 3001 (`next dev -p 3001`), matching the backend's default CORS origin; the backend uses 3000 (Phase 02).
 - 2026-11-17: Browser API calls in production go through the same-origin Vercel rewrite `/backend-api/:path*` → `<BACKEND_ORIGIN>/api/:path*` (default `https://api.nusantaralegacy.org`), because the production backend's CORS allowlist lacks nusantaralegacy.org and nobody has server access. This replaces the `https://api.<hostname>/api` derivation (finding F3). Keep the proxy even after the server's CORS is fixed, unless a later phase decides otherwise (Phase 03).
-- 2026-11-17: `/api/proxy-image` (finding F1) validates in `lib/security/image-proxy.ts`: https only, no credentials, default port, exact hostname allowlist `PROXY_IMAGE_ALLOWED_HOSTS` (default `lh3.googleusercontent.com`, the Google OAuth photo host; its only caller `components/dashboard/ProfileCard.tsx` proxies only Google URLs). The hostname is resolved once with `node:dns`; every address must be public (private, loopback, link-local, CGNAT, multicast, reserved IPv4; IPv6 outside 2000::/3 plus special ranges inside it), and the request goes out through `node:https` with a pinned `lookup`, so the socket connects to the validated addresses only (no DNS rebinding). No redirects (3xx = error), 5 s timeout, `image/*` except SVG (else 415), 5 MB cap while streaming, `nosniff` + `default-src 'none'; sandbox` CSP on every response, 24 h `Cache-Control` on success only, generic JSON errors. The route stays behind login (Phase 04).
+- 2026-11-17: `/api/proxy-image` (finding F1) was hardened in Phase 04 (allowlist, DNS pinning, no redirects, size and type limits; details in the Phase 04 report). Removed in Phase 06 together with its only caller `components/dashboard/ProfileCard.tsx`, `lib/security/image-proxy.ts` and its tests, because nothing used them any more.
 - 2026-11-17: NFT `about` is rendered as plain text (`whitespace-pre-line`), never as HTML (finding F2). Do not reintroduce `dangerouslySetInnerHTML` for API data; the only allowed use is the static theme script in `app/layout.tsx` (Phase 04).
 - 2026-11-17: `/about` is no longer a public route in `middleware.ts` (finding F5): no such page exists, so logged-out visitors are redirected to `/login` like any other unknown path. `isPublicPath` is exported for tests (Phase 04).
 - 2026-11-17: Until a production schema dump is available, the TypeORM entities are the source of truth for the LOCAL schema (dev and test databases): `npm run db:setup` builds it with `DataSource.synchronize()`. A later phase compares a production dump with the entities. The production database is never touched (Phase 05).
 - 2026-11-17: Migration baseline for local databases: after `synchronize()`, every migration in `src/migrations/` is inserted into the TypeORM `migrations` table as already applied (without running it), so `npm run migration:run` reports nothing pending and only NEW migrations run on top (Phase 05).
 - 2026-11-17: Local PostgreSQL is pinned to `postgres:15-alpine` (README says PostgreSQL 15) until the production version is known (Phase 05).
+- 2026-11-18: Migration rules (see "Migration rules"): hand-written, additive-only raw SQL with `IF NOT EXISTS`, a working `down()`, tested locally with run/revert, entity updated in the same commit. Never `migration:generate`; `synchronize` only on local `_dev`/`_test` (Phase 06).
+- 2026-11-18: The kurator's submission note (`POST /prot/:id/submit-kurasi`, `catatan`) is stored on the queue entry as `verifikasi_queue.catatan_kurator` (no existing column fit: `verifikasi.catatan` is the pakar's review note) (Phase 06, B7).
+- 2026-11-18: Media edit rules for a PROT live in one helper, `PROTService.assertCanEditMedia()`, which `update()` also uses: owner or admin_kpoti (403), status DRAFT or REVISI (400). S3 objects are deleted only after the DB save; a failed S3 delete is logged (error name only) and the request still succeeds (Phase 06, B1).
+- 2026-11-18: Shared counters and claims use conditional UPDATEs: stock (`stok >= :qty`), order cancel (`status IN (...)`), queue claim (`assigned_pakar_id IS NULL`), queue release (`assigned_pakar_id = :pakarId`). Order lines are merged per produk and processed in produk id order to avoid deadlocks (Phase 06, B4/B5).
+- 2026-11-18: `assigned_at` on a queue claim is the app clock (a JS `Date` parameter), not SQL `now()`, to keep the existing `timestamp without time zone` convention (Phase 06, B5).
+- 2026-11-18: Public user shape = `{ id, full_name, avatar_url, institution }`. Admin user management (GET/POST /users, GET /users/:id, PATCH role/status) hides `supabase_user_id` but keeps `last_login_at` for admin_kpoti (the admin user table shows it); kurator_daerah on GET /users/:id sees neither (owner decision, Phase 06, P1).
+- 2026-11-18: Rate limiting: `UserThrottlerGuard` (global, after `JwtAuthGuard`) tracks `user:<id>` or `ip:<req.ip>`; Express `trust proxy` comes from `TRUST_PROXY` (default `loopback`) (Phase 06, P3).
+- 2026-11-18: `audit_log.changes` stores the request body with secret-looking keys (password, token, secret, api key, authorization) replaced by `[REDACTED]` (Phase 06, P2).
+- 2026-11-18: B2, B3, B6, B8 and B10 are deferred: blockchain is deprioritized, and B6/B10 are replaced by the self-hosted auth phase (Phase 06).
 - 2026-11-17: Local daerah seed reuses `src/database/migrations/002_replace_daerah_data.sql` (34 provinsi + 514 kab/kota, Kemendagri codes) and the `up()` of `src/migrations/1740500100000-SeedKecamatanKelurahanDesa.ts`; `1738826000000-SeedDaerahBPS.ts` is not used (12 provinces only, codes that do not match the kecamatan CSV) (Phase 05).
 
 ## Phase workflow
