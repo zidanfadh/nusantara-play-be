@@ -26,6 +26,20 @@ import { EventsService } from '../events/events.service';
 import { DaerahService } from '../daerah/daerah.service';
 import { User, UserRole } from '../users/entities/user.entity';
 import { EventStatus } from '../events/entities/event.entity';
+import {
+  PublicUser,
+  stripPrivateUserFields,
+  toPublicUser,
+} from '../../common/serializers/user-shape';
+
+/** A calendar item from the public GET /calendar/:id (P1). */
+export type PublicCalendarItem = Omit<
+  CalendarItem,
+  'creator' | 'updatedByUser'
+> & {
+  creator?: PublicUser | null;
+  updatedByUser?: PublicUser | null;
+};
 
 export interface CalendarEntry {
   id: string;
@@ -217,7 +231,7 @@ export class CalendarService {
     };
   }
 
-  async getOne(id: string, user?: User): Promise<CalendarItem> {
+  async getOne(id: string, user?: User): Promise<PublicCalendarItem> {
     const item = await this.calendarItemRepository.findOne({
       where: { id },
       relations: ['daerah', 'creator', 'invites'],
@@ -230,7 +244,16 @@ export class CalendarService {
     // Visibility check
     this.checkReadAccess(item, user);
 
-    return item;
+    // Public endpoint: the creator only in the public shape (P1).
+    const { creator, updatedByUser, ...rest } = item;
+    const result: PublicCalendarItem = { ...rest };
+    if (creator !== undefined) {
+      result.creator = toPublicUser(creator);
+    }
+    if (updatedByUser !== undefined) {
+      result.updatedByUser = toPublicUser(updatedByUser);
+    }
+    return result;
   }
 
   // ─── Important Dates CRUD ──────────────────────────────────
@@ -316,11 +339,19 @@ export class CalendarService {
     }
 
     const total = await qb.getCount();
-    const data = await qb
+    const items = await qb
       .skip((page - 1) * limit)
       .take(limit)
       .getMany();
     const totalPages = Math.ceil(total / limit);
+    // The creator is usually another user: no private fields (P1).
+    const data = items.map(
+      (item) =>
+        ({
+          ...item,
+          creator: stripPrivateUserFields(item.creator),
+        }) as CalendarItem,
+    );
 
     return {
       data,

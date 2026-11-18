@@ -260,4 +260,98 @@ describe('EventsService', () => {
       expect(service.isRegistrationOpen(pastEvent as Event)).toBe(false);
     });
   });
+
+  describe('public user shape (P1)', () => {
+    const fullOrganizer = {
+      id: 'user-id',
+      full_name: 'Organizer',
+      email: 'organizer@example.test',
+      phone: '+62 800 0000 0000',
+      supabase_user_id: '00000000-0000-0000-0000-000000000004',
+      last_login_at: new Date(),
+      avatar_url: 'https://example.test/o.png',
+      institution: 'KPOTI',
+      role: UserRole.KURATOR_DAERAH,
+      bio: 'bio',
+    };
+    const publicOrganizer = {
+      id: 'user-id',
+      full_name: 'Organizer',
+      avatar_url: 'https://example.test/o.png',
+      institution: 'KPOTI',
+    };
+
+    it('findAll returns the organizer in the public shape', async () => {
+      const qb = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([
+          [
+            {
+              ...mockEvent,
+              status: EventStatus.PUBLISHED,
+              organizer: fullOrganizer,
+            },
+          ],
+          1,
+        ]),
+      };
+      eventRepository.createQueryBuilder = jest.fn().mockReturnValue(qb);
+
+      const result = await service.findAll({});
+
+      expect(result.data[0].organizer).toEqual(publicOrganizer);
+      expect(result.data[0].nama).toBe('Test Event');
+    });
+
+    it('findOne returns the organizer in the public shape', async () => {
+      const qb = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue({
+          ...mockEvent,
+          status: EventStatus.PUBLISHED,
+          organizer: fullOrganizer,
+        }),
+      };
+      eventRepository.createQueryBuilder = jest.fn().mockReturnValue(qb);
+
+      const result = await service.findOne('test-id');
+
+      expect(result.organizer).toEqual(publicOrganizer);
+      expect(result.is_registered).toBe(false);
+    });
+
+    it('getRegistrations strips supabase_user_id and last_login_at from registrants', async () => {
+      eventRepository.findOne = jest.fn().mockResolvedValue(mockEvent);
+      const qb = {
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getMany: jest
+          .fn()
+          .mockResolvedValue([{ id: 'reg-1', user: fullOrganizer }]),
+      };
+      (
+        registrationRepository as unknown as Record<string, unknown>
+      ).createQueryBuilder = jest.fn().mockReturnValue(qb);
+
+      const [registration] = await service.getRegistrations(
+        'test-id',
+        'user-id',
+        UserRole.KURATOR_DAERAH,
+      );
+
+      expect(registration.user).not.toHaveProperty('supabase_user_id');
+      expect(registration.user).not.toHaveProperty('last_login_at');
+      // The organizer still sees the registrant's contact details.
+      expect(registration.user).toMatchObject({
+        email: 'organizer@example.test',
+        phone: '+62 800 0000 0000',
+      });
+    });
+  });
 });

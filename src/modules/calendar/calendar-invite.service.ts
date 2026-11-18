@@ -17,6 +17,25 @@ import {
 import { User } from '../users/entities/user.entity';
 import { ListInvitesDto } from './dto/list-invites.dto';
 import { InviteUsersDto } from './dto/invite-users.dto';
+import { stripPrivateUserFields } from '../../common/serializers/user-shape';
+
+/** Invites show other users: strip their private fields (P1). */
+function withoutPrivateUserFields(invite: CalendarInvite): CalendarInvite {
+  const result: CalendarInvite = { ...invite };
+  if (invite.user) {
+    result.user = stripPrivateUserFields(invite.user) as User;
+  }
+  if (invite.invitedByUser) {
+    result.invitedByUser = stripPrivateUserFields(invite.invitedByUser) as User;
+  }
+  if (invite.calendarItem?.creator) {
+    result.calendarItem = {
+      ...invite.calendarItem,
+      creator: stripPrivateUserFields(invite.calendarItem.creator) as User,
+    };
+  }
+  return result;
+}
 
 export interface PaginatedInvites {
   data: CalendarInvite[];
@@ -188,7 +207,7 @@ export class CalendarInviteService {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data,
+      data: data.map(withoutPrivateUserFields),
       pagination: {
         total,
         page,
@@ -266,7 +285,7 @@ export class CalendarInviteService {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data,
+      data: data.map(withoutPrivateUserFields),
       pagination: {
         total,
         page,

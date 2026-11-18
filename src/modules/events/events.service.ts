@@ -16,6 +16,32 @@ import { UpdateEventDto } from './dto/update-event.dto';
 import { EventFilterDto } from './dto/event-filter.dto';
 import { DaerahService } from '../daerah/daerah.service';
 import { User, UserRole } from '../users/entities/user.entity';
+import {
+  PublicUser,
+  stripPrivateUserFields,
+  toPublicUser,
+} from '../../common/serializers/user-shape';
+
+/**
+ * An event as returned by the public endpoints (GET /events,
+ * /events/featured, /events/:id): user relations only in the public shape (P1).
+ */
+export type PublicEvent = Omit<Event, 'organizer' | 'updatedByUser'> & {
+  organizer?: PublicUser | null;
+  updatedByUser?: PublicUser | null;
+};
+
+export function toPublicEvent(event: Event): PublicEvent {
+  const { organizer, updatedByUser, ...rest } = event;
+  const result: PublicEvent = { ...rest };
+  if (organizer !== undefined) {
+    result.organizer = toPublicUser(organizer);
+  }
+  if (updatedByUser !== undefined) {
+    result.updatedByUser = toPublicUser(updatedByUser);
+  }
+  return result;
+}
 
 @Injectable()
 export class EventsService {
@@ -57,7 +83,7 @@ export class EventsService {
     filter: EventFilterDto,
     user?: User,
   ): Promise<{
-    data: Event[];
+    data: PublicEvent[];
     pagination: {
       total: number;
       page: number;
@@ -148,7 +174,7 @@ export class EventsService {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data,
+      data: data.map(toPublicEvent),
       pagination: {
         total,
         page,
@@ -163,7 +189,7 @@ export class EventsService {
   async findOne(
     id: string,
     user?: User,
-  ): Promise<Event & { is_registered: boolean }> {
+  ): Promise<PublicEvent & { is_registered: boolean }> {
     const event = await this.eventRepository
       .createQueryBuilder('event')
       .leftJoinAndSelect('event.daerah', 'daerah')
@@ -191,7 +217,7 @@ export class EventsService {
       is_registered = !!registration;
     }
 
-    return { ...event, is_registered };
+    return { ...toPublicEvent(event), is_registered };
   }
 
   async update(
@@ -295,11 +321,7 @@ export class EventsService {
     return this.eventRepository.save(event);
   }
 
-  async getRegistrations(
-    eventId: string,
-    userId: string,
-    userRole: UserRole,
-  ): Promise<EventRegistration[]> {
+  async getRegistrations(eventId: string, userId: string, userRole: UserRole) {
     const event = await this.eventRepository.findOne({
       where: { id: eventId },
     });
@@ -314,15 +336,21 @@ export class EventsService {
       );
     }
 
-    return this.registrationRepository
+    const registrations = await this.registrationRepository
       .createQueryBuilder('registration')
       .leftJoinAndSelect('registration.user', 'user')
       .where('registration.event_id = :eventId', { eventId })
       .orderBy('registration.created_at', 'ASC')
       .getMany();
+
+    // Registrants are other users for the organizer (P1).
+    return registrations.map((registration) => ({
+      ...registration,
+      user: stripPrivateUserFields(registration.user),
+    }));
   }
 
-  isRegistrationOpen(event: Event): boolean {
+  isRegistrationOpen(event: Pick<Event, 'status' | 'tanggal_mulai'>): boolean {
     const now = new Date();
     return (
       [EventStatus.PUBLISHED, EventStatus.ONGOING].includes(event.status) &&

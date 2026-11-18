@@ -17,6 +17,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User, UserRole, UserStatus } from './entities/user.entity';
+import { toUserViewFor } from './user-views';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -38,26 +39,38 @@ export class UsersController {
 
   @Get()
   @Roles(UserRole.ADMIN_KPOTI)
-  findAll(
+  async findAll(
+    @CurrentUser() viewer: User,
     @Query('role') role?: UserRole,
     @Query('status') status?: UserStatus,
     @Query('daerah_id') daerah_id?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.usersService.findAll({
+    const result = await this.usersService.findAll({
       role,
       status,
       daerah_id,
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
     });
+    return {
+      ...result,
+      data: result.data.map((user) => toUserViewFor(viewer, user)),
+    };
   }
 
   @Post()
   @Roles(UserRole.ADMIN_KPOTI)
-  create(@Body() createUserDto: AdminCreateUserDto, @CurrentUser() user: User) {
-    return this.usersService.createByAdmin(createUserDto, user.id);
+  async create(
+    @Body() createUserDto: AdminCreateUserDto,
+    @CurrentUser() user: User,
+  ) {
+    const created = await this.usersService.createByAdmin(
+      createUserDto,
+      user.id,
+    );
+    return toUserViewFor(user, created);
   }
 
   @Get('stats')
@@ -69,32 +82,34 @@ export class UsersController {
 
   @Get(':id')
   @Roles(UserRole.ADMIN_KPOTI, UserRole.KURATOR_DAERAH)
-  findOne(@Param('id') id: string) {
-    return this.usersService.findById(id);
+  async findOne(@Param('id') id: string, @CurrentUser() viewer: User) {
+    return toUserViewFor(viewer, await this.usersService.findById(id));
   }
 
   @Patch(':id/role')
   @Roles(UserRole.ADMIN_KPOTI)
-  updateRole(
+  async updateRole(
     @Param('id') id: string,
     @Body() updateRoleDto: UpdateRoleDto,
     @CurrentUser() user: User,
   ) {
-    return this.usersService.updateRole(
+    const updated = await this.usersService.updateRole(
       id,
       updateRoleDto.role,
       user.id,
       updateRoleDto.daerah_id,
     );
+    return toUserViewFor(user, updated);
   }
 
   @Patch(':id/status')
   @Roles(UserRole.ADMIN_KPOTI)
-  updateStatus(
+  async updateStatus(
     @Param('id') id: string,
     @Body('status') status: UserStatus,
     @CurrentUser() user: User,
   ) {
-    return this.usersService.updateStatus(id, status, user.id);
+    const updated = await this.usersService.updateStatus(id, status, user.id);
+    return toUserViewFor(user, updated);
   }
 }
