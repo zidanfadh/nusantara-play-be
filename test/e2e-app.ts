@@ -2,7 +2,8 @@
  * Builds the full AppModule the way src/main.ts does (Phase 08): cookie
  * parser, trust proxy (default "loopback", so tests can set the client IP
  * with X-Forwarded-For), /api prefix, the same ValidationPipe and the
- * global HttpExceptionFilter.
+ * global HttpExceptionFilter. Since Phase 09 EmailService is ALWAYS replaced
+ * by a CapturingEmailService (returned as `email`): no test sends a real email.
  */
 import { Test, TestingModule } from '@nestjs/testing';
 import { ValidationPipe } from '@nestjs/common';
@@ -11,14 +12,21 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from '../src/app.module';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 import { applyTrustProxy } from '../src/common/http/trust-proxy';
+import { EmailService } from '../src/modules/notifications/email.service';
+import { CapturingEmailService } from './capturing-email';
 
 export async function createE2eApp(): Promise<{
   app: NestExpressApplication;
   moduleRef: TestingModule;
+  email: CapturingEmailService;
 }> {
+  const email = new CapturingEmailService();
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule],
-  }).compile();
+  })
+    .overrideProvider(EmailService)
+    .useValue(email)
+    .compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>();
   applyTrustProxy(app, undefined);
   app.use(cookieParser());
@@ -33,7 +41,7 @@ export async function createE2eApp(): Promise<{
   app.useGlobalFilters(new HttpExceptionFilter());
   app.setGlobalPrefix('api');
   await app.init();
-  return { app, moduleRef };
+  return { app, moduleRef, email };
 }
 
 /** One parsed Set-Cookie header. */

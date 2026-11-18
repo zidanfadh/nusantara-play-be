@@ -42,7 +42,11 @@ export const TEST_ENV: Readonly<Record<string, string>> = {
   AWS_SECRET_ACCESS_KEY: 'test-placeholder-secret-access-key',
   AWS_S3_BUCKET: 'test-placeholder-bucket',
   USER_CREDENTIAL_EMAIL_ENABLED: 'false',
-  SMTP_HOST: 'smtp.placeholder.invalid',
+  // Phase 09: EMPTY, so a real EmailService (in an e2e file that does not use
+  // createE2eApp's CapturingEmailService) never opens a connection; it only
+  // logs 'not configured'. Tests never depend on Mailpit or any SMTP server.
+  SMTP_HOST: '',
+  SMTP_FROM: 'Nusantara Play (test) <no-reply@example.test>',
   // Empty = BlockchainService stays inactive.
   BLOCKCHAIN_RPC_URL: '',
   BLOCKCHAIN_PRIVATE_KEY: '',
@@ -65,6 +69,10 @@ export const TEST_ENV: Readonly<Record<string, string>> = {
   FRONTEND_ORIGIN_PATTERNS: TEST_ORIGIN_PATTERN,
   LOGIN_MAX_FAILED: '5',
   LOGIN_LOCK_MINUTES: '15',
+  // Phase 09: email links and lifetimes (defaults).
+  APP_PUBLIC_URL: 'http://localhost:3001',
+  EMAIL_VERIFICATION_TTL_HOURS: '24',
+  PASSWORD_RESET_TTL_MINUTES: '60',
 };
 
 export function applyTestEnv(): void {
