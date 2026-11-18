@@ -55,7 +55,11 @@ describe('Email flows (integration, real database, Phase 09)', () => {
 
   async function registered(label: string): Promise<User> {
     const address = newEmail(label);
-    await auth.register({ email: address, password: PASSWORD, full_name: label });
+    await auth.register({
+      email: address,
+      password: PASSWORD,
+      full_name: label,
+    });
     await flows.whenIdle();
     return dataSource.getRepository(User).findOneByOrFail({ email: address });
   }
@@ -72,7 +76,9 @@ describe('Email flows (integration, real database, Phase 09)', () => {
   beforeAll(async () => {
     moduleRef = await Test.createTestingModule({
       imports: [
-        TypeOrmModule.forRoot(buildDataSourceOptions((key) => process.env[key])),
+        TypeOrmModule.forRoot(
+          buildDataSourceOptions((key) => process.env[key]),
+        ),
         TypeOrmModule.forFeature([
           User,
           UserCredential,
@@ -143,7 +149,9 @@ describe('Email flows (integration, real database, Phase 09)', () => {
     const first = await tokens.create(user.id, 'password_reset');
     const verification = await tokens.create(user.id, 'email_verification');
     const second = await tokens.create(user.id, 'password_reset');
-    await expect(tokens.consume(first.token, 'password_reset')).resolves.toBeNull();
+    await expect(
+      tokens.consume(first.token, 'password_reset'),
+    ).resolves.toBeNull();
     await expect(tokens.consume(second.token, 'password_reset')).resolves.toBe(
       user.id,
     );
@@ -166,7 +174,9 @@ describe('Email flows (integration, real database, Phase 09)', () => {
       `UPDATE auth_tokens SET expires_at = now() - interval '1 second' WHERE user_id = $1`,
       [user.id],
     );
-    await expect(tokens.consume(reset.token, 'password_reset')).resolves.toBeNull();
+    await expect(
+      tokens.consume(reset.token, 'password_reset'),
+    ).resolves.toBeNull();
   });
 
   it('expires_at follows the lifetimes (24 h verification, 60 min reset)', async () => {
@@ -230,9 +240,9 @@ describe('Email flows (integration, real database, Phase 09)', () => {
       user: { id: user.id, emailVerified: true },
     });
     // The token is single-use.
-    await expect(flows.resetPassword(token, 'yet another passphrase')).rejects.toBeInstanceOf(
-      InvalidOrExpiredTokenError,
-    );
+    await expect(
+      flows.resetPassword(token, 'yet another passphrase'),
+    ).rejects.toBeInstanceOf(InvalidOrExpiredTokenError);
   });
 
   it('reset of a Supabase-only account creates local credentials; the user can then log in', async () => {

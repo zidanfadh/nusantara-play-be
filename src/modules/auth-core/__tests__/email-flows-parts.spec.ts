@@ -140,9 +140,9 @@ describe('EmailFlowsController (Phase 09)', () => {
 
   it('resend-verification and forgot-password always answer the same body and pass the IP', () => {
     const t = setup();
-    expect(
-      t.controller.resendVerification({ email: 'a@x.test' }, t.req),
-    ).toBe(RESEND_VERIFICATION_RESPONSE);
+    expect(t.controller.resendVerification({ email: 'a@x.test' }, t.req)).toBe(
+      RESEND_VERIFICATION_RESPONSE,
+    );
     expect(t.flows.requestVerification).toHaveBeenCalledWith(
       'a@x.test',
       '203.0.113.5',
@@ -178,7 +178,8 @@ describe('EmailFlowsController (Phase 09)', () => {
         path: '/api/auth/verify-email',
       }),
     );
-    expect(json.mock.calls[0][0]).not.toHaveProperty('error');
+    const [[sentBody]] = json.mock.calls as [[Record<string, unknown>]];
+    expect(sentBody).not.toHaveProperty('error');
   });
 });
 

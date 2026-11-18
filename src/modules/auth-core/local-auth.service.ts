@@ -131,7 +131,10 @@ export class LocalAuthService {
    * password to it would allow an account takeover). The caller always
    * answers with REGISTER_RESPONSE.
    */
-  async register(input: RegisterInput, ip: string | null = null): Promise<void> {
+  async register(
+    input: RegisterInput,
+    ip: string | null = null,
+  ): Promise<void> {
     const email = normalizeEmail(input.email);
     assertPasswordPolicy(input.password, email);
     // Hash first in every branch, so the response time does not depend on

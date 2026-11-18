@@ -20,10 +20,7 @@ export type EmailVerificationMethod = 'email_link' | 'google';
  * here (see email-verification.ts). Names match migration 1795200000000.
  */
 @Entity('email_verifications')
-@Check(
-  'CHK_email_verifications_method',
-  `"method" IN ('email_link', 'google')`,
-)
+@Check('CHK_email_verifications_method', `"method" IN ('email_link', 'google')`)
 export class EmailVerification {
   @PrimaryColumn({
     type: 'uuid',

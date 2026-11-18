@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleDestroy,
-  Optional,
-} from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -51,7 +46,8 @@ export const VERIFY_EMAIL_RESPONSE = Object.freeze({
 
 export const RESET_PASSWORD_RESPONSE = Object.freeze({
   success: true,
-  message: 'Password has been reset. You can now sign in with the new password.',
+  message:
+    'Password has been reset. You can now sign in with the new password.',
 });
 
 export const PASSWORD_RESET_REVOKE_REASON = 'password_reset';
@@ -144,7 +140,10 @@ export class EmailFlowsService implements OnModuleDestroy {
       if (!(await this.limiter.tryConsume('verification', normalized))) {
         return;
       }
-      const matches = await findUsersByEmail(this.dataSource.manager, normalized);
+      const matches = await findUsersByEmail(
+        this.dataSource.manager,
+        normalized,
+      );
       if (matches.length !== 1) {
         return;
       }

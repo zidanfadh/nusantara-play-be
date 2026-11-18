@@ -101,7 +101,7 @@ describe('UsersController user views (P1)', () => {
 
   it('GET /users/me returns the caller in full plus emailVerified (Phase 09)', async () => {
     dataSource.query.mockResolvedValueOnce([{ verified: true }]);
-    await expect(controller.getCurrentUser(target as User)).resolves.toEqual({
+    await expect(controller.getCurrentUser(target)).resolves.toEqual({
       ...target,
       emailVerified: true,
     });

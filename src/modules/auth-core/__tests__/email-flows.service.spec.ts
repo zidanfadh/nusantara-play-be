@@ -365,9 +365,9 @@ describe('EmailFlowsService.verifyEmail', () => {
       'email_verification',
       t.txManager,
     );
-    const set = t.qb.set.mock.calls[0][0] as {
-      email_verified_at: () => string;
-    };
+    const [[set]] = t.qb.set.mock.calls as [
+      [{ email_verified_at: () => string }],
+    ];
     expect(set.email_verified_at()).toBe('COALESCE(email_verified_at, now())');
     expect(t.qb.where).toHaveBeenCalledWith('user_id = :userId', {
       userId: USER_ID,

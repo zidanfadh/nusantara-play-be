@@ -17,15 +17,15 @@ function setup(env: Record<string, string | undefined> = {}) {
   const txQuery = jest
     .fn()
     .mockImplementation((sql: string) =>
-      Promise.resolve(sql.includes('INSERT') ? [{ expires_at: expiresAt }] : []),
+      Promise.resolve(
+        sql.includes('INSERT') ? [{ expires_at: expiresAt }] : [],
+      ),
     );
   const manager = { query: txQuery };
   const dataSource = {
     manager: { query: jest.fn() },
     query: jest.fn(),
-    transaction: jest.fn((cb: (m: unknown) => Promise<unknown>) =>
-      cb(manager),
-    ),
+    transaction: jest.fn((cb: (m: unknown) => Promise<unknown>) => cb(manager)),
   };
   const service = new AuthTokenService(dataSource as never, fakeConfig(env));
   return { service, dataSource, txQuery, expiresAt };
@@ -134,7 +134,9 @@ describe('AuthTokenService.consume', () => {
 
   it('uses the given transaction manager and accepts a plain rows array', async () => {
     const t = setup();
-    const manager = { query: jest.fn().mockResolvedValue([{ user_id: USER_ID }]) };
+    const manager = {
+      query: jest.fn().mockResolvedValue([{ user_id: USER_ID }]),
+    };
     await expect(
       t.service.consume('raw-token', 'password_reset', manager as never),
     ).resolves.toBe(USER_ID);
@@ -164,10 +166,7 @@ describe('AuthTokenService.cleanup', () => {
     t.dataSource.query.mockResolvedValue([[], 4]);
     const now = new Date('2026-11-18T03:15:00Z');
     await expect(t.service.cleanup(now)).resolves.toBe(4);
-    const [sql, params] = t.dataSource.query.mock.calls[0] as [
-      string,
-      Date[],
-    ];
+    const [sql, params] = t.dataSource.query.mock.calls[0] as [string, Date[]];
     expect(sql).toContain(
       'expires_at < $1 OR (used_at IS NOT NULL AND used_at < $1)',
     );

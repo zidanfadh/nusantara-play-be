@@ -29,7 +29,9 @@ export const AUTH_TOKEN_TYPES = {
 )
 @Index('IDX_auth_tokens_user_id_type', ['user_id', 'type'])
 export class AuthToken {
-  @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_auth_tokens' })
+  @PrimaryGeneratedColumn('uuid', {
+    primaryKeyConstraintName: 'PK_auth_tokens',
+  })
   id: string;
 
   @Column({ type: 'uuid' })

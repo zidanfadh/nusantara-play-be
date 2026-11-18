@@ -15,6 +15,7 @@ import {
 import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import type { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
 import { HttpExceptionFilter } from '../filters/http-exception.filter';
 import { RequireVerifiedEmail } from '../decorators/require-verified-email.decorator';
@@ -63,6 +64,7 @@ class TestOnlyController {
 
 describe('@RequireVerifiedEmail() (Phase 09)', () => {
   let app: INestApplication;
+  const server = () => app.getHttpServer() as App;
   const dataSource = {
     query: jest.fn((_sql: string, [id]: string[]) =>
       Promise.resolve([{ verified: id === LEGACY_VERIFIED_ID }]),
@@ -89,7 +91,7 @@ describe('@RequireVerifiedEmail() (Phase 09)', () => {
   beforeEach(() => dataSource.query.mockClear());
 
   it('verified user (state from the local-jwt strategy): 200 without a query', async () => {
-    await request(app.getHttpServer())
+    await request(server())
       .get('/test-only/points')
       .set('x-test-user', 'verified')
       .expect(200, { ok: true });
@@ -97,7 +99,7 @@ describe('@RequireVerifiedEmail() (Phase 09)', () => {
   });
 
   it('unverified user: 403 with code EMAIL_NOT_VERIFIED', async () => {
-    const res = await request(app.getHttpServer())
+    const res = await request(server())
       .get('/test-only/points')
       .set('x-test-user', 'unverified')
       .expect(403);
@@ -110,7 +112,7 @@ describe('@RequireVerifiedEmail() (Phase 09)', () => {
   });
 
   it('user without attached state (legacy Supabase token): one query decides', async () => {
-    await request(app.getHttpServer())
+    await request(server())
       .get('/test-only/points')
       .set('x-test-user', 'legacy')
       .expect(200);
@@ -118,14 +120,12 @@ describe('@RequireVerifiedEmail() (Phase 09)', () => {
   });
 
   it('no user: 401 (the global HttpExceptionFilter shape)', async () => {
-    const res = await request(app.getHttpServer())
-      .get('/test-only/points')
-      .expect(401);
+    const res = await request(server()).get('/test-only/points').expect(401);
     expect(res.body).not.toHaveProperty('code');
   });
 
   it('routes without the decorator are unaffected', async () => {
-    await request(app.getHttpServer())
+    await request(server())
       .get('/test-only/open')
       .set('x-test-user', 'unverified')
       .expect(200);

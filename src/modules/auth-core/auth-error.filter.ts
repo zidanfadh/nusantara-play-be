@@ -21,7 +21,11 @@ type CodedAuthError =
  * controller-scoped filter (it runs instead of the global one) answers with
  * the same shape plus `error` / `code`.
  */
-@Catch(RefreshConflictError, RefreshTokenInvalidError, InvalidOrExpiredTokenError)
+@Catch(
+  RefreshConflictError,
+  RefreshTokenInvalidError,
+  InvalidOrExpiredTokenError,
+)
 export class AuthErrorFilter implements ExceptionFilter {
   catch(exception: CodedAuthError, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
