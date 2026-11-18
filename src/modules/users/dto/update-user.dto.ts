@@ -1,4 +1,5 @@
 import { IsOptional, IsString, IsUUID, IsArray } from 'class-validator';
+import { IsAvatarUrl } from './avatar-url.validation';
 
 export class UpdateUserDto {
   @IsString()
@@ -9,9 +10,8 @@ export class UpdateUserDto {
   @IsOptional()
   phone?: string;
 
-  @IsString()
-  @IsOptional()
-  avatar_url?: string;
+  @IsAvatarUrl()
+  avatar_url?: string | null;
 
   @IsString()
   @IsOptional()

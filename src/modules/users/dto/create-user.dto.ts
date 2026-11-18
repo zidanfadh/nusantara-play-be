@@ -5,6 +5,7 @@ import {
   IsString,
   IsUUID,
 } from 'class-validator';
+import { IsAvatarUrl } from './avatar-url.validation';
 
 export class CreateUserDto {
   @IsUUID()
@@ -23,8 +24,7 @@ export class CreateUserDto {
   @IsOptional()
   phone?: string;
 
-  @IsString()
-  @IsOptional()
+  @IsAvatarUrl()
   avatar_url?: string;
 
   @IsString()
