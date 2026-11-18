@@ -7,7 +7,17 @@
  * So the tests always use the local Docker test database
  * (docker-compose.dev.yml) and fake placeholders for every external service.
  */
+import { generateAuthKeyPair } from '../src/modules/auth-core/key-pair.util';
+
 export const TEST_DATABASE_NAME = 'nusantara_play_test';
+
+/**
+ * Self-hosted auth keys (Phase 07): a FRESH RS256 key pair per test process,
+ * generated in memory and never written to disk or committed.
+ */
+const TEST_AUTH_KEYS = generateAuthKeyPair('test');
+export const TEST_JWT_ISSUER = 'nusantara-play-test';
+export const TEST_JWT_AUDIENCE = 'nusantara-play-test';
 
 export const TEST_ENV: Readonly<Record<string, string>> = {
   NODE_ENV: 'test',
@@ -34,6 +44,17 @@ export const TEST_ENV: Readonly<Record<string, string>> = {
   BLOCKCHAIN_RPC_URL: '',
   BLOCKCHAIN_PRIVATE_KEY: '',
   BLOCKCHAIN_CONTRACT_ADDRESS: '',
+  // Self-hosted auth (Phase 07): local auth enabled with the keys above,
+  // legacy Supabase tokens accepted (the production default).
+  JWT_PRIVATE_KEY: TEST_AUTH_KEYS.privateKeyBase64,
+  JWT_PUBLIC_KEY: TEST_AUTH_KEYS.publicKeyBase64,
+  JWT_KEY_ID: TEST_AUTH_KEYS.keyId,
+  JWT_ISSUER: TEST_JWT_ISSUER,
+  JWT_AUDIENCE: TEST_JWT_AUDIENCE,
+  ACCESS_TOKEN_TTL_SECONDS: '900',
+  REFRESH_TOKEN_TTL_DAYS: '30',
+  REFRESH_REUSE_GRACE_SECONDS: '20',
+  AUTH_ACCEPT_SUPABASE_TOKENS: 'true',
 };
 
 export function applyTestEnv(): void {
