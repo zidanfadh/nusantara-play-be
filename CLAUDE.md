@@ -233,8 +233,8 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
    afterwards. Visual phases reach users through Vercel only.
    - Pilot province: **Sumatera Selatan** (kode `16`, slug `sumatera-selatan`). It has **0 public PROT** in production
      (Phase 10), so V2 needs PROT content there first.
-   - Rewards and multiplayer shown in demo phases are SIMULATED until the backend exists: clearly labelled "Demo" in the
-     UI and never sent to or saved on the backend.
+   - Rewards and multiplayer shown in demo phases are SIMULATED until the backend exists: clearly labelled in the UI
+     ("Demo"; simulated rewards "Simulasi · tidak disimpan" since Phase 12) and never sent to or saved on the backend.
    - Demos are built on phase branches and shown to the boss through the Vercel preview link before anything is merged
      to production. No navbar link to /jelajah until the boss has reviewed it.
    - Jelajah Nusantara V1 (Phase 10): `/jelajah` hub map of Indonesia (3D with three.js / @react-three/fiber /
@@ -248,6 +248,13 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
      every stand shows "Segera hadir". Local development uses the labelled DEMO PROT. The scene is generic: later provinces
      add a scene data file (frontend CLAUDE.md "Province scene engine"). 3D assets are CC0 only, recorded in
      `public/jelajah/assets/ASSET_LICENSES.md`; `pnpm check:jelajah` enforces 8 MB per province and textures <= 1024 px.
+   - Jelajah Nusantara V3 (Phase 12, polish): framed follow camera (player in the lower third, closer and wider on
+     phones, 1.5 s entry glide), the hidden player's silhouette in the site's primary colour with a light edge, a neutral
+     open pavilion in the plaza, larger fitted stand signs, light ambient motion (full tier only, never with reduced
+     motion), a banner when the province has no public PROT yet, and a SIMULATED reward HUD (XP, level, Paspor with
+     the 35 provinces, Misi). **Simulation only:** the rewards live in `lib/jelajah/demo-rewards.ts`, only in the
+     browser tab's sessionStorage, labelled "Simulasi · tidak disimpan", and never reach the backend (a test guards the
+     imports). Real rewards still follow item 3. Details in the frontend CLAUDE.md "Camera, polish and simulated rewards".
 
 ## Deployment facts
 
@@ -457,6 +464,9 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Backend after Phase 10: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend after Phase 11: unchanged, 44 errors, 87 warnings (every new and touched file is clean).
 - Backend after Phase 11: unchanged, 220 errors, 29 warnings (`src/scripts/db-local-setup.ts` is clean).
+- Frontend after Phase 12: unchanged, 44 errors, 87 warnings (every new and touched file is clean, including `app/layout.tsx`
+  and `components/ui/AnimatedThemeToggler.tsx`).
+- Backend after Phase 12: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -548,6 +558,38 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
   directional + one ambient light; the player stays visible behind roofs through a silhouette pass (Phase 11).
 - 2026-11-18: Phase 11 was interrupted by a usage limit after the verification run and resumed; the resume finished the
   player-silhouette fix, the dev-overlay measurements, fresh screenshots and the docs (Phase 11 report, "Deviations").
+- 2026-11-18: Owner decisions for Phase 12 (visual track V3, from the Phase 11 screenshots): the phone camera was too far
+  behind the player (empty grass below, side stands cut off); the hidden player's silhouette must read as the character in
+  the site's primary colour; the plaza gets one neutral centrepiece; stand signs must be larger and never cut off; rewards
+  stay SIMULATED (frontend only, labelled "Simulasi, tidak disimpan", never sent to the backend, only for the current
+  browser tab via sessionStorage in try/catch); no simulated other players yet; no invented cultural facts (new objects are
+  neutral or worded "terinspirasi").
+- 2026-11-18: Camera (Phase 12): fixed 40° pitch, no rotation; the player's chest sits at 40 % below the screen centre
+  (lower third); the field of view goes from 62° (portrait phone) to 44° (landscape); the distance is the smallest one at
+  which the player, the two stands nearest to the spawn point and every sign top fit inside 92 % of the screen; follow
+  with a critically damped spring (0.16 s); 1.5 s entry glide only on the full tier and never with reduced motion, skipped
+  by any key, pointer, wheel or touch. Pure math in `lib/jelajah/engine/camera.ts`.
+- 2026-11-18: Silhouette (Phase 12): primary colour #9E3C24 (light-theme `--color-primary`; the 3D scene keeps one look in
+  both site themes) at a fixed 0.82 opacity, blended in the opaque pass (CustomBlending, stencil so every pixel blends
+  once), plus a light #FFF1DC edge from the same skinned meshes pushed out 5.5 cm along their normals. The canvas now
+  requests a stencil buffer. +2 draw calls.
+- 2026-11-18: Plaza centrepiece (Phase 12): a procedural open pavilion (two-tier pyramid roof on four posts, low
+  platform), merged into the village mesh (0 extra draw calls), box collider; the UI never names it.
+- 2026-11-18: Demo reward rules (Phase 12): entering a province scene +25 XP once per tab; opening the panel of a PROT
+  +10 XP once per PROT (stand or notice-board entry, 3D and 2d); 3 different PROT of a province (all of them when it has
+  fewer, at least 1) = that province's Paspor stamp +50 XP; level n needs 50 × n × (n + 1) total XP, read literally: the
+  simulation starts at level 0 and reaches level 1 at 100 XP. Constants in `DEMO_REWARD_RULES`. Key
+  `sessionStorage['jelajah.demoRewards.v1']`; anything unexpected in it means an empty simulation. The Paspor has an
+  "Atur ulang simulasi" button for repeated demos.
+- 2026-11-18: Theme (Phase 12, Phase 10 finding #418): the inline script in `app/layout.tsx` only sets the `dark` class on
+  `<html>` (try/catch, still the only allowed `dangerouslySetInnerHTML`); components read the theme after mount with
+  `useSyncExternalStore` and a light server snapshot (`AnimatedThemeToggler`, `lib/jelajah/use-theme-mode.ts`). Never read
+  `localStorage` or the `dark` class during the first render.
+- 2026-11-18: Icons (Phase 12): `app/favicon.ico` (258 KB, 9 sizes) replaced by `app/icon.png` (48 px), `app/apple-icon.png`
+  (180 px, 128-colour palette) and `public/favicon.ico` (16 and 32 px PNG entries): 11.6 KB in total, generated with the sharp
+  already in node_modules from the logo's own 256 px PNG (same design).
+- 2026-11-18: C: fell to 2.9 GB during the Phase 12 verification (builds, `next dev` and headless Chrome at the same time):
+  Windows grew `C:\pagefile.sys` to 11 GB. Run one heavy process at a time and check C: again after each.
 - 2026-11-17: Local daerah seed reuses `src/database/migrations/002_replace_daerah_data.sql` (34 provinsi + 514 kab/kota, Kemendagri codes) and the `up()` of `src/migrations/1740500100000-SeedKecamatanKelurahanDesa.ts`; `1738826000000-SeedDaerahBPS.ts` is not used (12 provinces only, codes that do not match the kecamatan CSV) (Phase 05).
 
 ## Phase workflow
