@@ -1,6 +1,7 @@
 /**
  * Self-hosted auth configuration (Phase 07; cookies, CSRF origins and
- * lockout since Phase 08).
+ * lockout since Phase 08; email link lifetimes and APP_PUBLIC_URL since
+ * Phase 09).
  *
  * A pure parser over an env getter (same pattern as data-source-options.ts),
  * so the app (ConfigService), the guard and the tests read the same values.
@@ -42,6 +43,16 @@ export interface AuthConfig {
   loginMaxFailed: number;
   /** Lock duration after loginMaxFailed wrong passwords (Phase 08). */
   loginLockMinutes: number;
+  /** Lifetime of an email verification token (Phase 09). */
+  emailVerificationTtlHours: number;
+  /** Lifetime of a password reset token (Phase 09). */
+  passwordResetTtlMinutes: number;
+  /**
+   * Frontend base URL for links in emails, without a trailing slash
+   * (APP_PUBLIC_URL; Phase 09). null = not set or not an http(s) URL: the
+   * emails that need a link are not sent.
+   */
+  appPublicUrl: string | null;
 }
 
 export const AUTH_KEY_ENV_NAMES = [
@@ -59,6 +70,8 @@ export const AUTH_DEFAULTS = {
   cookiePath: '/backend-api/auth',
   loginMaxFailed: 5,
   loginLockMinutes: 15,
+  emailVerificationTtlHours: 24,
+  passwordResetTtlMinutes: 60,
 } as const;
 
 /**
@@ -133,6 +146,33 @@ export function parseOriginPatterns(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+/**
+ * APP_PUBLIC_URL: an absolute http(s) URL without query or fragment; the
+ * trailing slash is removed. Anything else -> null.
+ */
+export function parseAppPublicUrl(value: string | undefined): string | null {
+  const trimmed = value?.trim() ?? '';
+  if (!trimmed) {
+    return null;
+  }
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return null;
+  }
+  if (
+    (url.protocol !== 'https:' && url.protocol !== 'http:') ||
+    url.search ||
+    url.hash ||
+    url.username ||
+    url.password
+  ) {
+    return null;
+  }
+  return `${url.origin}${url.pathname}`.replace(/\/+$/, '');
+}
+
 export function readAuthConfig(getEnv: EnvGetter): AuthConfig {
   const missing = AUTH_KEY_ENV_NAMES.filter((name) => !getEnv(name)?.trim());
   const keys: AuthKeyConfig | null =
@@ -180,5 +220,14 @@ export function readAuthConfig(getEnv: EnvGetter): AuthConfig {
       getEnv('LOGIN_LOCK_MINUTES'),
       AUTH_DEFAULTS.loginLockMinutes,
     ),
+    emailVerificationTtlHours: positiveInt(
+      getEnv('EMAIL_VERIFICATION_TTL_HOURS'),
+      AUTH_DEFAULTS.emailVerificationTtlHours,
+    ),
+    passwordResetTtlMinutes: positiveInt(
+      getEnv('PASSWORD_RESET_TTL_MINUTES'),
+      AUTH_DEFAULTS.passwordResetTtlMinutes,
+    ),
+    appPublicUrl: parseAppPublicUrl(getEnv('APP_PUBLIC_URL')),
   };
 }
