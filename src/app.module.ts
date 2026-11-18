@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -26,6 +26,7 @@ import { StatsModule } from './modules/stats/stats.module';
 
 // Guards
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { UserThrottlerGuard } from './common/guards/user-throttler.guard';
 
 @Module({
   imports: [
@@ -62,15 +63,19 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
   controllers: [AppController],
   providers: [
     AppService,
-    // Apply JWT auth guard globally
+    // Global guards run in the order of these APP_GUARD entries. JwtAuthGuard
+    // must come first: it sets req.user, which UserThrottlerGuard uses to
+    // track logged-in users by user id (Phase 06, P3). useExisting lets
+    // tests replace a guard with overrideProvider().
+    JwtAuthGuard,
+    UserThrottlerGuard,
     {
       provide: APP_GUARD,
-      useClass: JwtAuthGuard,
+      useExisting: JwtAuthGuard,
     },
-    // Apply rate limiting globally
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useExisting: UserThrottlerGuard,
     },
   ],
 })
