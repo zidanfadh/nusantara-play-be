@@ -255,6 +255,13 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
      the 35 provinces, Misi). **Simulation only:** the rewards live in `lib/jelajah/demo-rewards.ts`, only in the
      browser tab's sessionStorage, labelled "Simulasi · tidak disimpan", and never reach the backend (a test guards the
      imports). Real rewards still follow item 3. Details in the frontend CLAUDE.md "Camera, polish and simulated rewards".
+   - Jelajah Nusantara V4 (Phase 13, finishing the visual track before the backend work resumes): simulated levels start
+     at 1 (level L needs 50 × (L − 1) × L total XP; the future backend uses the same curve), site-wide toasts at the top
+     centre (kept clear of the Jelajah title bar, HUD and panel close button), a short "Segera hadir" phone stand prompt,
+     a `?debug=1` stats overlay for measuring real phones, an automatic full → lite → 2d fallback when the frame rate
+     stays low (never over a manual choice), and PROT photos through Vercel Image Optimization (`/prot` phone cold load
+     2983 KB → 617 KB). Still no navbar link to /jelajah and no brand rename (both wait for the boss). Details in the
+     frontend CLAUDE.md "Finish, real-device measurement and PROT photos".
 
 ## Deployment facts
 
@@ -370,7 +377,8 @@ public endpoints work.
    416 kabupaten, 98 kota, 7230 kecamatan, 74952 desa, 8487 kelurahan) and DEMO data (user
    `demo-kurator@example.test`, 3 PROT with status ARSIP_NASIONAL, 1 published event; names start with
    "DEMO"; since Phase 11 also `DEMO PROT Sumsel 1` to `4` in Sumatera Selatan (provinsi 16, ARSIP_NASIONAL, fixed UUIDs
-   `…de31` to `…de34`, neutral placeholder text) for the Jelajah scene). Idempotent. Flags: `-- --database=<name>`, `-- --no-demo`.
+   `…de31` to `…de34`, neutral placeholder text) for the Jelajah scene; since Phase 13 "DEMO PROT Sumsel 1" has one photo,
+   `http://localhost:3001/jelajah/demo/foto-contoh.svg`, a neutral placeholder served by the local frontend). Idempotent. Flags: `-- --database=<name>`, `-- --no-demo`.
 4. Backend: `npm run start:dev` → http://localhost:3000/api. Blockchain vars stay empty, so
    BlockchainService logs a warning and is inactive.
 5. Frontend (in `nusantara-play-fe`): `.env.local` with `NEXT_PUBLIC_BACKEND_API_URL=http://localhost:3000/api`
@@ -467,6 +475,10 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Frontend after Phase 12: unchanged, 44 errors, 87 warnings (every new and touched file is clean, including `app/layout.tsx`
   and `components/ui/AnimatedThemeToggler.tsx`).
 - Backend after Phase 12: unchanged (only CLAUDE.md and the phase report changed).
+- Frontend after Phase 13: 44 errors, 82 warnings (@next/next/no-img-element 26 → 21: the five warnings in the touched PROT
+  photo files are gone; every new and touched file is clean). Per rule: no-unused-vars 47 (warn), no-explicit-any 39,
+  no-img-element 21 (warn), exhaustive-deps 14 (warn), no-empty-object-type 4, set-state-in-effect 1.
+- Backend after Phase 13: unchanged, 220 errors, 29 warnings (`src/scripts/db-local-setup.ts` is clean).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -590,6 +602,31 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
   already in node_modules from the logo's own 256 px PNG (same design).
 - 2026-11-18: C: fell to 2.9 GB during the Phase 12 verification (builds, `next dev` and headless Chrome at the same time):
   Windows grew `C:\pagefile.sys` to 11 GB. Run one heavy process at a time and check C: again after each.
+- 2026-11-19: Owner decisions for Phase 13 (visual track V4): the boss approved continuing; this phase finishes the visual
+  track before the backend work resumes. Levels start at 1: level L needs 50 × (L − 1) × L total XP (L1 = 0, L2 = 100,
+  L3 = 300); the future backend uses the same curve (replaces the Phase 12 "level 0" reading). Site-wide toasts appear
+  at the top centre. No navbar link to /jelajah and no brand rename yet (both still wait for the boss).
+- 2026-11-19: Toast placement (Phase 13): one global sonner Toaster, `top-center`, 72 px from the top (below the 64 px
+  navbar) through `--toast-top`; Jelajah pages move it below the overlays marked `data-toast-avoid` (title bar,
+  "Tampilan", HUD, stand panel close button). Messages such as the empty-province banner and the help hint are not
+  avoided: a toast may cover them for its 2 to 4 seconds.
+- 2026-11-19: Simulated reward state key `sessionStorage['jelajah.demoRewards.v2']` (version 2) for the level-1 curve;
+  v1 state is ignored (Phase 13).
+- 2026-11-19: Real-device measurement (Phase 13): `?debug=1` overlay with the 2 s average fps, draw calls, triangles,
+  tier, devicePixelRatio and canvas size; nothing is mounted without the flag. Automatic fallback in the province scene
+  only (the hub map renders on demand): full → lite below 24 fps for 5 s, lite → 2d below 20 fps for another 5 s, after
+  the intro, paused while the tab is hidden, cached like the measured automatic tier, never over a manual choice.
+- 2026-11-19: PROT photos (Phase 13): option (a), next/image + Vercel Image Optimization, because plain lazy `<img>`
+  (option b) cannot meet the `/prot` < 1 MB target (the 2.1 MB PNG is the second card on phones, inside the lazy-load
+  distance) and leaves the detail page at 4.6 MB. Kept inside the Hobby limits (5K transformations, 300K cache reads,
+  100K cache writes per month; over the limit new images answer 402): only the PROT bucket under `/prot/**` (https, no
+  query) in `images.remotePatterns`, two display sizes (two variants per photo and size), Next 16 defaults otherwise
+  (webp only, quality 75, `minimumCacheTTL` 4 h), and the original URL as fallback when optimization fails. No
+  third-party image service. Real fix for the source sizes: resize at upload time in the backend (later phase).
+- 2026-11-19: Jelajah photo rule (Phase 13): https only; an http URL on a loopback host is accepted only while the page
+  itself runs on a loopback host (local `next dev` or `next start`), so the local DEMO placeholder also shows in a local
+  production build while the deployed site stays https-only.
+- 2026-11-19: Page file (owner, before Phase 13): `D:\pagefile.sys` system managed; a fixed 2 GB page file remains on C:.
 - 2026-11-17: Local daerah seed reuses `src/database/migrations/002_replace_daerah_data.sql` (34 provinsi + 514 kab/kota, Kemendagri codes) and the `up()` of `src/migrations/1740500100000-SeedKecamatanKelurahanDesa.ts`; `1738826000000-SeedDaerahBPS.ts` is not used (12 provinces only, codes that do not match the kecamatan CSV) (Phase 05).
 
 ## Phase workflow
@@ -626,3 +663,7 @@ screenshot, Docker image, volume and container lives on D:; nothing new may be w
   remains under `%LOCALAPPDATA%\Docker\wsl`. Phases may pull images and start containers when the phase asks for it (for example
   `npm run db:up`); the volume `nusantara-dev-db-data` survived the move.
 - Never connect to the production database. Local PostgreSQL uses port 5432 (Docker container `nusantara-dev-db`, bound to 127.0.0.1).
+- Drive letter case (Phase 13 finding): run backend `npm run db:setup` and the e2e tests from a working directory that
+  starts with an upper-case `D:\` (for example PowerShell `Set-Location 'D:\Project\Nusantara Legacy\nusantara-play-be'`).
+  From a lower-case `d:\` working directory Node loads the entity classes twice (once per path spelling) and the DEMO
+  seed fails with "this.subQuery is not a function".
