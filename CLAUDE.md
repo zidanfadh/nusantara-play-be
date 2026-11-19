@@ -177,7 +177,7 @@ with the default `publik` role (JIT sync).
 - `audit/` — audit logging via `AuditInterceptor` (applied per route with `@UseInterceptors`, currently in auth, nfts, prot (incl. all media routes since Phase 06), verifikasi and admin rewards (Phase 15) controllers — it is NOT global). The stored request body goes through `redactSecrets()` (`audit/redact.ts`): keys like password/token/secret are stored as `[REDACTED]`.
 - `marketplace/` — marketplace: toko, produk, order
 - `nfts/` — NFT catalog
-- `stats/` — landing page stats
+- `stats/` — landing page stats (`GET /stats/landing`; since Phase 18 PROT and province counts are published-only, ARSIP_NASIONAL)
 - `notifications/` — SMTP email (admin-created user credentials; Phase 09 auth emails via `sendTransactional()` + `auth-email.templates.ts`)
 - `supabase/` — shared Supabase admin client
 - `rewards/` — XP and Points ledger, balances, levels, PROT views, Paspor stamps, leaderboard, admin adjust, reconciliation (Phase 15; see "Rewards" above)
