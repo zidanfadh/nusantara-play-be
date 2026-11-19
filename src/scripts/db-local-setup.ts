@@ -91,6 +91,14 @@ export const DEMO_IDS = {
 export const DEMO_SUMSEL_TEXT =
   'Contoh data untuk pengembangan, bukan data budaya asli.';
 
+/**
+ * The one photo of "DEMO PROT Sumsel 1" (Phase 13): a neutral placeholder served by the LOCAL frontend
+ * (nusantara-play-fe public/jelajah/demo/), not a cultural photo. http on localhost: the Jelajah photo rule
+ * accepts it only while the page itself runs on a loopback host.
+ */
+export const DEMO_SUMSEL_PHOTO =
+  'http://localhost:3001/jelajah/demo/foto-contoh.svg';
+
 export const DEMO_USER_EMAIL = 'demo-kurator@example.test';
 
 /** Returns host and database name only (never user or password). */
@@ -415,7 +423,8 @@ async function seedDemoData(
     .execute();
 
   // Phase 11: four DEMO PROT in Sumatera Selatan (Jelajah pilot scene). Neutral
-  // placeholder text only, no photos; never real cultural content.
+  // placeholder text only; never real cultural content. Phase 13: the first one has
+  // one placeholder photo (DEMO_SUMSEL_PHOTO), the others none.
   const sumselKabkota = ['16.71', '16.01', '16.10', '16.74'];
   await dataSource
     .createQueryBuilder()
@@ -435,6 +444,7 @@ async function seedDemoData(
         deskripsi: DEMO_SUMSEL_TEXT,
         caraBermain: DEMO_SUMSEL_TEXT,
         nilaiMoral: DEMO_SUMSEL_TEXT,
+        ...(index === 0 ? { fotoKegiatan: [DEMO_SUMSEL_PHOTO] } : {}),
         jumlahPemain: 4,
         status: PROTStatus.ARSIP_NASIONAL,
         created_by: DEMO_IDS.user,
@@ -445,6 +455,12 @@ async function seedDemoData(
     )
     .orIgnore()
     .execute();
+
+  // Databases seeded before Phase 13 already have the row (orIgnore above): set the photo too.
+  await dataSource.query(
+    'UPDATE "prot" SET "fotoKegiatan" = $1::jsonb WHERE "id" = $2',
+    [JSON.stringify([DEMO_SUMSEL_PHOTO]), DEMO_IDS.protSumsel[0]],
+  );
 
   const jawaBarat = await dataSource
     .getRepository(Daerah)
