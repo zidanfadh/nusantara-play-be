@@ -326,6 +326,15 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
      with it when the frontend switches to the self-hosted login. Landing statistics count only published content
      (ARSIP_NASIONAL PROT and their provinces), like the map and the bumper; numbers that are 0 are hidden. Details
      in the frontend CLAUDE.md "Brand, navbar and the Jelajah login gate (Phase 18)".
+   - Concept video (Phase 19, owner decision): on the first `/jelajah` visit per browser a ≈48 s animated film ("Kenali"
+     + the brand; 8 scenes: games in the courtyard, forgotten, Indonesia lights up, the archive, a province village,
+     congklak with XP and a Paspor stamp, the community, start) plays after the intro bumper and before the map. Skippable
+     ("Lewati", Esc), replayable ("Tonton pengenalan"), still frames with reduced motion, no audio, real data only
+     (published PROT names and counts; no Points, prizes or multiplayer promised). Code-driven (React, framer-motion, SVG,
+     a particle canvas on the 3D tiers), lazy-loaded, about 38 KB gzip. Every text and timing is in ONE file,
+     `nusantara-play-fe/lib/jelajah/concept/script.ts`. The Jelajah login page no longer offers "Masuk sebagai Tamu"
+     (the map needs an account; the games stay open) and the landing page's featured PROT are published only. Details
+     in the frontend CLAUDE.md "Concept video (Phase 19)".
 10. Real rewards, part 1 (Phase 15, backend only): `nusantara-play-be/src/modules/rewards/`. `RewardsService` is the
     ONLY code that changes XP and Points. Every change is one transaction: `pg_advisory_xact_lock` per user, server-built
     idempotency keys (`PROVINCE_ENTER:{userId}:{provinsiKode}`, `PROT_VIEW:{userId}:{protId}`,
@@ -610,6 +619,8 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
   has 0 errors; the remaining warnings in touched files existed before: `UserNav.tsx` and `AdminHeader.tsx`
   no-img-element, two unused imports in the admin dashboard page).
 - Backend after Phase 18: unchanged, 220 errors, 29 warnings (`src/modules/stats/` is clean).
+- Frontend after Phase 19: unchanged, 44 errors, 80 warnings (all 42 new and touched source files are clean).
+- Backend after Phase 19: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -898,6 +909,27 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
   own code, so they agree with the map and the bumper before the backend change is deployed; the backend
   `/stats/landing` change (published-only PROT and province counts) waits in "Pending deployment". A province
   counts when a published PROT has its code and the code is one of the 35 known provinces (the map's rule).
+- 2026-11-19: Concept video (Phase 19, owner decision): a code-driven film, not an mp4 in the app. It plays by itself
+  only on the first `/jelajah` visit per browser (`localStorage['np_concept_seen_v1']`), after the intro bumper's daily
+  play; `?concept=1` forces it; "Tonton pengenalan" replays it. It counts as seen after 1 s of playing or when it ends, so a
+  navigation away in the first second (for example the bumper's "Main Congklak") does not use it up; province pages do not
+  mark it (open question in the Phase 19 report). All copy and timings live in `lib/jelajah/concept/script.ts`, except the
+  map button's label, which lives in `gate.ts` so the captions stay out of `/jelajah`'s initial JS.
+- 2026-11-19: Concept video performance (Phase 19): the first version ran at 3 to 15 fps in headless Chrome (software
+  rendering) because moving SVG elements repainted full-screen backgrounds and SVG camera moves re-rasterised the map
+  every frame. Rules since then: static backgrounds and moving parts on separate compositor layers (`will-change`), camera
+  moves as CSS transforms, the lit map painted once and revealed by a transform-only wipe (the provinces still light west
+  to east), the hub not painted under the film. The particles are dropped only when the 2 s average stays below 30 fps for
+  3 s (a single first-paint stall had dropped them for the whole film). The dive into Sumatera Selatan stops at 6x (a
+  compositor layer keeps its first raster scale, so deeper zooms turn blurry).
+- 2026-11-19: Local checks of login-gated pages (Phase 19): the frontend cannot log in locally, so the Phase 19 browser
+  checks used a fake Supabase auth endpoint on localhost (`/auth/v1/user` answering a test user) and a matching session
+  cookie, in scratch files on D: only (never committed); requests to `/backend-api` had their Authorization header removed,
+  so production saw only plain public read-only GETs.
+- 2026-11-19: Phase 18 follow-ups (owner answers): the Supabase redirect allowlist needs no query variants; removing
+  `/landing-page/1` and `/2` waits for the cleanup phase. Phase 19: the Jelajah login page shows a note and a link to the
+  games instead of "Masuk sebagai Tamu"; the landing page's featured PROT are requested with `status=ARSIP_NASIONAL` and
+  filtered again.
 - 2026-11-17: Local daerah seed reuses `src/database/migrations/002_replace_daerah_data.sql` (34 provinsi + 514 kab/kota, Kemendagri codes) and the `up()` of `src/migrations/1740500100000-SeedKecamatanKelurahanDesa.ts`; `1738826000000-SeedDaerahBPS.ts` is not used (12 provinces only, codes that do not match the kecamatan CSV) (Phase 05).
 
 ## Phase workflow
