@@ -295,6 +295,15 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
      which is safe only because every upload gets a new UUID object key (backend `StorageService.uploadFile()`). The
      site now really displays Plus Jakarta Sans and Geist Mono (separate commit, revertible). Details in the frontend
      CLAUDE.md "Public page images (Phase 14)".
+   - Jelajah intro bumper (Phase 16, owner decision): opening `/jelajah` first plays a short animated tour of the
+     whole site (6 scenes, 19 s: brand, Arsip PROT with the real public PROT count and photos, the province map with
+     the provinces that have PROT, "Segera hadir" traditional games, events and members from `GET /stats/landing`,
+     simulated XP and Paspor with "Mulai Jelajah"). Built in React + CSS + framer-motion (no video, no sound, no
+     three.js), once per browser session (`sessionStorage`), always skippable ("Lewati", Esc), replayable from
+     "Putar intro" in the hub's "Tampilan" menu, never on a province deep link. The hub loads its data and the 3D chunk
+     behind it. Only real data or neutral text. The site name it shows is one constant, `SITE_NAME` in
+     `nusantara-play-fe/lib/jelajah/brand.ts` (today "Nusantara Virtual", like the navbar). Details in the frontend
+     CLAUDE.md "Intro bumper (Phase 16)".
 10. Real rewards, part 1 (Phase 15, backend only): `nusantara-play-be/src/modules/rewards/`. `RewardsService` is the
     ONLY code that changes XP and Points. Every change is one transaction: `pg_advisory_xact_lock` per user, server-built
     idempotency keys (`PROVINCE_ENTER:{userId}:{provinsiKode}`, `PROT_VIEW:{userId}:{protId}`,
@@ -561,6 +570,8 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Backend after Phase 14: unchanged (only CLAUDE.md and the phase report changed).
 - Backend after Phase 15: unchanged, 220 errors, 29 warnings (every new and touched file is clean).
 - Frontend after Phase 15: unchanged (only CLAUDE.md changed).
+- Frontend after Phase 16: unchanged, 44 errors, 82 warnings (every new and touched file is clean).
+- Backend after Phase 16: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -779,6 +790,26 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - 2026-11-19: Existing e2e failure found in Phase 15, not changed: `test/email-flows.e2e-spec.ts` "registering an
   existing email" expects the emails in the order verification, account_exists, but the background queue sometimes
   delivers them the other way round (failed 2 of 2 full runs on main, about half of the full runs on the Phase 15 branch).
+- 2026-11-19: Owner decisions for Phase 16 (Jelajah intro bumper): a short animated intro on `/jelajah` that shows
+  what the whole site offers before the map; built in code (React + CSS + the existing framer-motion), not a video;
+  plays automatically once per browser session (sessionStorage, try/catch), always skippable, replayable from
+  "Putar intro"; the hub data and the 3D chunk load behind it; no sound; only real data or neutral text; the site
+  name comes from one constant (default: the navbar's "Nusantara Virtual"), so a rename is a one-line change.
+- 2026-11-19: Bumper details (Phase 16): 6 scenes of 3 s (the last 4 s), 19 s in total; "Lewati" and Esc skip;
+  tap, click or Enter go to the next scene (Enter always means "next", so Lewati is pressed with Space, a click or
+  Esc); the bumper is a full-screen `role="dialog"` above the navbar with focus on "Lewati", Tab kept inside, page
+  scrolling locked and the hub `inert` behind it; focus goes to the hub's "Tampilan" button afterwards. The
+  "session" is the browser tab (sessionStorage); when storage is unavailable an in-memory flag limits it to once
+  per page load. Opening a province page also marks the intro as seen, so a visitor who arrived through a deep link
+  does not get it on "Kembali ke peta". Number tiles of the community scene show only numbers above 0 (a 0 says
+  nothing); while a number is unknown (loading, error) the scene shows its text without it.
+- 2026-11-19: Bumper and the tier probe (Phase 16): the first-visit automatic tier probe (0.7 s of frame timing,
+  cached in localStorage) measured the bumper's animations and chose lower tiers (headless check: 6 of 6 runs lower,
+  3 of them 2d). The auto-played bumper therefore waits on its plain cover until the automatic tier is known (at most
+  3 s); afterwards 6 of 6 runs chose full, as without the bumper. On later visits the tier is cached and the bumper
+  starts right after hydration.
+- 2026-11-19: Bumper logo (Phase 16): the site icon `app/apple-icon.png` (180 px, 6 KB, served at
+  `/apple-icon.png`), shown unoptimized next to the accent diamond of the navbar mark; no new image files.
 - 2026-11-17: Local daerah seed reuses `src/database/migrations/002_replace_daerah_data.sql` (34 provinsi + 514 kab/kota, Kemendagri codes) and the `up()` of `src/migrations/1740500100000-SeedKecamatanKelurahanDesa.ts`; `1738826000000-SeedDaerahBPS.ts` is not used (12 provinces only, codes that do not match the kecamatan CSV) (Phase 05).
 
 ## Phase workflow
