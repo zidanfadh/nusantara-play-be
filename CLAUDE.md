@@ -148,7 +148,8 @@ with the default `publik` role (JIT sync).
 - `events/` — event CRUD + registration
 - `calendar/` — personal/team calendar, invites
 - `daerah/` — hierarchical Indonesian regional data; all endpoints `@Public()`
-- `storage/` — AWS S3 file uploads
+- `storage/` — AWS S3 file uploads. Every key is `<folder>/<randomUUID()>.<ext>` (`StorageService.uploadFile()`), so an
+  upload never overwrites an object; keep it that way: the frontend caches optimized images for 31 days (Phase 14).
 - `audit/` — audit logging via `AuditInterceptor` (applied per route with `@UseInterceptors`, currently in auth, nfts, prot (incl. all media routes since Phase 06) and verifikasi controllers — it is NOT global). The stored request body goes through `redactSecrets()` (`audit/redact.ts`): keys like password/token/secret are stored as `[REDACTED]`.
 - `marketplace/` — marketplace: toko, produk, order
 - `nfts/` — NFT catalog
@@ -262,6 +263,12 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
      stays low (never over a manual choice), and PROT photos through Vercel Image Optimization (`/prot` phone cold load
      2983 KB → 617 KB). Still no navbar link to /jelajah and no brand rename (both wait for the boss). Details in the
      frontend CLAUDE.md "Finish, real-device measurement and PROT photos".
+   - Public page images (Phase 14): the landing page uses the same optimized photo approach as /prot (featured PROT
+     through `ProtPhoto`; the desktop-only hero carousel through next/image and never downloaded on phones), so `/` on a
+     phone cold load went from 1597 KB to 666 KB. Optimized images stay cached 31 days (`images.minimumCacheTTL`),
+     which is safe only because every upload gets a new UUID object key (backend `StorageService.uploadFile()`). The
+     site now really displays Plus Jakarta Sans and Geist Mono (separate commit, revertible). Details in the frontend
+     CLAUDE.md "Public page images (Phase 14)".
 
 ## Deployment facts
 
@@ -479,6 +486,10 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
   photo files are gone; every new and touched file is clean). Per rule: no-unused-vars 47 (warn), no-explicit-any 39,
   no-img-element 21 (warn), exhaustive-deps 14 (warn), no-empty-object-type 4, set-state-in-effect 1.
 - Backend after Phase 13: unchanged, 220 errors, 29 warnings (`src/scripts/db-local-setup.ts` is clean).
+- Frontend after Phase 14: unchanged, 44 errors, 82 warnings (every new and touched file is clean except the existing
+  unused `LandingStats` import warning in `app/page.tsx`, also on main; no-img-element stays 21: the replaced `<img>`
+  elements already had disable comments).
+- Backend after Phase 14: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -634,6 +645,30 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
   build downloads fonts any more; `tests/config/fonts.test.ts` fails on a `next/font/google` import. Finding, not changed:
   `globals.css` sets `--font-sans: var(--font-jakarta-sans)` in a plain `@theme` block (emitted on `:root`, where the
   next/font variable does not exist), so the site actually renders in Tailwind's system font stack, before and after.
+  Fixed in Phase 14 (see below).
+- 2026-11-19: Owner decisions for Phase 14: the landing page `/` uses the same optimized photo approach as /prot;
+  `images.minimumCacheTTL` may be raised to 31 days only if every upload gets a new file name; the Phase 13 http-photo
+  rule (http only when both the photo and the page are on a loopback host) is accepted.
+- 2026-11-19: Image cache TTL (Phase 14): `images.minimumCacheTTL` = 2678400 (31 days). Checked in the backend: every
+  upload path (PROT foto/video/dokumen/peralatan, NFT image, `/upload/image|avatar|document|video`) goes through
+  `StorageService.uploadFile()`, which builds the key `<folder>/<randomUUID()>.<ext>` (unchanged since the first
+  commit); `getPresignedUrl(key)` takes a caller key but has no caller; nothing else writes to S3. A replaced photo is
+  a new upload with a new URL, so no cache entry can go stale. Rule: S3 object keys are never reused; if that ever
+  changes, lower the TTL again. Effect: each variant (source URL × width) is transformed at most about once per
+  31 days instead of once per 4 hours of being requested.
+- 2026-11-19: Landing carousel (Phase 14): shown only from `lg` (1024 px), so its photos are static imports passed
+  through `getImageProps` into a `<picture>` whose `<source media="(min-width: 1024px)">` carries the optimized srcset;
+  below `lg` the `<img>` shows a 1x1 data URI and downloads nothing. The first slide (the one visible on load,
+  `hero.webp`) is eager with high fetch priority; `nusland.webp` (renamed from `nusland (1).webp`) is the second slide
+  and lazy. The featured PROT on `/` use `ProtPhoto` `cover` (the /prot variants, no extra transformations).
+- 2026-11-19: Events and NFT pages (Phase 14): no `RemotePhoto` and no new `remotePatterns`, because in production the
+  only event has no banner and the only NFT has no image or gallery, so these pages load no remote images. Revisit when
+  they get images (likely prefixes `/images/nfts/` for NFT uploads; event banners are a free-text URL).
+- 2026-11-19: Fonts displayed (Phase 14, own commit so it can be reverted alone): the two font lines moved to
+  `@theme inline` in `app/globals.css` and the `body` rule uses `var(--font-jakarta-sans)` directly (with the
+  Arial/Helvetica fallbacks), so Plus Jakarta Sans and Geist Mono are used as intended
+  (`tests/config/fonts.test.ts`). Jakarta is wider: the landing navbar's right-hand group got tighter spacing below
+  `sm` (it overflowed by 1 px at 390 px); nothing else overflowed on `/`, `/prot`, a PROT detail and the Jelajah pages.
 - 2026-11-17: Local daerah seed reuses `src/database/migrations/002_replace_daerah_data.sql` (34 provinsi + 514 kab/kota, Kemendagri codes) and the `up()` of `src/migrations/1740500100000-SeedKecamatanKelurahanDesa.ts`; `1738826000000-SeedDaerahBPS.ts` is not used (12 provinces only, codes that do not match the kecamatan CSV) (Phase 05).
 
 ## Phase workflow
