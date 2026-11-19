@@ -32,6 +32,7 @@ import { DataSource, QueryRunner } from 'typeorm';
 import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
 import { buildDataSourceOptions } from '../config/data-source-options';
 import { SeedKecamatanKelurahanDesa1740500100000 } from '../migrations/1740500100000-SeedKecamatanKelurahanDesa';
+import { CreateRewardsLedger1795300000000 } from '../migrations/1795300000000-CreateRewardsLedger';
 import {
   User,
   UserRole,
@@ -162,6 +163,8 @@ export async function setupLocalDatabase(
   try {
     await createExtensions(dataSource);
     await synchronizeSchema(dataSource, log);
+    // Phase 15: the ledger trigger and DESC index (synchronize() cannot create them).
+    await CreateRewardsLedger1795300000000.installDbObjects(dataSource);
     await markMigrationsAsApplied(dataSource, log);
     await seedDaerah(dataSource, log);
     if (setup.demo ?? true) {
