@@ -342,6 +342,15 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
      `nusantara-play-fe/lib/games/gasing/rules.ts` and every text in `texts.ts`, awaiting curator review. Not yet linked
      from the Jelajah pavilion or the bumper (they support one game only). Details in the frontend CLAUDE.md
      "Gasing (Phase 20)".
+   - More provinces (Phase 22): four more provinces are enterable, each a distinct low-poly village built from data
+     with the same engine and the same shared CC0 assets, with its published PROT on a stand: Aceh (dry-season timber
+     stilt houses, an open hall), Kepulauan Riau (a coastal kampung with stilt houses in the sea, a jetty and a Gasing
+     arena that opens `/main/gasing`), Jawa Tengah (a stepped-roof pendopo, rice terraces, a volcano in the haze, bamboo)
+     and Sulawesi Selatan (a pinisi-like boat on the beach, raised houses with tiered gables). Buildings are loose hints
+     ("terinspirasi"), never named in the UI. Provinces without a playable game show a "Game segera hadir" sign (no
+     button). Sumatera Selatan stays the unchanged pilot. Every enterable province is marked on the map ("★ Desa") and has
+     its own simulated Paspor stamp design. Jawa Barat has no scene (its only published record is a test record).
+     Details in the frontend CLAUDE.md "More provinces (Phase 22)".
    - Sound (Phase 21): the concept film and the intro bumper have a gamelan-inspired score and synced sound effects,
      synthesized in code with the Web Audio API (no audio files or samples, no licences, no new dependency). Sound starts
      by itself only when the browser allows it (arriving by an in-app click); otherwise the film plays muted with a
@@ -640,6 +649,8 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Backend after Phase 20: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend after Phase 21: unchanged, 44 errors, 80 warnings (all 38 new and touched source files are clean).
 - Backend after Phase 21: unchanged (only CLAUDE.md and the phase report changed).
+- Frontend after Phase 22: unchanged, 44 errors, 80 warnings (all 41 new and touched source files are clean).
+- Backend after Phase 22: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -962,6 +973,22 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
   timestamp. Cue times come only from `CONCEPT_SCENES`/`BEATS`; the scene components now read the stamp drop, seed
   roll, ring pulse and arc travel timings from `BEATS` too (the passport stamp's drop changed from 160 to 150 ms to
   match its shake). Both players load the engine through `lib/audio/runtime.ts` (one shared chunk).
+- 2026-11-20: More provinces (Phase 22): Aceh, Kepulauan Riau, Jawa Tengah and Sulawesi Selatan are enterable,
+  one scene data file each, no new asset files (the four new scenes reuse `v1/nature.glb` and `v1/player.glb`); every
+  engine extension is an optional field whose default is the old behaviour, so Sumatera Selatan is unchanged (geometry
+  fingerprints recorded on `main`, before/after screenshots differ only in the animated player). Three stands per new
+  province, the published PROT on the one nearest to the spawn point; the others say "Segera hadir" until more PROT
+  are published. Jawa Barat gets no scene (its only published record is "Test Permainan Jawa Barat"); no record is
+  filtered by name in code.
+- 2026-11-20: Multi-game pavilions (Phase 22): `PavilionDef.game` is a union (`congklak` | `gasing`), labels and links
+  from one map (`lib/games/links.ts`), and `from=jelajah-<slug>` is allowlisted per game, so a province's "Kembali ke
+  desa" only appears on the game its pavilion opens. Kepulauan Riau's Gasing arena opens Gasing; provinces without a
+  game show a "Game segera hadir" sign and card (no button). The bumper keeps its single congklak button.
+- 2026-11-20: Distant landmarks (Phase 22): the fixed 40 degree camera never shows the horizon, so islands, hills and
+  the Jawa Tengah volcano stand within about 50 to 95 m of the camera and inside the fog's middle range; they show at
+  the top of portrait views and when walking to the north edge, not on desktop at the spawn point.
+- 2026-11-20: Paspor stamps (Phase 22): one code-drawn SVG stamp per enterable province (own colour and motif), shown in
+  the Paspor and as the icon of the simulated stamp toast; other provinces keep the generic icon.
 - 2026-11-19: Phase 18 follow-ups (owner answers): the Supabase redirect allowlist needs no query variants; removing
   `/landing-page/1` and `/2` waits for the cleanup phase. Phase 19: the Jelajah login page shows a note and a link to the
   games instead of "Masuk sebagai Tamu"; the landing page's featured PROT are requested with `status=ARSIP_NASIONAL` and
