@@ -263,7 +263,7 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
    - Rewards and multiplayer shown in demo phases are SIMULATED until the backend exists: clearly labelled in the UI
      ("Demo"; simulated rewards "Simulasi · tidak disimpan" since Phase 12) and never sent to or saved on the backend.
    - Demos are built on phase branches and shown to the boss through the Vercel preview link before anything is merged
-     to production. No navbar link to /jelajah until the boss has reviewed it.
+     to production. Navbar links to /jelajah and /main exist since Phase 18 (owner decision).
    - Jelajah Nusantara V1 (Phase 10): `/jelajah` hub map of Indonesia (3D with three.js / @react-three/fiber /
      @react-three/drei, plus an SVG 2D fallback) and `/jelajah/sumatera-selatan` ("Segera hadir" placeholder). Frontend
      code lives only in `app/jelajah/`, `components/jelajah/`, `lib/jelajah/`, `public/jelajah/`; details in the frontend
@@ -302,7 +302,7 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
      three.js), once per browser session (`sessionStorage`), always skippable ("Lewati", Esc), replayable from
      "Putar intro" in the hub's "Tampilan" menu, never on a province deep link. The hub loads its data and the 3D chunk
      behind it. Only real data or neutral text. The site name it shows is one constant, `SITE_NAME` in
-     `nusantara-play-fe/lib/jelajah/brand.ts` (today "Nusantara Virtual", like the navbar). Details in the frontend
+     `nusantara-play-fe/lib/brand.ts` (since Phase 18 "Nusantara Legacy", shared by the whole site). Details in the frontend
      CLAUDE.md "Intro bumper (Phase 16)". Since Phase 17 it plays once per DAY per browser (local date in
      `localStorage['jelajah.bumperLastPlayed.v1']`, falling back to once per session when localStorage is
      unavailable), and its scene 4 has a "Main Congklak" button instead of "Segera hadir".
@@ -316,6 +316,16 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
      comes from); the game page links back ("Kembali ke desa"). The landing page's "Mulai Tur Virtual" button and the
      carousel slide that pointed to external tour sites now open `/jelajah`. No navbar link yet. Details in the
      frontend CLAUDE.md "Games (Phase 17)".
+   - Brand, navbar and login gate (Phase 18, owner decisions): the brand is "Nusantara Legacy" everywhere users see
+     it, from one constant (`nusantara-play-fe/lib/brand.ts`, `SITE_NAME`); the navbar links to the Jelajah map
+     ("Jelajah"; "Tur Virtual" on the landing page) and the games ("Game", `/main`), on phones too. **The Jelajah map
+     requires login**: a logged-out visitor of `/jelajah` or `/jelajah/*` is sent to
+     `/login?redirectTo=…&reason=jelajah`, sees "Masuk dulu untuk memulai Tur Virtual. …", and after logging in
+     (email/password or Google) lands on the page they wanted; `redirectTo` is always a validated same-site path.
+     The games under `/main` stay public. The gate uses the frontend's current login (Supabase today) and must move
+     with it when the frontend switches to the self-hosted login. Landing statistics count only published content
+     (ARSIP_NASIONAL PROT and their provinces), like the map and the bumper; numbers that are 0 are hidden. Details
+     in the frontend CLAUDE.md "Brand, navbar and the Jelajah login gate (Phase 18)".
 10. Real rewards, part 1 (Phase 15, backend only): `nusantara-play-be/src/modules/rewards/`. `RewardsService` is the
     ONLY code that changes XP and Points. Every change is one transaction: `pg_advisory_xact_lock` per user, server-built
     idempotency keys (`PROVINCE_ENTER:{userId}:{provinsiKode}`, `PROT_VIEW:{userId}:{protId}`,
@@ -439,6 +449,9 @@ column, so running the migration first is safe for the old code too.
      migrations). down() drops the triggers, the function and the four tables.
    - Env: optionally `POINTS_HOLD_DAYS` (default 7). Nothing else.
    - After deployment: `npm run rewards:reconcile` should report 0 differences (read-only).
+11. Phase 18 landing statistics (no migration, no env): `GET /api/stats/landing` counts `totalProt` and
+   `totalProvinsi` from PROT with status ARSIP_NASIONAL only (`src/modules/stats/stats.service.ts`); events and
+   users unchanged. The frontend already computes the published counts itself, so the order does not matter.
 
 ## Local development
 
@@ -592,6 +605,11 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Frontend after Phase 17: unchanged, 44 errors, 82 warnings (every new and touched file is clean except the existing
   unused `LandingStats` import warning in `app/page.tsx`).
 - Backend after Phase 17: unchanged (only CLAUDE.md and the phase report changed).
+- Frontend after Phase 18: 44 errors, 80 warnings (two warnings fewer in touched files: the unused `LandingStats`
+  import in `app/page.tsx` and the unused `router` in `components/auth/SignupForm.tsx`; every new and touched file
+  has 0 errors; the remaining warnings in touched files existed before: `UserNav.tsx` and `AdminHeader.tsx`
+  no-img-element, two unused imports in the admin dashboard page).
+- Backend after Phase 18: unchanged, 220 errors, 29 warnings (`src/modules/stats/` is clean).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -859,6 +877,27 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
   no movement); the computer waits at least 250 to 550 ms (by speed) before playing so its moves are readable;
   `from=` on the game page is allowlisted (`jelajah` → "Kembali ke peta", `jelajah-<enterable slug>` → "Kembali ke
   desa"), never an open redirect. The bumper's "Main Congklak" opens `/main/congklak?from=jelajah`.
+- 2026-11-19: Owner decisions for Phase 18: the brand is renamed from "Nusantara Virtual" to "Nusantara Legacy"
+  everywhere users see it; navbar links to the Jelajah map and the games are shown now; the Jelajah map requires login
+  (a logged-out visitor of `/jelajah` or `/jelajah/*` sees a notice, logs in and lands on the page they wanted);
+  the games under `/main` stay public; "Mulai Tur Virtual" goes straight to the map for logged-in users (the daily
+  bumper rules still apply); landing statistics count only published content (ARSIP_NASIONAL PROT and their
+  provinces); the gate uses whatever the frontend uses to know a user is logged in (Supabase today) and moves with it
+  when the frontend switches to the self-hosted login.
+- 2026-11-19: Login gate details (Phase 18): the static files under `public/jelajah/geo|assets|demo/` stay public (data,
+  not pages); `redirectTo` keeps the query (`/jelajah?debug=1`), is a validated same-site path, never `/login` or
+  `/signup`, and falls back to `/menu` (the old default); a logged-in visitor on `/login` with a valid `redirectTo`
+  goes there instead of `/profile`. Google sign-in carries the target in a 10-minute `np_post_login` cookie instead of
+  a query on the Supabase redirect URL, so the Supabase redirect allowlist needs no change. The OAuth callback's
+  `next` parameter is validated (it was an open redirect, e.g. `next=@evil.com`). Existing `/login?redirectTo=…`
+  links (events, menu) now work too.
+- 2026-11-19: Navbar on phones (Phase 18): app navbar = a menu button (below `md`) with the same four links, the brand
+  one size smaller and the account chevron hidden below `sm` (fits 360 px with 16 px to spare); landing navbar = a
+  second row with "Tur Virtual" and "Game" below `md`, because its bar (brand, theme, Masuk, Daftar) is already full.
+- 2026-11-19: Landing statistics (Phase 18): computed in the frontend from the public PROT list with the Jelajah map's
+  own code, so they agree with the map and the bumper before the backend change is deployed; the backend
+  `/stats/landing` change (published-only PROT and province counts) waits in "Pending deployment". A province
+  counts when a published PROT has its code and the code is one of the 35 known provinces (the map's rule).
 - 2026-11-17: Local daerah seed reuses `src/database/migrations/002_replace_daerah_data.sql` (34 provinsi + 514 kab/kota, Kemendagri codes) and the `up()` of `src/migrations/1740500100000-SeedKecamatanKelurahanDesa.ts`; `1738826000000-SeedDaerahBPS.ts` is not used (12 provinces only, codes that do not match the kecamatan CSV) (Phase 05).
 
 ## Phase workflow
