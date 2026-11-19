@@ -627,6 +627,13 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
   itself runs on a loopback host (local `next dev` or `next start`), so the local DEMO placeholder also shows in a local
   production build while the deployed site stays https-only.
 - 2026-11-19: Page file (owner, before Phase 13): `D:\pagefile.sys` system managed; a fixed 2 GB page file remains on C:.
+- 2026-11-19: Fonts are self-hosted (Phase 13, after the PR #12 Vercel preview failed): `app/layout.tsx` loads Plus Jakarta
+  Sans (variable, weights 300–800) and Geist Mono (variable, 100–900) with `next/font/local` from
+  `app/fonts/*-latin.woff2` (latin subset, downloaded once from the Google Fonts CSS API, OFL files next to them, sources
+  and SHA-256 in `app/fonts/README.md`); same CSS variables `--font-jakarta-sans` / `--font-geist-mono`, swap, preload. No
+  build downloads fonts any more; `tests/config/fonts.test.ts` fails on a `next/font/google` import. Finding, not changed:
+  `globals.css` sets `--font-sans: var(--font-jakarta-sans)` in a plain `@theme` block (emitted on `:root`, where the
+  next/font variable does not exist), so the site actually renders in Tailwind's system font stack, before and after.
 - 2026-11-17: Local daerah seed reuses `src/database/migrations/002_replace_daerah_data.sql` (34 provinsi + 514 kab/kota, Kemendagri codes) and the `up()` of `src/migrations/1740500100000-SeedKecamatanKelurahanDesa.ts`; `1738826000000-SeedDaerahBPS.ts` is not used (12 provinces only, codes that do not match the kecamatan CSV) (Phase 05).
 
 ## Phase workflow
