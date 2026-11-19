@@ -24,6 +24,7 @@ import { BlockchainModule } from './modules/blockchain/blockchain.module';
 import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { NftsModule } from './modules/nfts/nfts.module';
 import { StatsModule } from './modules/stats/stats.module';
+import { RewardsModule } from './modules/rewards/rewards.module';
 
 // Guards
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -61,6 +62,7 @@ import { UserThrottlerGuard } from './common/guards/user-throttler.guard';
     MarketplaceModule,
     NftsModule,
     StatsModule,
+    RewardsModule, // Phase 15: XP and Points ledger
   ],
   controllers: [AppController],
   providers: [

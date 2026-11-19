@@ -73,6 +73,8 @@ export const TEST_ENV: Readonly<Record<string, string>> = {
   APP_PUBLIC_URL: 'http://localhost:3001',
   EMAIL_VERIFICATION_TTL_HOURS: '24',
   PASSWORD_RESET_TTL_MINUTES: '60',
+  // Phase 15: Points hold period (default).
+  POINTS_HOLD_DAYS: '7',
 };
 
 export function applyTestEnv(): void {

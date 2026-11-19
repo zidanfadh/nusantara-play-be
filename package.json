@@ -29,7 +29,8 @@
     "db:logs": "docker compose -f docker-compose.dev.yml logs -f postgres",
     "db:setup": "ts-node -r tsconfig-paths/register src/scripts/db-local-setup.ts",
     "seed": "npm run db:setup",
-    "auth:generate-keys": "ts-node src/modules/auth-core/scripts/generate-keys.ts"
+    "auth:generate-keys": "ts-node src/modules/auth-core/scripts/generate-keys.ts",
+    "rewards:reconcile": "ts-node -r tsconfig-paths/register src/modules/rewards/scripts/reconcile.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.978.0",
