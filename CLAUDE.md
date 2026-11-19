@@ -638,7 +638,7 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Backend after Phase 19: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend after Phase 20: unchanged, 44 errors, 80 warnings (every new and touched source file is clean).
 - Backend after Phase 20: unchanged (only CLAUDE.md and the phase report changed).
-- Frontend after Phase 21: unchanged, 44 errors, 80 warnings (all 36 new and touched source files are clean).
+- Frontend after Phase 21: unchanged, 44 errors, 80 warnings (all 38 new and touched source files are clean).
 - Backend after Phase 21: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
