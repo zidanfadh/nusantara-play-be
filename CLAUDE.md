@@ -303,7 +303,19 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
      "Putar intro" in the hub's "Tampilan" menu, never on a province deep link. The hub loads its data and the 3D chunk
      behind it. Only real data or neutral text. The site name it shows is one constant, `SITE_NAME` in
      `nusantara-play-fe/lib/jelajah/brand.ts` (today "Nusantara Virtual", like the navbar). Details in the frontend
-     CLAUDE.md "Intro bumper (Phase 16)".
+     CLAUDE.md "Intro bumper (Phase 16)". Since Phase 17 it plays once per DAY per browser (local date in
+     `localStorage['jelajah.bumperLastPlayed.v1']`, falling back to once per session when localStorage is
+     unavailable), and its scene 4 has a "Main Congklak" button instead of "Segera hadir".
+   - Hosted games (Phase 17, owner decision): the site hosts its own traditional games instead of linking to external
+     sites (no files of the old external games exist, so games are built from scratch). The first is congklak in 2D
+     (SVG + CSS, no three.js) at the public page `/main/congklak`, listed on `/main`: against the computer (Mudah,
+     Sedang, Sulit; the AI runs in a Web Worker) or two players on one device. ONE common ruleset, "Aturan dasar",
+     described in the game exactly as implemented and never claimed to be the only correct version; every rule switch
+     lives in one config file, `nusantara-play-fe/lib/games/congklak/rules.ts`, for a curator to adjust. The Sumatera
+     Selatan scene's plaza pavilion opens the game ("Main Congklak", neutral wording, no claim about where congklak
+     comes from); the game page links back ("Kembali ke desa"). The landing page's "Mulai Tur Virtual" button and the
+     carousel slide that pointed to external tour sites now open `/jelajah`. No navbar link yet. Details in the
+     frontend CLAUDE.md "Games (Phase 17)".
 10. Real rewards, part 1 (Phase 15, backend only): `nusantara-play-be/src/modules/rewards/`. `RewardsService` is the
     ONLY code that changes XP and Points. Every change is one transaction: `pg_advisory_xact_lock` per user, server-built
     idempotency keys (`PROVINCE_ENTER:{userId}:{provinsiKode}`, `PROT_VIEW:{userId}:{protId}`,
@@ -329,6 +341,11 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
       `-- --fix` rewrites them. Manual walk-through: `nusantara-play-be/docs/rewards-local-testing.md`.
     - The Jelajah HUD keeps its SIMULATION (item 9) until the frontend switches to the self-hosted login in a later phase;
       only then may it call these endpoints.
+11. Games record nothing yet (owner decision, Phase 17): games are played without logging in, and nothing about a game
+    (moves, results, scores, XP) is recorded or sent to the backend. Only local settings (difficulty, animation speed,
+    last mode) are kept in `localStorage['games.congklak.settings.v1']` (try/catch). A test fails if a game file calls
+    the network or imports API code. A later phase may add rewards for games, but only through server-verified results
+    (item 10: browser-reported results never give Points, and a game result reported by the browser is not proof).
 
 ## Deployment facts
 
@@ -572,6 +589,9 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Frontend after Phase 15: unchanged (only CLAUDE.md changed).
 - Frontend after Phase 16: unchanged, 44 errors, 82 warnings (every new and touched file is clean).
 - Backend after Phase 16: unchanged (only CLAUDE.md and the phase report changed).
+- Frontend after Phase 17: unchanged, 44 errors, 82 warnings (every new and touched file is clean except the existing
+  unused `LandingStats` import warning in `app/page.tsx`).
+- Backend after Phase 17: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -810,6 +830,35 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
   starts right after hydration.
 - 2026-11-19: Bumper logo (Phase 16): the site icon `app/apple-icon.png` (180 px, 6 KB, served at
   `/apple-icon.png`), shown unoptimized next to the accent diamond of the navbar mark; no new image files.
+- 2026-11-19: Owner decisions for Phase 17 (first self-hosted game): the website hosts its own games instead of
+  linking to external sites; no files of the old external games exist, so games are built from scratch; the first is
+  congklak in 2D, light enough for mid-range phones. Games are played without logging in and record nothing (no XP,
+  no scores, nothing sent to the backend); only local settings are kept in localStorage (try/catch). Congklak rules
+  differ between regions: ONE common ruleset ("Aturan dasar") is implemented and described exactly as implemented,
+  without claiming it is the only correct version, with every rule switch in one config file. The landing page's
+  external "virtual tour" links are replaced with `/jelajah`. The Jelajah bumper now plays once per day per browser
+  (local date in localStorage, versioned key; once per session as the fallback when localStorage is unavailable);
+  "Putar intro" and the deep-link rule are unchanged.
+- 2026-11-19: Congklak "Aturan dasar" (Phase 17): 2 rows of 7 holes, 7 seeds each (98), one store per player;
+  sowing anticlockwise towards the own store, skipping the opponent's store; last seed in the own store = move
+  again; in a non-empty small hole (either side) = pick up and keep sowing; in an empty own hole = capture the opposite
+  hole plus that seed when the opposite has seeds (switch `captureRequiresLap`, default off), turn ends; in an empty
+  opponent hole = turn ends; the game ends when the player to move has no seeds in their small holes, and the
+  opponent sweeps their own side into their own store; more seeds wins, equal is a draw. Safety limit 10,000 seeds
+  sown per move (never reached in 1,000 random games; longest move 272 seeds).
+- 2026-11-19: Congklak AI worker (Phase 17): Next 16.1's Turbopack copies `new Worker(new URL('./x.ts',
+  import.meta.url))` files as raw `.ts` assets instead of bundling them (found in the production build; in development
+  the worker failed silently and the AI ran on the main thread). The engine and AI therefore live in one
+  self-contained function (`lib/games/congklak/core.ts`, type-only imports, no classes, async code or generators) and
+  the worker is started from a Blob of its source plus a small handler; a test runs that source in isolation. Without
+  Blob workers (old browser, strict CSP) the move is computed on the main thread with a 40 ms limit. Revisit when
+  Turbopack bundles worker files (then a plain `ai.worker.ts` can replace the Blob).
+- 2026-11-19: Congklak page details (Phase 17): the board is horizontal on landscape and desktop and vertical on
+  portrait phones up to 767 px wide ("Kamu" / "Pemain 1" on the right with their store at the top); hole numbers 1 to 7
+  follow the sowing order; reduced motion and "Tanpa animasi" show the move at once with a short highlight (no hand,
+  no movement); the computer waits at least 250 to 550 ms (by speed) before playing so its moves are readable;
+  `from=` on the game page is allowlisted (`jelajah` → "Kembali ke peta", `jelajah-<enterable slug>` → "Kembali ke
+  desa"), never an open redirect. The bumper's "Main Congklak" opens `/main/congklak?from=jelajah`.
 - 2026-11-17: Local daerah seed reuses `src/database/migrations/002_replace_daerah_data.sql` (34 provinsi + 514 kab/kota, Kemendagri codes) and the `up()` of `src/migrations/1740500100000-SeedKecamatanKelurahanDesa.ts`; `1738826000000-SeedDaerahBPS.ts` is not used (12 provinces only, codes that do not match the kecamatan CSV) (Phase 05).
 
 ## Phase workflow
