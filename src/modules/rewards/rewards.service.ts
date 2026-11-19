@@ -71,6 +71,9 @@ export interface GrantResult {
   pointsWithheld: number;
 }
 
+/** adjust() result; `id` = the new ledger row (AuditInterceptor stores it). */
+export type AdminAdjustResult = GrantResult & { id: string };
+
 export interface AdminAdjustInput {
   userId: string;
   currency: RewardCurrency;
@@ -198,7 +201,10 @@ export class RewardsService {
    * ADMIN_ADJUST row; the ledger is never edited. Refuses a result below 0
    * and positive Points for a user without a verified email.
    */
-  async adjust(adminId: string, input: AdminAdjustInput): Promise<GrantResult> {
+  async adjust(
+    adminId: string,
+    input: AdminAdjustInput,
+  ): Promise<AdminAdjustResult> {
     if (!Number.isInteger(input.amount) || input.amount === 0) {
       throw new BadRequestException('amount must be a non-zero integer');
     }
@@ -229,7 +235,7 @@ export class RewardsService {
           `The ${input.currency} balance would go below 0.`,
         );
       }
-      await this.insertRow(manager, {
+      const id = await this.insertRow(manager, {
         userId: input.userId,
         currency: input.currency,
         amount: input.amount,
@@ -254,7 +260,11 @@ export class RewardsService {
         isPoints ? input.amount : 0,
       );
       const after = await this.readBalance(manager, input.userId);
+      if (id === null) {
+        throw new Error('ADMIN_ADJUST key collision');
+      }
       return {
+        id,
         granted: {
           xp: isPoints ? 0 : input.amount,
           points: isPoints ? input.amount : 0,
@@ -329,7 +339,7 @@ export class RewardsService {
         availableAt: row.availableAt,
         createdAt: now,
       });
-      if (inserted) {
+      if (inserted !== null) {
         if (row.currency === 'XP') {
           xp += row.amount;
         } else {
@@ -367,9 +377,9 @@ export class RewardsService {
       availableAt: Date | null;
       createdAt: Date;
     },
-  ): Promise<boolean> {
+  ): Promise<string | null> {
     // created_at = clock_timestamp(): rows of one transaction keep their order.
-    const inserted = await manager.query<unknown[]>(
+    const inserted = await manager.query<{ id: string }[]>(
       `INSERT INTO reward_ledger
          (user_id, currency, amount, rule_code, source_type, source_id,
           provinsi_kode, idempotency_key, metadata, available_at, created_at)
@@ -389,7 +399,7 @@ export class RewardsService {
         row.availableAt,
       ],
     );
-    return inserted.length > 0;
+    return inserted[0]?.id ?? null;
   }
 
   /** Atomic increments, then level and the Points cache, same transaction. */
