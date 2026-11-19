@@ -329,7 +329,7 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
    - Concept video (Phase 19, owner decision): on the first `/jelajah` visit per browser a ≈48 s animated film ("Kenali"
      + the brand; 8 scenes: games in the courtyard, forgotten, Indonesia lights up, the archive, a province village,
      congklak with XP and a Paspor stamp, the community, start) plays after the intro bumper and before the map. Skippable
-     ("Lewati", Esc), replayable ("Tonton pengenalan"), still frames with reduced motion, no audio, real data only
+     ("Lewati", Esc), replayable ("Tonton pengenalan"), still frames with reduced motion, real data only
      (published PROT names and counts; no Points, prizes or multiplayer promised). Code-driven (React, framer-motion, SVG,
      a particle canvas on the 3D tiers), lazy-loaded, about 38 KB gzip. Every text and timing is in ONE file,
      `nusantara-play-fe/lib/jelajah/concept/script.ts`. The Jelajah login page no longer offers "Masuk sebagai Tamu"
@@ -342,6 +342,13 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
      `nusantara-play-fe/lib/games/gasing/rules.ts` and every text in `texts.ts`, awaiting curator review. Not yet linked
      from the Jelajah pavilion or the bumper (they support one game only). Details in the frontend CLAUDE.md
      "Gasing (Phase 20)".
+   - Sound (Phase 21): the concept film and the intro bumper have a gamelan-inspired score and synced sound effects,
+     synthesized in code with the Web Audio API (no audio files or samples, no licences, no new dependency). Sound starts
+     by itself only when the browser allows it (arriving by an in-app click); otherwise the film plays muted with a
+     "Nyalakan suara" button. A sound toggle ("Suara") next to "Lewati", remembered per browser
+     (`localStorage['np_sound_muted_v1']`) for both intros. Reduced motion keeps the sound. A voice-over can be added per
+     scene later (none exist). The audio code loads only with the intros. Details in the frontend CLAUDE.md
+     "Sound (Phase 21)".
 10. Real rewards, part 1 (Phase 15, backend only): `nusantara-play-be/src/modules/rewards/`. `RewardsService` is the
     ONLY code that changes XP and Points. Every change is one transaction: `pg_advisory_xact_lock` per user, server-built
     idempotency keys (`PROVINCE_ENTER:{userId}:{provinsiKode}`, `PROT_VIEW:{userId}:{protId}`,
@@ -631,6 +638,8 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Backend after Phase 19: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend after Phase 20: unchanged, 44 errors, 80 warnings (every new and touched source file is clean).
 - Backend after Phase 20: unchanged (only CLAUDE.md and the phase report changed).
+- Frontend after Phase 21: unchanged, 44 errors, 80 warnings (all 36 new and touched source files are clean).
+- Backend after Phase 21: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -945,6 +954,14 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - 2026-11-19: Gasing canvas (Phase 20): the browser's default (GPU-backed) 2D canvas, static arena on its own canvas,
   compositor-only shake and meters. `desynchronized: true` is forbidden (frames bypassed the compositor and the tops
   were missing from screenshots, while the fps looked high).
+- 2026-11-20: Concept film sound (Phase 21): everything synthesized with the Web Audio API in plain JS (instrument
+  buffers rendered once in a Web Worker from a self-contained core, not with OfflineAudioContext: identical in every
+  browser and in Node tests, never blocks the film); one shared ConvolverNode reverb instead of reverb baked into each
+  buffer (render cost); pelog-inspired pitch set in `lib/audio/pitch.ts`. Sound plays automatically only when the
+  browser allows it; otherwise "Nyalakan suara". The scheduler follows the film's own clock and the audio output
+  timestamp. Cue times come only from `CONCEPT_SCENES`/`BEATS`; the scene components now read the stamp drop, seed
+  roll, ring pulse and arc travel timings from `BEATS` too (the passport stamp's drop changed from 160 to 150 ms to
+  match its shake). Both players load the engine through `lib/audio/runtime.ts` (one shared chunk).
 - 2026-11-19: Phase 18 follow-ups (owner answers): the Supabase redirect allowlist needs no query variants; removing
   `/landing-page/1` and `/2` waits for the cleanup phase. Phase 19: the Jelajah login page shows a note and a link to the
   games instead of "Masuk sebagai Tamu"; the landing page's featured PROT are requested with `status=ARSIP_NASIONAL` and
