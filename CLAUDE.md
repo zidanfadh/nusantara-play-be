@@ -335,6 +335,13 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
      `nusantara-play-fe/lib/jelajah/concept/script.ts`. The Jelajah login page no longer offers "Masuk sebagai Tamu"
      (the map needs an account; the games stay open) and the landing page's featured PROT are published only. Details
      in the frontend CLAUDE.md "Concept video (Phase 19)".
+   - Gasing (Phase 20): the second self-hosted game, `/main/gasing` (public, listed on `/main` next to Congklak), 2D
+     canvas, against the computer (Mudah, Sedang, Sulit) in two modes based on the published archive record "Gasing"
+     (Kepulauan Riau): Uri (longest spin wins) and Pangkah (strike the opponent's spinning top; roles swap). Slingshot
+     throw by touch/mouse or keyboard, best of 3, records nothing (item 11). ONE ruleset "Aturan dasar" in
+     `nusantara-play-fe/lib/games/gasing/rules.ts` and every text in `texts.ts`, awaiting curator review. Not yet linked
+     from the Jelajah pavilion or the bumper (they support one game only). Details in the frontend CLAUDE.md
+     "Gasing (Phase 20)".
 10. Real rewards, part 1 (Phase 15, backend only): `nusantara-play-be/src/modules/rewards/`. `RewardsService` is the
     ONLY code that changes XP and Points. Every change is one transaction: `pg_advisory_xact_lock` per user, server-built
     idempotency keys (`PROVINCE_ENTER:{userId}:{provinsiKode}`, `PROT_VIEW:{userId}:{protId}`,
@@ -363,7 +370,8 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
 11. Games record nothing yet (owner decision, Phase 17): games are played without logging in, and nothing about a game
     (moves, results, scores, XP) is recorded or sent to the backend. Only local settings (difficulty, animation speed,
     last mode) are kept in `localStorage['games.congklak.settings.v1']` (try/catch). A test fails if a game file calls
-    the network or imports API code. A later phase may add rewards for games, but only through server-verified results
+    the network or imports API code. Gasing (Phase 20) follows the same rule: `localStorage['games.gasing.settings.v1']`
+    (mode, level) and `localStorage['games.gasing.tutorialSeen.v1']` only. A later phase may add rewards for games, but only through server-verified results
     (item 10: browser-reported results never give Points, and a game result reported by the browser is not proof).
 
 ## Deployment facts
@@ -621,6 +629,8 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Backend after Phase 18: unchanged, 220 errors, 29 warnings (`src/modules/stats/` is clean).
 - Frontend after Phase 19: unchanged, 44 errors, 80 warnings (all 42 new and touched source files are clean).
 - Backend after Phase 19: unchanged (only CLAUDE.md and the phase report changed).
+- Frontend after Phase 20: unchanged, 44 errors, 80 warnings (every new and touched source file is clean).
+- Backend after Phase 20: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -926,6 +936,15 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
   checks used a fake Supabase auth endpoint on localhost (`/auth/v1/user` answering a test user) and a matching session
   cookie, in scratch files on D: only (never committed); requests to `/backend-api` had their Authorization header removed,
   so production saw only plain public read-only GETs.
+- 2026-11-19: Gasing (Phase 20): the published archive record "Gasing" (Kepulauan Riau) describes Gasing Uri and Gasing
+  Pangkah, so the game implements both, paraphrasing and crediting the record (linked to its `/prot` page). Decisions:
+  both tops are identical (a heavier "pemangkah" striker made the striker win ~90 % of rounds); the Pangkah round is
+  decided like Uri, by spin time measured from each top's own landing, plus out = loss (so a waiting striker gains
+  nothing and a hit pays off by shortening the target's spin); a shaky release scatters the landing point so release
+  quality also means accuracy; the computer's Sulit search is cheap enough for the main thread (no worker).
+- 2026-11-19: Gasing canvas (Phase 20): the browser's default (GPU-backed) 2D canvas, static arena on its own canvas,
+  compositor-only shake and meters. `desynchronized: true` is forbidden (frames bypassed the compositor and the tops
+  were missing from screenshots, while the fps looked high).
 - 2026-11-19: Phase 18 follow-ups (owner answers): the Supabase redirect allowlist needs no query variants; removing
   `/landing-page/1` and `/2` waits for the cleanup phase. Phase 19: the Jelajah login page shows a note and a link to the
   games instead of "Masuk sebagai Tamu"; the landing page's featured PROT are requested with `status=ARSIP_NASIONAL` and
