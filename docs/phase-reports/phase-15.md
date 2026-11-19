@@ -165,8 +165,8 @@ Rewards tests alone: unit 4 suites / 77 tests, integration 1 suite / 12 tests, e
 
 In this run, the known intermittent failure in `test/email-flows.e2e-spec.ts` (see 9) did not occur.
 
-Free disk space after resuming (before and after verification, rounded): **C: 12.9 GB, D: 345.4 GB**. This is above the
-3 GB limit, and all caches are on D:.
+Free disk space after resuming: before verification **C: 12.9 GB, D: 345.4 GB**; after verification and the report
+commit **C: 12.8 GB, D: 345.4 GB**. Both are well above the limits (C: 3 GB, D: 10 GB), and all caches are on D:.
 
 ## 7. Manual checks
 
