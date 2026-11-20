@@ -20,6 +20,8 @@ import { DaerahService } from '../daerah/daerah.service';
 import { StorageService } from '../storage/storage.service';
 import { VerifikasiQueue } from './entities/verifikasi-queue.entity';
 import { User, UserRole } from '../users/entities/user.entity';
+import { AuditLog } from '../audit/entities/audit-log.entity';
+import { AUDIT_SELF_REVIEW_OVERRIDE, checkSelfReview } from './self-review';
 
 /** The fields of the acting user that the edit rules need. */
 type ActingUser = Pick<User, 'id' | 'role'>;
@@ -40,6 +42,8 @@ export class PROTService {
     private queueRepository: Repository<VerifikasiQueue>,
     private daerahService: DaerahService,
     private storageService: StorageService,
+    @InjectRepository(AuditLog)
+    private auditRepository: Repository<AuditLog>,
   ) {}
 
   async create(createPROTDto: CreatePROTDto, user: User): Promise<PROT> {
@@ -602,7 +606,11 @@ export class PROTService {
     return prot;
   }
 
-  async resubmitAfterRevisi(protId: string, userId: string): Promise<PROT> {
+  async resubmitAfterRevisi(
+    protId: string,
+    userId: string,
+    catatan?: string | null,
+  ): Promise<PROT> {
     const prot = await this.protRepository.findOne({
       where: { id: protId },
     });
@@ -629,10 +637,11 @@ export class PROTService {
 
     await this.protRepository.save(prot);
 
-    // Re-create queue entry
+    // Re-create queue entry; since Phase 26 with the contributor's note, like submitKurasi (B7).
     const queue = this.queueRepository.create({
       prot_id: protId,
       priority: 0,
+      catatan_kurator: catatan?.trim() || null,
     });
 
     await this.queueRepository.save(queue);
@@ -640,7 +649,15 @@ export class PROTService {
     return prot;
   }
 
-  async publishToArsipNasional(protId: string, adminId: string): Promise<PROT> {
+  /**
+   * Phase 26: the publisher must not be the creator (`checkSelfReview`): an admin who created the record needs
+   * `overrideReason`, audited before the status changes.
+   */
+  async publishToArsipNasional(
+    protId: string,
+    adminId: string,
+    options: { role?: UserRole | string; overrideReason?: string | null } = {},
+  ): Promise<PROT> {
     const prot = await this.protRepository.findOne({
       where: { id: protId },
     });
@@ -653,6 +670,28 @@ export class PROTService {
     if (prot.status !== PROTStatus.DIVERIFIKASI) {
       throw new BadRequestException(
         `PROT dengan status ${prot.status} tidak bisa dipublish. Harus DIVERIFIKASI dulu.`,
+      );
+    }
+
+    const selfReview = checkSelfReview({
+      creatorId: prot.created_by,
+      actor: { id: adminId, role: options.role ?? UserRole.ADMIN_KPOTI },
+      step: 'publish',
+      overrideReason: options.overrideReason,
+    });
+    if (selfReview.override) {
+      await this.auditRepository.save(
+        this.auditRepository.create({
+          user_id: adminId,
+          action: AUDIT_SELF_REVIEW_OVERRIDE,
+          entity_type: 'prot',
+          entity_id: protId,
+          changes: {
+            step: 'publish',
+            reason: selfReview.reason,
+            statusBefore: prot.status,
+          },
+        }),
       );
     }
 

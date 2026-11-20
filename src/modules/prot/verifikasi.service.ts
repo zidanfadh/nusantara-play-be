@@ -16,6 +16,8 @@ import { DaerahService } from '../daerah/daerah.service';
 import { DaerahLevel } from '../daerah/entities/daerah.entity';
 import { UserRole } from '../users/entities/user.entity';
 import { stripPrivateUserFields } from '../../common/serializers/user-shape';
+import { AuditLog } from '../audit/entities/audit-log.entity';
+import { AUDIT_SELF_REVIEW_OVERRIDE, checkSelfReview } from './self-review';
 
 interface ReviewerContext {
   role?: UserRole;
@@ -50,6 +52,8 @@ export class VerifikasiService {
     private readonly protRepository: Repository<PROT>,
     private readonly blockchainService: BlockchainService,
     private readonly daerahService: DaerahService,
+    @InjectRepository(AuditLog)
+    private readonly auditRepository: Repository<AuditLog>,
   ) {}
 
   /**
@@ -165,6 +169,13 @@ export class VerifikasiService {
 
     await this.ensureKuratorCanAccessProt(queue.prot, reviewer);
 
+    // Phase 26: nobody claims their own record (an admin may; the decision then needs a reason).
+    checkSelfReview({
+      creatorId: queue.prot.created_by,
+      actor: { id: pakarId, role: reviewer?.role },
+      step: 'pick',
+    });
+
     // Race-safe claim (B5): only one concurrent pick can change the row from
     // unassigned to assigned. assigned_at is a JS Date parameter, the same
     // convention as before (timestamp without time zone, app clock).
@@ -249,6 +260,30 @@ export class VerifikasiService {
     }
 
     await this.ensureKuratorCanAccessProt(prot, reviewer);
+
+    // Phase 26: no decision on one's own record; an admin overrides only with a reason, audited first.
+    const selfReview = checkSelfReview({
+      creatorId: prot.created_by,
+      actor: { id: pakarId, role: reviewer?.role },
+      step: 'review',
+      overrideReason: reviewDto.selfReviewOverrideReason,
+    });
+    if (selfReview.override) {
+      await this.auditRepository.save(
+        this.auditRepository.create({
+          user_id: pakarId,
+          action: AUDIT_SELF_REVIEW_OVERRIDE,
+          entity_type: 'prot',
+          entity_id: protId,
+          changes: {
+            step: 'review',
+            decision: reviewDto.status,
+            reason: selfReview.reason,
+            statusBefore: prot.status,
+          },
+        }),
+      );
+    }
 
     // 2. Create verifikasi record
     const verifikasi = this.verifikasiRepository.create({

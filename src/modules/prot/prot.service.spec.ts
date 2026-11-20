@@ -11,6 +11,8 @@ import {
 import { VerifikasiQueue } from './entities/verifikasi-queue.entity';
 import { DaerahService } from '../daerah/daerah.service';
 import { StorageService } from '../storage/storage.service';
+import { AuditLog } from '../audit/entities/audit-log.entity';
+import { AUDIT_SELF_REVIEW_OVERRIDE } from './self-review';
 import {
   NotFoundException,
   BadRequestException,
@@ -41,6 +43,12 @@ describe('PROTService', () => {
     findAncestors: jest.fn(),
   };
 
+  // Phase 26: self-review override audit rows.
+  const mockAuditRepository = {
+    create: jest.fn((entry: unknown) => entry),
+    save: jest.fn((entry: unknown) => Promise.resolve(entry)),
+  };
+
   const mockStorageService = {
     uploadFile: jest.fn(),
     deleteFile: jest.fn(),
@@ -65,6 +73,10 @@ describe('PROTService', () => {
         {
           provide: StorageService,
           useValue: mockStorageService,
+        },
+        {
+          provide: getRepositoryToken(AuditLog),
+          useValue: mockAuditRepository,
         },
       ],
     }).compile();
@@ -796,6 +808,101 @@ describe('PROTService', () => {
       expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
         'https://bucket/alat-1.jpg',
       );
+    });
+  });
+
+  describe('Phase 26: resubmit note and self-publish rule', () => {
+    it('resubmitAfterRevisi stores the note on the new queue entry (trimmed; empty = null)', async () => {
+      mockProtRepository.findOne.mockResolvedValue({
+        id: 'prot-1',
+        status: PROTStatus.REVISI,
+        created_by: 'user-1',
+      });
+      mockProtRepository.save.mockImplementation((p: unknown) =>
+        Promise.resolve(p),
+      );
+      mockQueueRepository.create.mockImplementation((q: unknown) => q);
+      mockQueueRepository.save.mockResolvedValue({});
+
+      await service.resubmitAfterRevisi('prot-1', 'user-1', '  Foto diganti ');
+      expect(mockQueueRepository.create).toHaveBeenLastCalledWith({
+        prot_id: 'prot-1',
+        priority: 0,
+        catatan_kurator: 'Foto diganti',
+      });
+
+      mockProtRepository.findOne.mockResolvedValue({
+        id: 'prot-1',
+        status: PROTStatus.REVISI,
+        created_by: 'user-1',
+      });
+      await service.resubmitAfterRevisi('prot-1', 'user-1');
+      expect(mockQueueRepository.create).toHaveBeenLastCalledWith({
+        prot_id: 'prot-1',
+        priority: 0,
+        catatan_kurator: null,
+      });
+    });
+
+    const verified = (createdBy: string) => ({
+      id: 'prot-1',
+      status: PROTStatus.DIVERIFIKASI,
+      created_by: createdBy,
+    });
+
+    it('refuses an admin publishing their own record without a reason', async () => {
+      mockProtRepository.findOne.mockResolvedValue(verified('admin-1'));
+      await expect(
+        service.publishToArsipNasional('prot-1', 'admin-1', {
+          role: UserRole.ADMIN_KPOTI,
+        }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockProtRepository.save).not.toHaveBeenCalled();
+      expect(mockAuditRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('lets an admin publish their own record with a reason, audited before the save', async () => {
+      mockProtRepository.findOne.mockResolvedValue(verified('admin-1'));
+      const order: string[] = [];
+      mockAuditRepository.save.mockImplementationOnce((e: unknown) => {
+        order.push('audit');
+        return Promise.resolve(e);
+      });
+      mockProtRepository.save.mockImplementationOnce((p: unknown) => {
+        order.push('save');
+        return Promise.resolve(p);
+      });
+
+      const result = await service.publishToArsipNasional('prot-1', 'admin-1', {
+        role: UserRole.ADMIN_KPOTI,
+        overrideReason: 'Tidak ada admin lain saat ini',
+      });
+
+      expect(result.status).toBe(PROTStatus.ARSIP_NASIONAL);
+      expect(order).toEqual(['audit', 'save']);
+      expect(mockAuditRepository.create).toHaveBeenCalledWith({
+        user_id: 'admin-1',
+        action: AUDIT_SELF_REVIEW_OVERRIDE,
+        entity_type: 'prot',
+        entity_id: 'prot-1',
+        changes: {
+          step: 'publish',
+          reason: 'Tidak ada admin lain saat ini',
+          statusBefore: PROTStatus.DIVERIFIKASI,
+        },
+      });
+    });
+
+    it('publishes a record of another creator without a reason and writes no override row', async () => {
+      mockProtRepository.findOne.mockResolvedValue(verified('user-9'));
+      mockProtRepository.save.mockImplementation((p: unknown) =>
+        Promise.resolve(p),
+      );
+      const result = await service.publishToArsipNasional('prot-1', 'admin-1', {
+        role: UserRole.ADMIN_KPOTI,
+      });
+      expect(result.status).toBe(PROTStatus.ARSIP_NASIONAL);
+      expect(mockAuditRepository.save).not.toHaveBeenCalled();
     });
   });
 });

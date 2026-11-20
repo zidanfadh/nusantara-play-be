@@ -14,6 +14,8 @@ import { BlockchainService } from '../blockchain/blockchain.service';
 import { DaerahService } from '../daerah/daerah.service';
 import { DaerahLevel } from '../daerah/entities/daerah.entity';
 import { UserRole } from '../users/entities/user.entity';
+import { AuditLog } from '../audit/entities/audit-log.entity';
+import { AUDIT_SELF_REVIEW_OVERRIDE } from './self-review';
 
 describe('VerifikasiService', () => {
   let service: VerifikasiService;
@@ -64,6 +66,12 @@ describe('VerifikasiService', () => {
     findAncestors: jest.fn(),
   };
 
+  // Phase 26: self-review override audit rows.
+  const mockAuditRepository = {
+    create: jest.fn((entry: unknown) => entry),
+    save: jest.fn((entry: unknown) => Promise.resolve(entry)),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -87,6 +95,10 @@ describe('VerifikasiService', () => {
         {
           provide: DaerahService,
           useValue: mockDaerahService,
+        },
+        {
+          provide: getRepositoryToken(AuditLog),
+          useValue: mockAuditRepository,
         },
       ],
     }).compile();
@@ -631,6 +643,137 @@ describe('VerifikasiService', () => {
       expect(result.queue.totalPending).toBe(5);
       expect(result.verifikasi.totalApproved).toBeDefined();
       expect(result.protByStatus).toBeDefined();
+    });
+  });
+
+  describe('Phase 26: no self-review', () => {
+    const ownQueue = () => ({
+      id: 'queue-1',
+      prot_id: 'prot-1',
+      prot: {
+        id: 'prot-1',
+        status: PROTStatus.DIKURASI,
+        created_by: 'user-1',
+        provinsiKode: '16',
+      },
+      assigned_pakar_id: null,
+    });
+
+    it.each([UserRole.PAKAR, UserRole.KURATOR_DAERAH])(
+      '%s cannot claim a record they created',
+      async (role) => {
+        mockQueueRepository.findOne.mockResolvedValueOnce(ownQueue());
+        mockDaerahService.findAncestors.mockResolvedValue([
+          { level: DaerahLevel.PROVINSI, kode: '16' },
+        ]);
+        await expect(
+          service.pickFromQueue('queue-1', 'user-1', {
+            role,
+            daerah_id: 'd-1',
+          }),
+        ).rejects.toThrow(ForbiddenException);
+        expect(mockUpdateBuilder.execute).not.toHaveBeenCalled();
+      },
+    );
+
+    it('an admin may claim their own record (the decision then needs a reason)', async () => {
+      mockQueueRepository.findOne
+        .mockResolvedValueOnce(ownQueue())
+        .mockResolvedValueOnce({ ...ownQueue(), assigned_pakar_id: 'user-1' });
+      mockUpdateBuilder.execute.mockResolvedValue({ affected: 1 });
+      const result = await service.pickFromQueue('queue-1', 'user-1', {
+        role: UserRole.ADMIN_KPOTI,
+      });
+      expect(result.assigned_pakar_id).toBe('user-1');
+    });
+
+    it('a pakar cannot decide on a record they created, even when assigned', async () => {
+      mockQueueRepository.findOne.mockResolvedValue({
+        ...ownQueue(),
+        assigned_pakar_id: 'user-1',
+      });
+      await expect(
+        service.submitReview(
+          'prot-1',
+          'user-1',
+          { status: VerifikasiStatus.APPROVED },
+          { role: UserRole.PAKAR },
+        ),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockVerifikasiRepository.save).not.toHaveBeenCalled();
+      expect(mockProtRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('an admin needs selfReviewOverrideReason; with it the override is audited before the decision', async () => {
+      mockQueueRepository.findOne.mockResolvedValue({
+        ...ownQueue(),
+        assigned_pakar_id: 'user-1',
+      });
+      await expect(
+        service.submitReview(
+          'prot-1',
+          'user-1',
+          { status: VerifikasiStatus.APPROVED },
+          { role: UserRole.ADMIN_KPOTI },
+        ),
+      ).rejects.toThrow(ForbiddenException);
+      expect(mockAuditRepository.save).not.toHaveBeenCalled();
+
+      const order: string[] = [];
+      mockAuditRepository.save.mockImplementationOnce((e: unknown) => {
+        order.push('audit');
+        return Promise.resolve(e);
+      });
+      mockVerifikasiRepository.create.mockImplementation((v: unknown) => v);
+      mockVerifikasiRepository.save.mockImplementation((v: unknown) => {
+        order.push('verifikasi');
+        return Promise.resolve(v);
+      });
+      mockProtRepository.save.mockResolvedValue({});
+      mockQueueRepository.remove.mockResolvedValue({});
+
+      await service.submitReview(
+        'prot-1',
+        'user-1',
+        {
+          status: VerifikasiStatus.APPROVED,
+          selfReviewOverrideReason: 'Satu-satunya pakar di provinsi ini',
+        },
+        { role: UserRole.ADMIN_KPOTI },
+      );
+      expect(order).toEqual(['audit', 'verifikasi']);
+      expect(mockAuditRepository.create).toHaveBeenCalledWith({
+        user_id: 'user-1',
+        action: AUDIT_SELF_REVIEW_OVERRIDE,
+        entity_type: 'prot',
+        entity_id: 'prot-1',
+        changes: {
+          step: 'review',
+          decision: VerifikasiStatus.APPROVED,
+          reason: 'Satu-satunya pakar di provinsi ini',
+          statusBefore: PROTStatus.DIKURASI,
+        },
+      });
+    });
+
+    it('reviewing a record of another creator is unchanged and writes no override row', async () => {
+      mockQueueRepository.findOne.mockResolvedValue({
+        ...ownQueue(),
+        assigned_pakar_id: 'pakar-2',
+      });
+      mockVerifikasiRepository.create.mockImplementation((v: unknown) => v);
+      mockVerifikasiRepository.save.mockImplementation((v: unknown) =>
+        Promise.resolve(v),
+      );
+      mockProtRepository.save.mockResolvedValue({});
+      mockQueueRepository.remove.mockResolvedValue({});
+      await service.submitReview(
+        'prot-1',
+        'pakar-2',
+        { status: VerifikasiStatus.APPROVED },
+        { role: UserRole.PAKAR },
+      );
+      expect(mockAuditRepository.save).not.toHaveBeenCalled();
     });
   });
 });

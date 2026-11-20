@@ -9,6 +9,7 @@ import { ProtAdminService } from './prot-admin.service';
 import { PROT } from './entities/prot.entity';
 import { Verifikasi } from './entities/verifikasi.entity';
 import { VerifikasiQueue } from './entities/verifikasi-queue.entity';
+import { AuditLog } from '../audit/entities/audit-log.entity';
 import { StorageModule } from '../storage/storage.module';
 import { DaerahModule } from '../daerah/daerah.module';
 import { AuditModule } from '../audit/audit.module';
@@ -17,7 +18,7 @@ import { BlockchainModule } from '../blockchain/blockchain.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PROT, Verifikasi, VerifikasiQueue]),
+    TypeOrmModule.forFeature([PROT, Verifikasi, VerifikasiQueue, AuditLog]),
     StorageModule,
     DaerahModule,
     AuditModule,

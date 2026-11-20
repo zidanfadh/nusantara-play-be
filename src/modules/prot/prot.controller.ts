@@ -203,7 +203,13 @@ export class PROTController {
   async resubmitAfterRevisi(
     @Param('id') id: string,
     @CurrentUser() user: User,
+    // Phase 26: optional note, like submit-kurasi (the route had no body before; an empty body still works).
+    @Body() submitDto: SubmitKurasiDto,
   ) {
-    return this.protService.resubmitAfterRevisi(id, user.id);
+    return this.protService.resubmitAfterRevisi(
+      id,
+      user.id,
+      submitDto?.catatan,
+    );
   }
 }

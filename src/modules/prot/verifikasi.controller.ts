@@ -109,7 +109,10 @@ export class VerifikasiController {
     @CurrentUser() user: User,
     @Body() publishDto: PublishProtDto,
   ) {
-    return this.protService.publishToArsipNasional(protId, user.id);
+    return this.protService.publishToArsipNasional(protId, user.id, {
+      role: user.role,
+      overrideReason: publishDto.selfReviewOverrideReason,
+    });
   }
 
   @Get('stats')
