@@ -167,7 +167,7 @@ with the default `publik` role (JIT sync).
 - `auth/` — Supabase client, `POST /auth/change-password` (local accounts → `LocalAuthService`, Supabase accounts → legacy flow), legacy Supabase strategy in `auth/legacy/`
 - `auth-core/` — self-hosted auth (Phase 07): `PasswordService` (Argon2id, legacy bcrypt verify, policy), `KeyService` + `TokenService` (RS256 access tokens, JWKS), `RefreshTokenService` (rotation, reuse detection, cleanup), `local-jwt` strategy, `GET /api/auth/jwks.json`, entities `user_credentials`, `refresh_tokens`, `auth_identities`. No Supabase dependency. Since Phase 08: `LocalAuthController` (register, login, refresh, logout, logout-all), `LocalAuthService`, `LoginEmailLimiter`, `AuthErrorFilter` (keeps the `error` code of refresh errors and the `code` of email-token errors), cookie helpers. Since Phase 09: `EmailFlowsController`/`EmailFlowsService` (verify-email, resend-verification, forgot-password, reset-password), `AuthTokenService`, `EmailSendLimiter`, `AuthCleanupScheduler`, entities `auth_tokens`, `email_verifications`, helpers `auth-users.ts` and `email-verification.ts`.
 - `users/` — profile management, admin role assignment, admin-created users
-- `prot/` — PROT CRUD + verification workflow (`verifikasi.service.ts`); since Phase 25 `AdminProtController` + `ProtAdminService` (`/api/admin/prot/:id/media/remove`, `/api/admin/prot/:id/revisi`, admin_kpoti, any status, own audit row; pending deploy)
+- `prot/` — PROT CRUD + verification workflow (`verifikasi.service.ts`; since Phase 26 the no-self-review rule in `self-review.ts`, pending deploy); since Phase 25 `AdminProtController` + `ProtAdminService` (`/api/admin/prot/:id/media/remove`, `/api/admin/prot/:id/revisi`, admin_kpoti, any status, own audit row; pending deploy)
 - `blockchain/` — Polygon anchoring via ethers.js (deprioritized)
 - `events/` — event CRUD + registration
 - `calendar/` — personal/team calendar, invites
@@ -376,6 +376,15 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
      labels "Main Egrang Bambu" / "Main Egrang Batok"; every bumper scene uses the dense short-screen layout. Staff guide:
      `nusantara-play-be/docs/panduan-input-prot.md`. Details in the frontend CLAUDE.md "Hidden media and documents
      (Phase 25)".
+   - PROT form and review (Phase 26, from the Phase 25 findings): the form has "Deskripsi Singkat" (shown in the Jelajah
+     stand panel, about 280 characters, and on `/prot/[id]`) and "Jumlah Pemain" (integer >= 1), marks the fields
+     recommended for Jelajah, offers only the upload types and sizes the server accepts (no DOC/DOCX) with Indonesian
+     errors, and sends only the DTO's keys. "Ajukan Verifikasi" / "Ajukan Ulang" opens a dialog with a five-point
+     checklist (not stored) and the contributor's own note; REVISI records use the resubmit route and show the reviewer's
+     notes. The review page shows every text and media item and warns a reviewer who created the record. Works with the
+     deployed backend; the backend half (no self-review, resubmit note) is Pending deployment item 13, and the frontend
+     flags `NEXT_PUBLIC_PROT_RESUBMIT_NOTE` / `NEXT_PUBLIC_PROT_SELF_REVIEW_RULE` stay off until then. Details in the
+     frontend CLAUDE.md "PROT form and review (Phase 26)".
 10. Real rewards, part 1 (Phase 15, backend only): `nusantara-play-be/src/modules/rewards/`. `RewardsService` is the
     ONLY code that changes XP and Points. Every change is one transaction: `pg_advisory_xact_lock` per user, server-built
     idempotency keys (`PROVINCE_ENTER:{userId}:{provinsiKode}`, `PROT_VIEW:{userId}:{protId}`,
@@ -532,6 +541,21 @@ column, so running the migration first is safe for the old code too.
      5. If the curator must rework the record: `POST .../752aeea4-.../revisi` `{"reason":"..."}`.
      6. `GET /api/prot/752aeea4-a9c4-455b-a216-71f508bcfe3c` shows `dokumenKurikulum: []`. The frontend denylist entries
         may stay (harmless) or be removed in a later phase.
+13. Phase 26 PROT review rules (no migration, no env; the old frontend keeps working):
+   - No self-review (`src/modules/prot/self-review.ts`): the creator of a PROT cannot claim it from the queue
+     (`POST /api/verifikasi/queue/:id/pick`), decide on it (`POST /api/verifikasi/:protId/review`) or publish it
+     (`POST /api/verifikasi/prot/:protId/publish`): 403, any role. An `admin_kpoti` creator may claim it, but the decision
+     and the publish need `selfReviewOverrideReason` (10 to 500 characters; new optional field of `VerifikasiReviewDto`
+     and `PublishProtDto`); one `audit_logs` row `PROT_SELF_REVIEW_OVERRIDE` (who, step, decision, reason, status
+     before) is written BEFORE the decision.
+   - `POST /api/prot/:id/resubmit` accepts the optional body `{ catatan }` (max 500) and stores it as
+     `verifikasi_queue.catatan_kurator` (needs the item 1 migration, like submit-kurasi); an empty body still works.
+   - **After deployment**, set in Vercel (Production) and redeploy the frontend: `NEXT_PUBLIC_PROT_RESUBMIT_NOTE=true`
+     (the resubmit dialog sends the note) and `NEXT_PUBLIC_PROT_SELF_REVIEW_RULE=true` (the review page blocks
+     non-admin self-review and asks admins for the reason; publish asks for it too). Never turn them on before the
+     backend deploy: the old DTO rejects `selfReviewOverrideReason` and the whole request fails.
+   - Check: a pakar who created a DIKURASI record gets 403 on pick; `audit_logs` gets a `PROT_SELF_REVIEW_OVERRIDE` row
+     when an admin decides on or publishes their own record with a reason.
 
 ## Local development
 
@@ -622,6 +646,11 @@ Small known problems that a later phase should fix. Do not fix them in passing.
   (`nusantara-play-fe/tests/games/gasing-integration.test.tsx`) once hit Vitest's default 5 s test timeout while the
   machine was under load (a production build and headless Chrome running at the same time); it passes when run alone.
   Give its slow cases an explicit timeout or make the simulated match shorter.
+- (Phase 26) Under load (the backend unit suite or a build running at the same time) more frontend tests hit the 5 s
+  timeout: `tests/jelajah/concept-scenes.test.tsx`, `tests/jelajah/three-isolation.test.ts`,
+  `tests/config/fonts.test.ts`, `tests/games/congklak-engine.test.ts`, and `tests/games/gasing-match-ai.test.ts` failed a
+  timing assertion (10.3 ms against 7.5 ms). All pass when the suite runs alone. Raise the timeout of the slow
+  source-scanning tests (or `testTimeout` in `vitest.config.ts`) and make the timing test relative.
 
 ## Engineering rules
 
@@ -711,6 +740,10 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Backend after Phase 23: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend after Phase 25: unchanged, 44 errors, 80 warnings (all 21 new and touched source files are clean).
 - Backend after Phase 25: unchanged, 220 errors, 29 warnings (every new and touched file is clean).
+- Frontend after Phase 26: 43 errors, 64 warnings (the review page lost its `no-explicit-any` error and a warning, the
+  edit page 15 unused-variable warnings; every new file is clean; `ProtForm.tsx` and the create page keep their old
+  problems).
+- Backend after Phase 26: 219 errors, 29 warnings (every new file is clean; touched files unchanged or better).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -1073,6 +1106,18 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
   (by exact URL; row lock, save and an `audit_logs` row in one transaction, then the S3 delete; idempotent) and
   `POST /api/admin/prot/:id/revisi` (ARSIP_NASIONAL / DIVERIFIKASI → REVISI, audited). The contributor rule (owner or
   admin, DRAFT / REVISI only) is unchanged. These write their own audit row instead of using `AuditInterceptor`.
+- 2026-11-20: Frontend changes that need an undeployed backend feature sit behind a build-time flag that is off by
+  default (`lib/prot/backend-features.ts`), because the production DTOs reject unknown keys (Phase 26). Production
+  evidence comes from read-only GETs and git history only.
+- 2026-11-20: The PROT create and edit pages build their request body from a whitelist of the DTO keys
+  (`toProtWritePayload`), not by removing known read-only keys (Phase 26): the edit page sent `kecamatanName` /
+  `desaName` from the API, which the DTO rejects.
+- 2026-11-20: No self-review (Phase 26, pending deploy): the creator cannot claim, decide on or publish a PROT; an admin
+  creator may claim, and decides or publishes only with `selfReviewOverrideReason`, audited before the decision. No
+  minimum review time (not requested). Personal-data scanning of uploads is NOT implemented; options and trade-offs are
+  in the Phase 26 report.
+- 2026-11-20: The PROT form's upload limits are lower than the server's 100 MB (photos 10 MB, videos 50 MB, PDF 20 MB),
+  because large uploads through the Vercel rewrite and the production nginx are unverified (Phase 26).
 
 ## Phase workflow
 
