@@ -167,7 +167,7 @@ with the default `publik` role (JIT sync).
 - `auth/` — Supabase client, `POST /auth/change-password` (local accounts → `LocalAuthService`, Supabase accounts → legacy flow), legacy Supabase strategy in `auth/legacy/`
 - `auth-core/` — self-hosted auth (Phase 07): `PasswordService` (Argon2id, legacy bcrypt verify, policy), `KeyService` + `TokenService` (RS256 access tokens, JWKS), `RefreshTokenService` (rotation, reuse detection, cleanup), `local-jwt` strategy, `GET /api/auth/jwks.json`, entities `user_credentials`, `refresh_tokens`, `auth_identities`. No Supabase dependency. Since Phase 08: `LocalAuthController` (register, login, refresh, logout, logout-all), `LocalAuthService`, `LoginEmailLimiter`, `AuthErrorFilter` (keeps the `error` code of refresh errors and the `code` of email-token errors), cookie helpers. Since Phase 09: `EmailFlowsController`/`EmailFlowsService` (verify-email, resend-verification, forgot-password, reset-password), `AuthTokenService`, `EmailSendLimiter`, `AuthCleanupScheduler`, entities `auth_tokens`, `email_verifications`, helpers `auth-users.ts` and `email-verification.ts`.
 - `users/` — profile management, admin role assignment, admin-created users
-- `prot/` — PROT CRUD + verification workflow (`verifikasi.service.ts`)
+- `prot/` — PROT CRUD + verification workflow (`verifikasi.service.ts`); since Phase 25 `AdminProtController` + `ProtAdminService` (`/api/admin/prot/:id/media/remove`, `/api/admin/prot/:id/revisi`, admin_kpoti, any status, own audit row; pending deploy)
 - `blockchain/` — Polygon anchoring via ethers.js (deprioritized)
 - `events/` — event CRUD + registration
 - `calendar/` — personal/team calendar, invites
@@ -367,6 +367,15 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
      sound on the Phase 21 engine; records nothing (item 11). Jawa Tengah and Sulawesi Selatan now have an egrang practice
      track instead of the "Game segera hadir" sign (it opens the game with their variant and leads back to the village);
      the intro bumper shows one button per game. Details in the frontend CLAUDE.md "Egrang (Phase 23)".
+   - Privacy hotfix (Phase 25, urgent): published media cannot be removed in the UI, so the frontend hides problem files
+     with ONE denylist, `nusantara-play-fe/lib/prot/hidden-media.ts`, applied by every renderer of PROT media (`/prot`,
+     `/prot/[id]`, landing cards, Jelajah hub card, stand panels, 2d cards, bumper strip); PROT documents are not shown on
+     public pages unless `NEXT_PUBLIC_SHOW_PROT_DOCUMENTS=true` (reviewer roles still see them). 13 files are hidden
+     (personal data, children's faces without known consent, unrelated photos). Display filter only: the files stay in
+     S3 and in the API until an admin removes them with the Phase 25 backend routes (Pending deployment item 12). Pavilion
+     labels "Main Egrang Bambu" / "Main Egrang Batok"; every bumper scene uses the dense short-screen layout. Staff guide:
+     `nusantara-play-be/docs/panduan-input-prot.md`. Details in the frontend CLAUDE.md "Hidden media and documents
+     (Phase 25)".
 10. Real rewards, part 1 (Phase 15, backend only): `nusantara-play-be/src/modules/rewards/`. `RewardsService` is the
     ONLY code that changes XP and Points. Every change is one transaction: `pg_advisory_xact_lock` per user, server-built
     idempotency keys (`PROVINCE_ENTER:{userId}:{provinsiKode}`, `PROT_VIEW:{userId}:{protId}`,
@@ -700,6 +709,8 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Backend after Phase 22: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend after Phase 23: unchanged, 44 errors, 80 warnings (all 49 new and touched source files are clean).
 - Backend after Phase 23: unchanged (only CLAUDE.md and the phase report changed).
+- Frontend after Phase 25: unchanged, 44 errors, 80 warnings (all 21 new and touched source files are clean).
+- Backend after Phase 25: unchanged, 220 errors, 29 warnings (every new and touched file is clean).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -1053,6 +1064,15 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
   games instead of "Masuk sebagai Tamu"; the landing page's featured PROT are requested with `status=ARSIP_NASIONAL` and
   filtered again.
 - 2026-11-17: Local daerah seed reuses `src/database/migrations/002_replace_daerah_data.sql` (34 provinsi + 514 kab/kota, Kemendagri codes) and the `up()` of `src/migrations/1740500100000-SeedKecamatanKelurahanDesa.ts`; `1738826000000-SeedDaerahBPS.ts` is not used (12 provinces only, codes that do not match the kecamatan CSV) (Phase 05).
+- 2026-11-20: Hidden PROT media (Phase 25): until published media can be removed on the backend, the frontend hides
+  files with one denylist (`lib/prot/hidden-media.ts`, exact URLs + per-record field rules) applied by every renderer;
+  PROT documents are hidden on public pages by default (`NEXT_PUBLIC_SHOW_PROT_DOCUMENTS`), reviewer roles still see
+  them. Recognisable children's faces without known consent count as personal data and are hidden too, even when the
+  photo matches the game (reversible per entry once the curator confirms consent).
+- 2026-11-20: Admin corrections of PROT in any status (Phase 25, pending deploy): `POST /api/admin/prot/:id/media/remove`
+  (by exact URL; row lock, save and an `audit_logs` row in one transaction, then the S3 delete; idempotent) and
+  `POST /api/admin/prot/:id/revisi` (ARSIP_NASIONAL / DIVERIFIKASI → REVISI, audited). The contributor rule (owner or
+  admin, DRAFT / REVISI only) is unchanged. These write their own audit row instead of using `AuditInterceptor`.
 
 ## Phase workflow
 
