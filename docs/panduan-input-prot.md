@@ -2,7 +2,8 @@
 
 Panduan ini untuk kontributor, kurator daerah, pakar dan admin yang mengisi atau memeriksa data PROT (Permainan Rakyat dan
 Olahraga Tradisional) di situs Nusantara Legacy. Semua yang tertulis di sini diambil dari cara kerja aplikasi saat ini
-(November 2026, Phase 25). Bagian "Belum tersedia" menyebut hal yang belum bisa dilakukan aplikasi.
+(November 2026, Phase 26). Bagian "Belum tersedia" menyebut hal yang belum bisa dilakukan aplikasi. Hal yang
+ditandai **"berlaku setelah deploy backend"** baru bekerja setelah pembaruan server dipasang (lihat bagian 10).
 
 Prinsip utama: **setiap data yang terbit bisa dilihat siapa saja di internet.** Periksa setiap tulisan, foto dan dokumen
 sebelum diajukan dan sebelum disetujui.
@@ -37,21 +38,40 @@ DRAFT ──(Ajukan Verifikasi)──> DIKURASI ──(pemeriksa: Setujui)──
 2. **Mengedit.** Selama DRAFT atau REVISI, pembuat (atau admin) bisa membuka tombol "Edit" di halaman PROT. Di status
    lain tombol Edit tidak muncul dan server menolak perubahan, termasuk menambah atau menghapus foto dan dokumen.
 3. **Mengajukan verifikasi (DIKURASI).** Pembuat menekan "Ajukan Verifikasi" di halaman PROT. Hanya **pembuat** PROT
-   yang bisa mengajukan (admin yang bukan pembuat ditolak). PROT masuk ke **antrean verifikasi** dan tidak bisa diedit
-   lagi. Antrean bisa membawa **catatan kurator** (maksimal 500 karakter) untuk pemeriksa; formulir saat ini selalu
-   mengirim catatan tetap "Diajukan oleh pengguna" (lihat "Belum tersedia").
+   yang melihat tombol ini (server menolak admin yang bukan pembuat). Sebuah jendela terbuka:
+   - **Daftar periksa** lima poin (teks lengkap, foto menampilkan permainan ini, tanpa data pribadi, tanpa wajah anak
+     tanpa izin, tautan pembelian benar). Tombol "Ajukan" baru aktif setelah semua poin dicentang. Centangan tidak
+     disimpan; ini pengingat.
+   - **Catatan untuk pemeriksa** (tidak wajib, maksimal 500 karakter). Jika kosong, terkirim "Diajukan oleh pengguna".
+     Catatan tersimpan di antrean dan terlihat oleh pemeriksa **setelah deploy backend** (sebelumnya server menerima
+     tetapi tidak menyimpannya).
+
+   PROT masuk ke **antrean verifikasi** dan tidak bisa diedit lagi.
 4. **Memeriksa (antrean verifikasi, `/prot/verifikasi/queue`).** Pemeriksa (pakar, admin, atau kurator daerah untuk
    provinsinya sendiri) **mengambil** satu PROT dari antrean ("pick"). Setelah diambil, hanya pemeriksa itu yang bisa
    memutuskan; ia juga bisa melepaskannya kembali ("release"). Keputusan:
    - **Setujui** → DIVERIFIKASI.
-   - **Perlu revisi** → REVISI. Kolom "saran perbaikan" **wajib** diisi.
+   - **Perlu revisi** → REVISI. Kolom "saran perbaikan" **wajib** diisi. Pembuat melihat saran ini di kotak kuning
+     "Perlu revisi: catatan kurator" di halaman PROT dan halaman Edit.
    - **Tolak** → kembali ke DRAFT.
    Catatan pemeriksa tersimpan di riwayat verifikasi (halaman "History" PROT). Setelah keputusan, PROT keluar dari antrean.
 5. **Menerbitkan (ARSIP_NASIONAL).** Admin menekan "Publish" di halaman PROT berstatus DIVERIFIKASI (atau di halaman
    admin "Publish"). Sejak saat itu PROT tampil untuk semua orang (lihat bagian 4).
 
-Perhatian: aplikasi **tidak** melarang seseorang memeriksa PROT buatannya sendiri, dan tidak ada waktu minimum
-pemeriksaan. Karena itu daftar periksa di bagian 7 dan 8 wajib diikuti.
+6. **Mengajukan ulang setelah REVISI.** Pembuat memperbaiki lewat "Edit", lalu menekan **"Ajukan Ulang"** di halaman
+   PROT (jendela yang sama: daftar periksa dan catatan). Situs memakai rute pengajuan ulang, jadi PROT REVISI kembali
+   ke antrean (sejak Phase 26; sebelumnya tombol ini gagal). Catatan untuk pengajuan ulang bisa ditulis **setelah deploy
+   backend**; sampai saat itu kolomnya nonaktif dan perbaikan dijelaskan di isian yang bersangkutan.
+
+### Aturan: tidak memeriksa PROT buatan sendiri
+
+- **Sekarang (server lama):** halaman pemeriksaan dan tombol "Publish" menampilkan **peringatan merah** jika Anda
+  pembuat PROT itu. Server belum menolaknya, jadi ikuti peringatan itu: minta pemeriksa atau admin lain.
+- **Berlaku setelah deploy backend:** server menolak pemeriksa (pakar, kurator daerah) yang mengambil, memutuskan atau
+  menerbitkan PROT buatannya sendiri. **Admin** boleh mengambilnya, tetapi keputusan dan "Publish" hanya bisa dengan
+  **alasan tertulis** (10 sampai 500 karakter, tanpa data pribadi). Alasan dicatat di log audit
+  (`PROT_SELF_REVIEW_OVERRIDE`) sebelum keputusan disimpan.
+- Tidak ada waktu minimum pemeriksaan. Ikuti daftar periksa di bagian 7 dan 8.
 
 ---
 
@@ -63,9 +83,10 @@ Batas di bawah ini adalah batas yang diperiksa aplikasi. "Wajib" = formulir tida
 
 | Isian | Wajib? | Batas | Dipakai di situs |
 |---|---|---|---|
-| Nama permainan | Wajib | Minimal 3 karakter | Judul di semua tempat: daftar `/prot`, halaman PROT, kartu di beranda, papan stan di desa Jelajah, film pengenalan (nama-nama arsip). |
+| Nama permainan | Wajib | Minimal 3 karakter | Judul di semua tempat: daftar `/prot`, halaman PROT, kartu di beranda, papan stan di desa Jelajah, film pengenalan (nama-nama arsip). Ditandai "Disarankan untuk Jelajah". |
 | Jenis | Wajib | Permainan Rakyat / Olahraga Tradisional | Label di kartu dan halaman PROT. |
 | Target usia | Wajib | Anak-anak / Remaja / Dewasa / Semua Usia | Halaman PROT dan kartu `/prot`. |
+| Jumlah pemain (baru, Phase 26) | Tidak | Angka bulat, minimal 1. Kosongkan jika tidak tentu. | Halaman PROT, "Informasi Dasar". |
 
 ### Tahap 02: Geografi budaya
 
@@ -79,6 +100,7 @@ Batas di bawah ini adalah batas yang diperiksa aplikasi. "Wajib" = formulir tida
 
 | Isian | Wajib? | Batas | Dipakai di situs |
 |---|---|---|---|
+| Deskripsi singkat (baru, Phase 26) | Tidak (disarankan) | Server tidak membatasi panjang. Penghitung karakter menunjukkan berapa yang muat di panel Jelajah (sekitar 280 karakter pertama). | **Panel stan desa Jelajah** (sekitar 280 karakter pertama) dan halaman PROT ("Ringkasan"). Tulis 1 sampai 3 kalimat yang menjelaskan permainannya. Ditandai "Disarankan untuk Jelajah". |
 | Sejarah / Asal usul | Tidak | Tidak ada batas | Halaman PROT, "Status Asal Usul". |
 | Cara bermain | Tidak (tetapi lihat bagian 5) | Tidak ada batas | Halaman PROT (lengkap). Panel stan Jelajah (dipotong sekitar 420 karakter). Kartu beranda jika nilai moral kosong (3 baris). **Dasar untuk membuat game di situs**: tanpa langkah-langkah permainan yang lengkap, game tidak bisa dibuat. |
 | Nilai moral & karakter | Tidak | Tidak ada batas | Halaman PROT; ringkasan di kartu beranda (3 baris). |
@@ -92,25 +114,26 @@ Tulis setiap isian dengan teksnya sendiri. Jangan menyalin paragraf yang sama ke
 | Nama alat | Wajib per alat | - | Halaman PROT, kotak "Peralatan yang Dibutuhkan". |
 | Kisaran harga | Tidak | Teks bebas | Ditampilkan sebagai "Rp …". |
 | Deskripsi | Tidak | - | Halaman PROT. |
-| Foto alat | Tidak | JPG, PNG, WEBP; maksimal 10 file per unggahan, 100 MB per file (server) | Foto pertama sebagai gambar kecil, sisanya di bawahnya. |
+| Foto alat | Tidak | JPG, PNG, WEBP; maksimal 10 MB per file, 10 file per simpan | Foto pertama sebagai gambar kecil, sisanya di bawahnya. |
 | URL pembelian | Tidak | Teks | Tautan "Beli di:" yang bisa diklik pengunjung. |
 
 ### Tahap 05: Media
 
 | Isian | Wajib? | Batas | Dipakai di situs |
 |---|---|---|---|
-| Foto kegiatan | Tidak (tetapi lihat bagian 5) | JPG, PNG, WEBP; maksimal 10 file per unggahan; server menerima sampai 100 MB per file, formulir menyarankan maksimal 10 MB | **Foto pertama** dipakai di: kartu `/prot`, kartu beranda, panel stan dan kartu 2D Jelajah, kartu provinsi di peta, dan strip foto di intro Jelajah (bumper). Semua foto tampil di galeri halaman PROT. |
-| Video kegiatan | Tidak | MP4 atau MOV; maksimal 10 file per unggahan; 100 MB per file (formulir menyarankan 50 MB) | Pemutar video di halaman PROT. |
-| Dokumen kurikulum / panduan | Tidak | Server hanya menerima **PDF** (formulir juga menawarkan DOC/DOCX, tetapi server menolaknya); 100 MB per file | **Sejak Phase 25 tidak ditampilkan ke publik**; hanya pengguna dengan peran kurator daerah, pakar atau admin yang melihat tautannya di halaman PROT. |
+| Foto kegiatan | Tidak (tetapi lihat bagian 5) | JPG, PNG, WEBP; maksimal 10 MB per file, 10 file per simpan | **Foto pertama** dipakai di: kartu `/prot`, kartu beranda, panel stan dan kartu 2D Jelajah, kartu provinsi di peta, dan strip foto di intro Jelajah (bumper). Semua foto tampil di galeri halaman PROT. Ditandai "Disarankan untuk Jelajah". |
+| Video kegiatan | Tidak | MP4 atau MOV; maksimal 50 MB per file, 10 file per simpan | Pemutar video di halaman PROT. |
+| Dokumen kurikulum / panduan | Tidak | **Hanya PDF** (dokumen Word: simpan dulu sebagai PDF); maksimal 20 MB per file, 10 file per simpan | **Sejak Phase 25 tidak ditampilkan ke publik**; hanya pengguna dengan peran kurator daerah, pakar atau admin yang melihat tautannya di halaman PROT. |
+
+Sejak Phase 26 formulir memeriksa setiap file sebelum disimpan: file dengan jenis atau ukuran yang salah tidak
+ditambahkan, dan alasannya tampil dalam bahasa Indonesia di bawah kotak unggah. Server sendiri menerima sampai 100 MB
+per file; batas formulir lebih kecil karena unggahan besar lewat situs belum teruji.
+
+Isian yang ditandai **"Disarankan untuk Jelajah"** (nama, provinsi dan kabupaten/kota, deskripsi singkat, cara
+bermain, nilai moral, foto kegiatan) membuat PROT tampil baik di peta dan desa Jelajah.
 
 Setiap file yang diunggah langsung tersimpan di penyimpanan publik (siapa pun yang tahu alamatnya bisa membukanya), **juga
 saat PROT masih DRAFT**. Jangan pernah mengunggah file yang tidak boleh dilihat publik.
-
-### Isian yang ada di data tetapi tidak di formulir
-
-- **Deskripsi singkat** (`deskripsi`): ditampilkan di panel stan Jelajah (dipotong sekitar 280 karakter), tetapi
-  formulir belum punya kolom untuknya. Lihat "Belum tersedia".
-- **Jumlah pemain** (`jumlahPemain`, angka minimal 1): sama, belum ada kolom di formulir.
 
 ---
 
@@ -201,9 +224,17 @@ Sebelum menekan "Ajukan Verifikasi":
 - [ ] Setiap dokumen sudah saya buka sampai halaman terakhir: isinya tentang permainan ini dan **tidak berisi data pribadi**.
 - [ ] Video sudah saya tonton: tentang permainan ini, tanpa wajah anak tanpa izin.
 
+Lima poin terpenting dari daftar ini juga muncul sebagai daftar centang di jendela "Ajukan Verifikasi" / "Ajukan Ulang".
+
 ## 8. Daftar periksa pemeriksa / kurator (setiap PROT di antrean)
 
-Jangan memeriksa PROT buatan sendiri. Sediakan waktu: memeriksa satu PROT dengan benar butuh lebih dari beberapa menit.
+Jangan memeriksa PROT buatan sendiri (bagian 2, "Aturan"). Sediakan waktu: memeriksa satu PROT dengan benar butuh lebih
+dari beberapa menit.
+
+Sejak Phase 26 halaman pemeriksaan (`/prot/verifikasi/<id>/review`) menampilkan **semua isi** PROT: setiap teks lengkap,
+setiap foto kegiatan dan foto alat (klik untuk ukuran penuh), setiap video, nama setiap dokumen dengan tautan "Buka /
+unduh", dan setiap tautan pembelian dengan **nama domainnya** (tautan tanpa https atau tidak valid ditandai). File yang
+ada di daftar sembunyi tampil sebagai kotak "Disembunyikan"; jangan setujui sebelum file itu dihapus atau diganti.
 
 - [ ] **Baca setiap teks sampai akhir** (sejarah, cara bermain, nilai moral, alamat, deskripsi alat). Teks yang terpotong atau disalin berulang → "Perlu revisi".
 - [ ] Cara bermain cukup lengkap untuk dimainkan orang yang belum mengenal permainannya.
@@ -252,14 +283,14 @@ nomor 12. Saat ini tombol untuk kedua tindakan ini belum ada di situs; admin mem
 
 - Mengubah atau menghapus foto/dokumen PROT yang sudah terbit lewat situs (server sudah disiapkan di Phase 25 tetapi
   belum dipasang, dan belum ada tombol di halaman admin).
-- Kolom **deskripsi singkat** dan **jumlah pemain** di formulir (keduanya ada di data; deskripsi dipakai di panel stan
-  Jelajah).
-- Menulis **catatan kurator** saat mengajukan verifikasi: formulir selalu mengirim "Diajukan oleh pengguna".
-- **Mengajukan ulang setelah REVISI lewat situs**: tombol "Ajukan Verifikasi" memakai rute pengajuan pertama, yang
-  server tolak untuk status REVISI ("tidak bisa di-submit"); rute pengajuan ulang (`POST /api/prot/<id>/resubmit`) ada di
-  server tetapi belum dipakai situs.
-- Larangan memeriksa PROT buatan sendiri, dan waktu minimum pemeriksaan.
-- Unggahan dokumen DOC/DOCX (formulir menawarkannya, server hanya menerima PDF).
+- **Berlaku setelah deploy backend** (Phase 26, sudah siap di kode, belum di server):
+  - catatan untuk pemeriksa tersimpan di antrean (pengajuan pertama dan pengajuan ulang);
+  - server menolak pemeriksaan dan penerbitan PROT buatan sendiri; admin hanya dengan alasan yang dicatat.
+  Setelah deploy, pengembang menyalakan `NEXT_PUBLIC_PROT_RESUBMIT_NOTE=true` dan `NEXT_PUBLIC_PROT_SELF_REVIEW_RULE=true`
+  di Vercel.
+- Waktu minimum pemeriksaan.
+- Pemeriksaan otomatis dokumen terhadap data pribadi (diputuskan tidak dibuat dulu; pemeriksa membaca setiap dokumen).
+- Mengunggah dokumen Word (DOC/DOCX): server hanya menerima PDF.
 - Membuat desa Jelajah untuk provinsi baru tanpa pengembang.
 - Melihat jumlah PROT per status tanpa akun admin (lihat di bawah).
 
