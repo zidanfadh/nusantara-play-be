@@ -358,6 +358,15 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
      (`localStorage['np_sound_muted_v1']`) for both intros. Reduced motion keeps the sound. A voice-over can be added per
      scene later (none exist). The audio code loads only with the intros. Details in the frontend CLAUDE.md
      "Sound (Phase 21)".
+   - Egrang (Phase 23): the third self-hosted game, `/main/egrang` (public, listed on `/main` next to Congklak and
+     Gasing), a 2D canvas race against the computer (Mudah, Sedang, Sulit) in two variants, each based on its own
+     published archive record: Bambu ("Egrang Bambu", Jawa Tengah: keep the swaying body balanced on tall stilts, a bad
+     step can make you fall) and Batok ("Egrang Batok", Sulawesi Selatan: step on the kendang beat, out of rhythm the
+     coconut shell slips off). Taps on the left / right half or ← / → keys; ONE ruleset "Aturan dasar" in
+     `nusantara-play-fe/lib/games/egrang/rules.ts` and every text in `texts.ts`, awaiting curator review; synthesized
+     sound on the Phase 21 engine; records nothing (item 11). Jawa Tengah and Sulawesi Selatan now have an egrang practice
+     track instead of the "Game segera hadir" sign (it opens the game with their variant and leads back to the village);
+     the intro bumper shows one button per game. Details in the frontend CLAUDE.md "Egrang (Phase 23)".
 10. Real rewards, part 1 (Phase 15, backend only): `nusantara-play-be/src/modules/rewards/`. `RewardsService` is the
     ONLY code that changes XP and Points. Every change is one transaction: `pg_advisory_xact_lock` per user, server-built
     idempotency keys (`PROVINCE_ENTER:{userId}:{provinsiKode}`, `PROT_VIEW:{userId}:{protId}`,
@@ -387,7 +396,9 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
     (moves, results, scores, XP) is recorded or sent to the backend. Only local settings (difficulty, animation speed,
     last mode) are kept in `localStorage['games.congklak.settings.v1']` (try/catch). A test fails if a game file calls
     the network or imports API code. Gasing (Phase 20) follows the same rule: `localStorage['games.gasing.settings.v1']`
-    (mode, level) and `localStorage['games.gasing.tutorialSeen.v1']` only. A later phase may add rewards for games, but only through server-verified results
+    (mode, level) and `localStorage['games.gasing.tutorialSeen.v1']` only; Egrang (Phase 23) `localStorage['games.egrang.settings.v1']`
+    (variant, level) and `localStorage['games.egrang.tutorialSeen.v1']` only (plus the shared sound choice `np_sound_muted_v1`).
+    A later phase may add rewards for games, but only through server-verified results
     (item 10: browser-reported results never give Points, and a game result reported by the browser is not proof).
 
 ## Deployment facts
@@ -651,6 +662,8 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Backend after Phase 21: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend after Phase 22: unchanged, 44 errors, 80 warnings (all 41 new and touched source files are clean).
 - Backend after Phase 22: unchanged (only CLAUDE.md and the phase report changed).
+- Frontend after Phase 23: unchanged, 44 errors, 80 warnings (all 49 new and touched source files are clean).
+- Backend after Phase 23: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -987,6 +1000,16 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - 2026-11-20: Distant landmarks (Phase 22): the fixed 40 degree camera never shows the horizon, so islands, hills and
   the Jawa Tengah volcano stand within about 50 to 95 m of the camera and inside the fog's middle range; they show at
   the top of portrait views and when walking to the north edge, not on desktop at the spawn point.
+- 2026-11-20: Egrang (Phase 23): one race against the computer per game, two variants from the two published egrang
+  records (Bambu = balance with falls, Batok = rhythm with slips), both sharing one pure engine and input path
+  (`stepWorld`; taps and keys stamped with their own time and judged at the 1/120 s step they happened in). The AI is
+  the documented typical-player model with its errors scaled per level (calibrated 75 / 50 / 30 % ± 10 per variant).
+  The computer's lane is drawn further back and higher (stacked lanes) so the racers never hide each other.
+  `backdrop-blur` over the canvas was removed (re-blurring every frame); lane surfaces are pre-rendered strips. The game
+  pavilion of Jawa Tengah and Sulawesi Selatan is a separate `gamePavilion` (a practice track next to stand 1) instead of
+  the plaza centrepiece, so the Jawa Tengah pendopo stays as it was; new engine parts are appended so the other scenes'
+  meshes and colliders are byte-identical (fingerprint tests). Phase 22's toast-over-panel observation fixed: the PROT
+  panel's whole header is an avoided overlay and the panel re-measures when it opens.
 - 2026-11-20: Paspor stamps (Phase 22): one code-drawn SVG stamp per enterable province (own colour and motif), shown in
   the Paspor and as the icon of the simulated stamp toast; other provinces keep the generic icon.
 - 2026-11-19: Phase 18 follow-ups (owner answers): the Supabase redirect allowlist needs no query variants; removing
