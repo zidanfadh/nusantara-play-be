@@ -496,6 +496,33 @@ column, so running the migration first is safe for the old code too.
 11. Phase 18 landing statistics (no migration, no env): `GET /api/stats/landing` counts `totalProt` and
    `totalProvinsi` from PROT with status ARSIP_NASIONAL only (`src/modules/stats/stats.service.ts`); events and
    users unchanged. The frontend already computes the published counts itself, so the order does not matter.
+12. Phase 25 admin corrections of PROT in ANY status (no migration, no env; additive routes only; the contributor rule
+   `PROTService.assertCanEditMedia()`, owner or admin and DRAFT / REVISI only, is unchanged):
+   - `POST /api/admin/prot/:id/media/remove` (admin_kpoti) `{ field, url, peralatanIndex?, reason }`: `field` is
+     `fotoKegiatan` | `videoKegiatan` | `dokumenKurikulum` | `fotoAlat` | `urlPembelian`, `url` the exact stored URL,
+     `reason` 5 to 500 characters (never personal data). One transaction (row lock, save, `audit_logs` row
+     `ADMIN_PROT_MEDIA_REMOVE` with who, record, field, URL, reason; never file contents), then the S3 object is deleted
+     through `StorageService.deleteFile()` (only PROT uploads under `prot/`, never `urlPembelian`). Answer
+     `{ protId, field, status, removed, removedCount, s3Deleted }`; a repeat answers `removed: false` and changes nothing.
+   - `POST /api/admin/prot/:id/revisi` (admin_kpoti) `{ reason }`: ARSIP_NASIONAL or DIVERIFIKASI → REVISI (hidden
+     from the public at once; the owner can then correct it with the normal routes and resubmit), audited
+     `ADMIN_PROT_MOVE_TO_REVISI`; already REVISI → `changed: false`. Before Phase 25 no route could do this.
+   - **After deployment, remove the SEPANGKAL files** (record `752aeea4-a9c4-455b-a216-71f508bcfe3c`; the URLs are in
+     `nusantara-play-fe/lib/prot/hidden-media.ts`):
+     1. Get an access token of an `admin_kpoti` account: the self-hosted login (`POST /api/auth/login`, needs items 4 to
+        6) or, until then, the Supabase access token of a logged-in admin from the browser. Never paste it anywhere else.
+     2. `curl -X POST https://api.nusantaralegacy.org/api/admin/prot/752aeea4-a9c4-455b-a216-71f508bcfe3c/media/remove
+        -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d '{"field":"dokumenKurikulum",
+        "url":"<the PDF URL>","reason":"Dokumen berisi data pribadi, tidak terkait permainan (Phase 24)"}'`
+        → `removed: true, s3Deleted: true`.
+     3. `curl -I "<the PDF URL>"` must now answer 403 or 404. If `s3Deleted` was false, someone with AWS access deletes
+        the object `prot/dokumen-kurikulum/7a4de8b1-c0bd-4570-bc9f-9a8b421a673e.pdf` by hand and checks again.
+     4. The same for the trophy photo (`"field":"fotoAlat","peralatanIndex":1`) and the cake link
+        (`"field":"urlPembelian","peralatanIndex":1`); the other Phase 25 audit entries only after the curator decided
+        (Phase 25 report, section 8).
+     5. If the curator must rework the record: `POST .../752aeea4-.../revisi` `{"reason":"..."}`.
+     6. `GET /api/prot/752aeea4-a9c4-455b-a216-71f508bcfe3c` shows `dokumenKurikulum: []`. The frontend denylist entries
+        may stay (harmless) or be removed in a later phase.
 
 ## Local development
 

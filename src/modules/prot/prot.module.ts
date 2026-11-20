@@ -4,6 +4,8 @@ import { PROTService } from './prot.service';
 import { PROTController } from './prot.controller';
 import { VerifikasiController } from './verifikasi.controller';
 import { VerifikasiService } from './verifikasi.service';
+import { AdminProtController } from './admin-prot.controller';
+import { ProtAdminService } from './prot-admin.service';
 import { PROT } from './entities/prot.entity';
 import { Verifikasi } from './entities/verifikasi.entity';
 import { VerifikasiQueue } from './entities/verifikasi-queue.entity';
@@ -22,8 +24,8 @@ import { BlockchainModule } from '../blockchain/blockchain.module';
     UsersModule,
     BlockchainModule,
   ],
-  controllers: [PROTController, VerifikasiController],
-  providers: [PROTService, VerifikasiService],
+  controllers: [PROTController, VerifikasiController, AdminProtController],
+  providers: [PROTService, VerifikasiService, ProtAdminService],
   exports: [PROTService, VerifikasiService],
 })
 export class PROTModule {}
