@@ -605,6 +605,15 @@ public endpoints work.
   only, never Points. The leaderboard cache (60 s) lives in each backend instance's memory, so N instances can show
   slightly different boards for up to a minute.
 
+## Cleanup list (known, not fixed yet)
+
+Small known problems that a later phase should fix. Do not fix them in passing.
+
+- (Phase 23 review, noted in Phase 25) The frontend gasing integration test
+  (`nusantara-play-fe/tests/games/gasing-integration.test.tsx`) once hit Vitest's default 5 s test timeout while the
+  machine was under load (a production build and headless Chrome running at the same time); it passes when run alone.
+  Give its slow cases an explicit timeout or make the simulated match shorter.
+
 ## Engineering rules
 
 - Before writing code, show a short plan and the list of files you will touch.
