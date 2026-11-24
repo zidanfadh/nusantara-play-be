@@ -28,7 +28,7 @@ The phase is complete. Nothing was pushed.
 | Repo | Branch | Base | Commits |
 |---|---|---|---|
 | nusantara-play-fe | `phase-27-visual-identity` | `ac890d5` (origin/main, PR #23 merge) | `7d7222c` step 0 design files · `23f0c3f` step 1 · `ab9af25` step 2 · `755dc8e` step 3 · `5cd0c54` step 4 · `1e781c2` step 5 · `f79121c` step 6 · `51936f1` step 7 fixes · `2a33b20` step 8 CLAUDE.md · `f3928bd` step 8 measured ornament size |
-| nusantara-play-be | `phase-27-visual-identity` | `7f19521` (origin/main) | `8be5fc8` step 0 report draft · `12ec469` step 8 CLAUDE.md · this report (the commit after `12ec469`) |
+| nusantara-play-be | `phase-27-visual-identity` | `7f19521` (origin/main) | `8be5fc8` step 0 report draft · `12ec469` step 8 CLAUDE.md · `7d1f3d1` report · the commit after it: report corrections |
 
 `git diff --stat main...HEAD`: FE 128 files changed, 2146 insertions(+), 939 deletions(-); BE 2 files (CLAUDE.md +34,
 this report).
@@ -194,8 +194,8 @@ Scratch: `D:/dev-cache/tmp/phase-27/` (scripts: `shots.mjs`, `axe.mjs`, codemods
 - **Page 1, cover.** Background solid #2A1A0E. Top left and bottom right: a diagonal band of ornament, cut along a
   45° line, in solid #F4AE52 (sampled: #F3AE52 / #F4AE52; nothing else). The ornament is a ceplok lattice: each cell
   is a four-petal flower (pointed, lens-shaped petals on the diagonals and the axes) with a small round centre, framed by
-  a scalloped quatrefoil outline (an ogee "kawung-like" frame) whose lobes touch the neighbouring frames; the cells sit on
-  a square grid turned 45°. In the middle: "KONSEP VISUAL" in Poppins Light Italic, widely tracked, cream; below it the
+  a scalloped quatrefoil outline (an ogee "kawung-like" frame) whose lobes touch the neighbouring frames tip to tip; the cells sit on
+  an axis-aligned square grid with smaller flowers where four frames meet, and only the band edge runs at 45°. In the middle: "KONSEP VISUAL" in Poppins Light Italic, widely tracked, cream; below it the
   logotype "NUSANTARA LEGACY" in Cinzel Decorative (the decorative swash N and L), about 3x larger.
 - **Logotype gradient.** Sampled row by row across the cover logotype: #D2681F at the top of the caps → #DE8030 in the
   middle → #EDA149 at the baseline swash, i.e. a **vertical linear gradient, #D4621A at the top to #F4AE52 at the
