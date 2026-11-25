@@ -396,6 +396,17 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
      Jelajah chrome, the intro bumper and the concept film follow it; the icons and the Open Graph image use a
      PROVISIONAL "NL" monogram until the design team delivers an icon. The 3D low-poly map (PDF page 4) is the next
      phase; the maps were not touched. Details in the frontend CLAUDE.md "Visual identity (Phase 27)".
+   - Paper map (Phase 28, visual identity part 2, from the design reference on Konsep Visual page 4): the Jelajah map is a
+     low-poly "paper" map of Indonesia: green faceted islands on thick dark-brown earth slabs, low-poly mountains and
+     smoking volcanoes at real coordinates (data with sources in `nusantara-play-fe/lib/jelajah/map-nature.ts`), thin
+     rivers and lakes, small pinisi-like ships sailing on a cream paper "sea" (brown paper in the dark theme), soft
+     shadows, a tilted camera that frames the whole archipelago on every screen. All procedural (no new dependency, no
+     image files; the reference image is never shipped). Every behaviour of the map is kept (cards, enterable provinces,
+     tiers, fallback, `?debug=1`, intros, login gate); states read without colour alone (height, lift, amber rim,
+     terracotta flag). Lite tier: fewer mountains, no rivers, no ships; 2d tier: the same look in SVG. The concept film's
+     map scenes and the bumper's map follow it. Phase 27 cleanup items fixed (form hint overlap, Indonesian-only login
+     and signup, accessible names, the 3:1 `border-input` token on every form control, egrang start buttons). Details
+     in the frontend CLAUDE.md "Paper map (Phase 28)".
 10. Real rewards, part 1 (Phase 15, backend only): `nusantara-play-be/src/modules/rewards/`. `RewardsService` is the
     ONLY code that changes XP and Points. Every change is one transaction: `pg_advisory_xact_lock` per user, server-built
     idempotency keys (`PROVINCE_ENTER:{userId}:{provinsiKode}`, `PROT_VIEW:{userId}:{protId}`,
@@ -662,13 +673,12 @@ Small known problems that a later phase should fix. Do not fix them in passing.
   `tests/config/fonts.test.ts`, `tests/games/congklak-engine.test.ts`, and `tests/games/gasing-match-ai.test.ts` failed a
   timing assertion (10.3 ms against 7.5 ms). All pass when the suite runs alone. Raise the timeout of the slow
   source-scanning tests (or `testTimeout` in `vitest.config.ts`) and make the timing test relative.
-- (Phase 27) On `/prot/create` and the edit page the "Provinsi dan kabupaten/kota" hint line (with its Jelajah badge)
-  overlaps the "PROVINSI" label (already so in the Phase 26 screenshots).
-- (Phase 27, axe-core) Controls without an accessible name: the account button of the app navbar on phones
-  (`button-name`), three unlabeled buttons on the landing page at 1440 px (carousel), and `<select>` elements
-  without a label on `/prot`, `/events`, `/calendar` and the PROT form (`select-name`).
 - (Phase 27) `app/landing-page/1` and `/2` (old drafts, removal waits for the cleanup phase) were only run through the
-  colour codemods, not redesigned.
+  colour codemods, not redesigned (Phase 28's form-control codemod skipped them too).
+- (Phase 28) Concept film scene 5 ("jelajah", the dive into Sumatera Selatan) still shows the old map: cream provinces
+  on a blue sea gradient. The prompt asked only for scenes 3 and 7; restyle it to the paper look in a later pass.
+- (Phase 28) On landscape phones (844x390) the hub's title card and reward HUD cover part of Sumatra and the map section
+  is taller than the viewport (`min-h-[440px]`); the camera frames the whole section, not the free area.
 
 ## Engineering rules
 
@@ -765,6 +775,9 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Frontend after Phase 27: unchanged, 43 errors, 64 warnings (106 touched source files; every new file is clean; the
   problems left in touched files are the ones they had before).
 - Backend after Phase 27: unchanged (only CLAUDE.md and the phase report changed).
+- Frontend after Phase 28: unchanged, 43 errors, 64 warnings (64 new and touched files; every new file is clean; the 16
+  touched files with existing problems have exactly the counts they had on `main`).
+- Backend after Phase 28: unchanged (only CLAUDE.md and the phase report changed).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -1152,6 +1165,20 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
   ramps were remapped at the same OKLCH lightness instead of editing ~870 classes by hand, the semantic colours red /
   green / yellow / amber / purple stay; the landing hero is dark brown in both themes (the cover); Cinzel Decorative is
   shipped as a plain woff2 conversion, not a subset, because of its Reserved Font Name; the "NL" icon is provisional.
+- 2026-11-25: Paper map (Phase 28): the Jelajah map follows the design reference (Konsep Visual page 4) in code only; the
+  reference image is a style reference, never shipped, traced or used as a texture. The camera frames the WHOLE
+  archipelago on every viewport (portrait phones included; before: the western part), tilted 40°. Province borders
+  are simplified once per shared border (no overlaps); picking uses the same low-poly outline. Island lighting is baked
+  into vertex colours (fixed camera), so the islands use the cheapest material; exactly one island shadow per tier (full:
+  a shadow map rendered only when the islands change; lite: painted into the paper texture). Mountains, volcanoes,
+  rivers and lakes live in their province's vertex range, so they lift with it at no extra draw call. Ships and moving
+  smoke only on the full tier without reduced motion, at ~30 rendered frames per second; reduced motion = docked ships,
+  still smoke. Puncak Jaya is shown as a peak, not a volcano. Performance is judged A/B against `main` in the same
+  session (machine load changes absolute fps a lot).
+- 2026-11-25: Form controls (Phase 28): every text input, select and textarea uses the `border-input` token (3:1 boundary,
+  WCAG 1.4.11); `bg-input` (the border token used as a fill since Phase 27) became `bg-background`; borderless fields got
+  a border. Login and signup show only Indonesian headings; the Google buttons say "Masuk dengan Google" / "Daftar dengan
+  Google".
 
 ## Phase workflow
 
