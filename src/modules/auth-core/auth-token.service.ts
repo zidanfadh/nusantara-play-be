@@ -5,6 +5,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { isIP } from 'node:net';
 import { DataSource, EntityManager } from 'typeorm';
 import { AuthConfig, readAuthConfig } from '../../config/auth.config';
+import type { InvalidTokenReason } from './auth-errors';
 import { AUTH_TOKEN_TYPES, AuthTokenType } from './entities/auth-token.entity';
 
 /** Used or expired tokens older than this are deleted by cleanup(). */
@@ -101,6 +102,30 @@ export class AuthTokenService {
       [hashAuthToken(rawToken), type],
     );
     return rows[0]?.user_id ?? null;
+  }
+
+  /**
+   * Read-only (Phase 29): why a token is unusable, for the answer's
+   * `reason`. `used` = consumed, `expired` = unused but past expires_at,
+   * `invalid` = no such token of this type (unknown, other type, or deleted
+   * because a newer link replaced it, or cleaned up). Call it only after
+   * peek() / consume() refused the token.
+   */
+  async classifyUnusable(
+    rawToken: string,
+    type: AuthTokenType,
+    manager: EntityManager = this.dataSource.manager,
+  ): Promise<InvalidTokenReason> {
+    const rows = await manager.query<{ used: boolean; expired: boolean }[]>(
+      `SELECT used_at IS NOT NULL AS used, expires_at <= now() AS expired
+         FROM auth_tokens
+        WHERE token_hash = $1 AND type = $2`,
+      [hashAuthToken(rawToken), type],
+    );
+    const row = rows[0];
+    if (!row) return 'invalid';
+    if (row.used) return 'used';
+    return row.expired ? 'expired' : 'invalid';
   }
 
   /**

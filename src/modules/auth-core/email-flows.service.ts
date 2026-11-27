@@ -237,7 +237,13 @@ export class EmailFlowsService implements OnModuleDestroy {
         manager,
       );
       if (!userId) {
-        throw new InvalidOrExpiredTokenError();
+        throw new InvalidOrExpiredTokenError(
+          await this.authTokens.classifyUnusable(
+            rawToken,
+            AUTH_TOKEN_TYPES.emailVerification,
+            manager,
+          ),
+        );
       }
       const updated = await manager
         .createQueryBuilder()
@@ -273,7 +279,12 @@ export class EmailFlowsService implements OnModuleDestroy {
       AUTH_TOKEN_TYPES.passwordReset,
     );
     if (!peekedUserId) {
-      throw new InvalidOrExpiredTokenError();
+      throw new InvalidOrExpiredTokenError(
+        await this.authTokens.classifyUnusable(
+          rawToken,
+          AUTH_TOKEN_TYPES.passwordReset,
+        ),
+      );
     }
     const user = await this.dataSource
       .getRepository(User)
@@ -292,7 +303,13 @@ export class EmailFlowsService implements OnModuleDestroy {
         manager,
       );
       if (!userId) {
-        throw new InvalidOrExpiredTokenError();
+        throw new InvalidOrExpiredTokenError(
+          await this.authTokens.classifyUnusable(
+            rawToken,
+            AUTH_TOKEN_TYPES.passwordReset,
+            manager,
+          ),
+        );
       }
       await manager.query(
         `INSERT INTO user_credentials

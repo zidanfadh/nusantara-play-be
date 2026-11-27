@@ -304,6 +304,27 @@ describe('Email verification and password reset (e2e, Phase 09)', () => {
     await c.reset(tokensSent[2]).expect(200);
   });
 
+  it('Phase 29: a link used twice answers reason "used" (verify-email and reset-password)', async () => {
+    const c = client();
+    const address = newEmail('used-twice');
+    await c.register(address).expect(201);
+    await flows.whenIdle();
+    const verifyToken = email.tokenFor(address, 'verification')!;
+    await c.verify(verifyToken).expect(200);
+    const again = await c.verify(verifyToken).expect(400);
+    expect(again.body).toMatchObject({
+      code: 'invalid_or_expired_token',
+      reason: 'used',
+    });
+
+    await c.forgot(address).expect(200);
+    await flows.whenIdle();
+    const resetToken = email.tokenFor(address, 'password_reset')!;
+    await c.reset(resetToken).expect(200);
+    const resetAgain = await c.reset(resetToken).expect(400);
+    expect(resetAgain.body).toMatchObject({ reason: 'used' });
+  });
+
   it('expired, unknown or wrong-type tokens: 400 invalid_or_expired_token', async () => {
     const c = client();
     const address = newEmail('expired');
@@ -313,7 +334,10 @@ describe('Email verification and password reset (e2e, Phase 09)', () => {
 
     // A verification token is not a reset token (and vice versa).
     const wrongType = await c.reset(verifyToken).expect(400);
-    expect(wrongType.body).toMatchObject({ code: 'invalid_or_expired_token' });
+    expect(wrongType.body).toMatchObject({
+      code: 'invalid_or_expired_token',
+      reason: 'invalid', // Phase 29
+    });
 
     await dataSource.query(
       `UPDATE auth_tokens SET expires_at = now() - interval '1 minute'
@@ -324,9 +348,11 @@ describe('Email verification and password reset (e2e, Phase 09)', () => {
     expect(expired.body).toMatchObject({
       statusCode: 400,
       code: 'invalid_or_expired_token',
+      reason: 'expired', // Phase 29
       message: 'The link is invalid or has expired',
     });
-    await c.verify('x'.repeat(43)).expect(400);
+    const unknown = await c.verify('x'.repeat(43)).expect(400);
+    expect(unknown.body).toMatchObject({ reason: 'invalid' });
     // Validation: missing token / unknown fields.
     await c.verify(undefined).expect(400);
     await client().forgot('not-an-email').expect(400);

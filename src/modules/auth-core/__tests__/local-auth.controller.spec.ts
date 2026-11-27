@@ -2,11 +2,17 @@
  * LocalAuthController (Phase 08): cookie handling around the service.
  * Status codes, guards and real cookies: test/auth-endpoints.e2e-spec.ts.
  */
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { RefreshConflictError, RefreshTokenInvalidError } from '../auth-errors';
+import {
+  LoginLockedError,
+  RefreshConflictError,
+  RefreshTokenInvalidError,
+} from '../auth-errors';
 import { LOGGED_IN_COOKIE, REFRESH_COOKIE } from '../auth-cookies';
 import { LocalAuthController } from '../local-auth.controller';
 import { REGISTER_RESPONSE } from '../local-auth.service';
+import { LoginFailureTracker } from '../login-failure-tracker.service';
 
 const config = {
   cookiePath: '/api/auth',
@@ -30,7 +36,12 @@ function setup() {
     logoutAll: jest.fn().mockResolvedValue(3),
   };
   const limiter = { consume: jest.fn().mockResolvedValue(undefined) };
-  const controller = new LocalAuthController(auth as never, limiter as never);
+  const failures = new LoginFailureTracker();
+  const controller = new LocalAuthController(
+    auth as never,
+    limiter as never,
+    failures,
+  );
   const res = { cookie: jest.fn(), clearCookie: jest.fn() };
   const req = {
     headers: {},
@@ -42,6 +53,7 @@ function setup() {
     controller,
     auth,
     limiter,
+    failures,
     res: res as typeof res & Response,
     req: req as unknown as Request,
   };
@@ -99,6 +111,60 @@ describe('LocalAuthController (Phase 08)', () => {
       t.controller.login({ email: 'a@b.test', password: 'pw' }, t.req, t.res),
     ).rejects.toThrow('429');
     expect(t.auth.login).not.toHaveBeenCalled();
+  });
+
+  it('login (Phase 29): generic 401s are counted per normalized email; the 5th answers 429 login_locked', async () => {
+    const t = setup();
+    t.auth.login.mockRejectedValue(
+      new UnauthorizedException('Invalid email or password'),
+    );
+    const attempt = () =>
+      t.controller.login(
+        { email: ' Who@Example.TEST ', password: 'x' },
+        t.req,
+        t.res,
+      );
+    for (let i = 0; i < 4; i += 1) {
+      await expect(attempt()).rejects.toBeInstanceOf(UnauthorizedException);
+    }
+    const fifth = await attempt().catch((e: unknown) => e);
+    expect(fifth).toBeInstanceOf(LoginLockedError);
+    expect((fifth as LoginLockedError).retryAfterSeconds).toBe(900);
+    // Locked: refused before the service (no password check), like the database lock.
+    t.auth.login.mockClear();
+    await expect(attempt()).rejects.toBeInstanceOf(LoginLockedError);
+    expect(t.auth.login).not.toHaveBeenCalled();
+    expect(t.failures.remainingSeconds('who@example.test')).toBeGreaterThan(0);
+  });
+
+  it('login (Phase 29): a success resets the count; 403 and other errors are not counted', async () => {
+    const t = setup();
+    t.auth.login.mockRejectedValue(new UnauthorizedException());
+    for (let i = 0; i < 4; i += 1) {
+      await t.controller
+        .login({ email: 'a@b.test', password: 'x' }, t.req, t.res)
+        .catch(() => {});
+    }
+    t.auth.login.mockResolvedValueOnce({
+      accessToken: 'at',
+      expiresIn: 900,
+      user: { id: 'u1' },
+      refreshToken: { token: 'r' },
+    });
+    await t.controller.login(
+      { email: 'a@b.test', password: 'pw' },
+      t.req,
+      t.res,
+    );
+    t.auth.login.mockRejectedValue(
+      new ForbiddenException('This account cannot sign in'),
+    );
+    for (let i = 0; i < 6; i += 1) {
+      await expect(
+        t.controller.login({ email: 'a@b.test', password: 'pw' }, t.req, t.res),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    }
+    expect(t.failures.remainingSeconds('a@b.test')).toBe(0);
   });
 
   it('refresh: reads the cookie and sets the rotated one', async () => {

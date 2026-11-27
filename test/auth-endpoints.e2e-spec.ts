@@ -322,16 +322,28 @@ describe('Self-hosted auth endpoints (e2e, Phase 08)', () => {
     await client().logoutAll().expect(401);
   });
 
-  it('lockout: 5 wrong passwords lock the account; then even the correct password fails (same generic 401)', async () => {
+  it('lockout: 5 wrong passwords lock the account; the 5th and every attempt after it answer 429 login_locked (Phase 29)', async () => {
     const c = client();
     const email = newEmail('lockout');
     await c.register(email).expect(201);
-    for (let i = 0; i < 5; i += 1) {
+    for (let i = 0; i < 4; i += 1) {
       const res = await c.login(email, 'wrong password!!').expect(401);
       expect(errorBody(res).message).toBe(LOGIN_FAILED_MESSAGE);
     }
-    const locked = await c.login(email).expect(401);
-    expect(errorBody(locked).message).toBe(LOGIN_FAILED_MESSAGE);
+    const fifth = await c.login(email, 'wrong password!!').expect(429);
+    expect(fifth.body).toMatchObject({
+      statusCode: 429,
+      code: 'login_locked',
+      retryAfterSeconds: 900,
+    });
+    expect(fifth.headers['retry-after']).toBe('900');
+    // Even the correct password is refused while locked.
+    const locked = await c.login(email).expect(429);
+    expect(locked.body).toMatchObject({ code: 'login_locked' });
+    expect(
+      (locked.body as { retryAfterSeconds: number }).retryAfterSeconds,
+    ).toBeGreaterThan(890);
+    expect(locked.headers['set-cookie']).toBeUndefined();
     const [row] = await dataSource.query<
       { failed_login_count: number; locked: boolean }[]
     >(
@@ -341,6 +353,41 @@ describe('Self-hosted auth endpoints (e2e, Phase 08)', () => {
       [email],
     );
     expect(row).toEqual({ failed_login_count: 5, locked: true });
+  });
+
+  it('Phase 29: an UNKNOWN email gets exactly the same answers (401 x4, then 429 login_locked): no account is revealed', async () => {
+    const c = client();
+    const known = newEmail('lock-known');
+    const unknown = newEmail('lock-unknown');
+    await c.register(known).expect(201);
+    const statuses = async (address: string) => {
+      const seen: number[] = [];
+      for (let i = 0; i < 6; i += 1) {
+        seen.push((await c.login(address, 'wrong password!!')).status);
+      }
+      return seen;
+    };
+    const knownStatuses = await statuses(known);
+    const unknownStatuses = await statuses(unknown);
+    expect(knownStatuses).toEqual([401, 401, 401, 401, 429, 429]);
+    expect(unknownStatuses).toEqual(knownStatuses);
+    const a = await c.login(known, 'wrong password!!');
+    const b = await c.login(unknown, 'wrong password!!');
+    const keys = (res: { body: object }) => Object.keys(res.body).sort();
+    expect(keys(b)).toEqual(keys(a));
+  });
+
+  it('Phase 29: a correct password before the limit resets the count', async () => {
+    const c = client();
+    const email = newEmail('lock-reset');
+    await c.register(email).expect(201);
+    for (let i = 0; i < 4; i += 1) {
+      await c.login(email, 'wrong password!!').expect(401);
+    }
+    await c.login(email).expect(200);
+    for (let i = 0; i < 4; i += 1) {
+      await c.login(email, 'wrong password!!').expect(401);
+    }
   });
 
   it('a suspended user cannot log in (generic 403, no cookies)', async () => {

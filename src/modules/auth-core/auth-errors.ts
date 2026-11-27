@@ -1,23 +1,55 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   UnauthorizedException,
 } from '@nestjs/common';
 
 /**
+ * Why an email token is unusable (Phase 29, additive): `used` (already
+ * consumed), `expired`, or `invalid` (unknown, of another type, or replaced
+ * by a newer link). Only the holder of the 32-byte token can ask, so the
+ * reason reveals nothing about other accounts.
+ */
+export type InvalidTokenReason = 'used' | 'expired' | 'invalid';
+
+/**
  * 400 invalid_or_expired_token (Phase 09): verify-email / reset-password
  * with a token that is unknown, of another type, already used or expired.
- * One answer for every case.
+ * One code for every case; since Phase 29 `reason` tells them apart.
  */
 export class InvalidOrExpiredTokenError extends BadRequestException {
   readonly code = 'invalid_or_expired_token';
 
-  constructor() {
+  constructor(readonly reason: InvalidTokenReason = 'invalid') {
     super({
       statusCode: 400,
       code: 'invalid_or_expired_token',
+      reason,
       message: 'The link is invalid or has expired',
     });
+  }
+}
+
+/**
+ * 429 login_locked (Phase 29, additive): too many failed logins for this
+ * email (LoginFailureTracker). Given for known AND unknown emails alike, so
+ * it reveals no account. `retryAfterSeconds` = remaining lock time.
+ */
+export class LoginLockedError extends HttpException {
+  readonly code = 'login_locked';
+
+  constructor(readonly retryAfterSeconds: number) {
+    super(
+      {
+        statusCode: 429,
+        code: 'login_locked',
+        retryAfterSeconds,
+        message: 'Too many failed login attempts. Try again later.',
+      },
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
   }
 }
 

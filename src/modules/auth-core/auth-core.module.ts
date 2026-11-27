@@ -17,6 +17,7 @@ import { JwksController } from './jwks.controller';
 import { LocalAuthController } from './local-auth.controller';
 import { LocalAuthService } from './local-auth.service';
 import { LoginEmailLimiter } from './login-email-limiter.service';
+import { LoginFailureTracker } from './login-failure-tracker.service';
 import { KeyService } from './key.service';
 import { PasswordService } from './password.service';
 import { RefreshTokenService } from './refresh-token.service';
@@ -55,6 +56,7 @@ import { TokenService } from './token.service';
     LocalJwtStrategy,
     LocalAuthService,
     LoginEmailLimiter,
+    LoginFailureTracker,
     CsrfGuard,
     AuthTokenService,
     EmailSendLimiter,

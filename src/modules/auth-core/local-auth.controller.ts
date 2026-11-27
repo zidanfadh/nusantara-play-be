@@ -7,6 +7,7 @@ import {
   Post,
   Req,
   Res,
+  UnauthorizedException,
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
@@ -34,6 +35,7 @@ import {
   SessionUser,
 } from './local-auth.service';
 import { LoginEmailLimiter } from './login-email-limiter.service';
+import { LoginFailureTracker } from './login-failure-tracker.service';
 import type { RefreshTokenMeta } from './refresh-token.service';
 
 /**
@@ -70,6 +72,7 @@ export class LocalAuthController {
   constructor(
     private readonly auth: LocalAuthService,
     private readonly emailLimiter: LoginEmailLimiter,
+    private readonly failures: LoginFailureTracker,
   ) {}
 
   @Post('register')
@@ -94,8 +97,21 @@ export class LocalAuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<SessionResponse> {
-    await this.emailLimiter.consume(normalizeEmail(dto.email));
-    const session = await this.auth.login(dto.email, dto.password, metaOf(req));
+    const email = normalizeEmail(dto.email);
+    await this.emailLimiter.consume(email);
+    // Phase 29: 429 login_locked (with the remaining time) for any email with
+    // LOGIN_MAX_FAILED generic failures, known or not; see LoginFailureTracker.
+    this.failures.assertNotLocked(email);
+    let session: AuthSession;
+    try {
+      session = await this.auth.login(dto.email, dto.password, metaOf(req));
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        this.failures.recordFailure(email); // throws 429 at the limit
+      }
+      throw error;
+    }
+    this.failures.reset(email);
     return this.respond(res, session);
   }
 

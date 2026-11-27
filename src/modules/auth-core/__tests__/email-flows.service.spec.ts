@@ -58,6 +58,7 @@ function setup(env: Record<string, string | undefined> = {}) {
     create: jest.fn().mockResolvedValue({ token: RAW, expiresAt: new Date() }),
     consume: jest.fn().mockResolvedValue(USER_ID),
     peek: jest.fn().mockResolvedValue(USER_ID),
+    classifyUnusable: jest.fn().mockResolvedValue('invalid'),
     ttlMinutes: jest.fn((type: string) =>
       type === 'password_reset' ? 60 : 1440,
     ),
@@ -397,6 +398,28 @@ describe('EmailFlowsService.verifyEmail', () => {
     );
     expect(t.qb.execute).not.toHaveBeenCalled();
   });
+
+  it.each(['used', 'expired', 'invalid'] as const)(
+    'Phase 29: the reason of an unusable token (%s) travels with the error',
+    async (reason) => {
+      const t = setup();
+      t.authTokens.consume.mockResolvedValue(null);
+      t.authTokens.classifyUnusable.mockResolvedValue(reason);
+      const error = (await t.service
+        .verifyEmail(RAW)
+        .catch((e: unknown) => e)) as InvalidOrExpiredTokenError;
+      expect(error.reason).toBe(reason);
+      expect(error.getResponse()).toMatchObject({
+        code: 'invalid_or_expired_token',
+        reason,
+      });
+      expect(t.authTokens.classifyUnusable).toHaveBeenCalledWith(
+        RAW,
+        'email_verification',
+        expect.anything(),
+      );
+    },
+  );
 });
 
 describe('EmailFlowsService.resetPassword', () => {
