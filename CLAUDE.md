@@ -76,7 +76,11 @@ all under `/api/auth` (browser path `/backend-api/auth/*` in production, `/api/a
   locked account and users without `user_credentials`; generic 403 for suspended/inactive users (only after a
   correct password). Wrong passwords increment `failed_login_count` atomically in SQL and lock the account for
   `LOGIN_LOCK_MINUTES` once the count reaches `LOGIN_MAX_FAILED`. Success resets the counter, rehashes legacy
-  hashes to Argon2id, updates `last_login_at`, starts a new refresh token family.
+  hashes to Argon2id, updates `last_login_at`, starts a new refresh token family. Since Phase 29 the controller
+  also counts every generic 401 per normalized email in `LoginFailureTracker` (in memory, SHA-256 keys, known AND
+  unknown emails alike): the `LOGIN_MAX_FAILED`-th failure and every attempt during the following
+  `LOGIN_LOCK_MINUTES` answer 429 `{code: "login_locked", retryAfterSeconds}` + `Retry-After` (through
+  `AuthErrorFilter`), refused before any password check; only a success resets it.
 - `POST /refresh` (cookie + CSRF) → rotates the cookie, 200 like login, updates `last_login_at`. 409
   `{"error":"refresh_conflict"}` keeps the cookies; 401 `invalid_refresh_token` clears both. A user who is no
   longer active loses the family (401).
@@ -109,7 +113,8 @@ all under `/api/auth` (browser path `/backend-api/auth/*` in production, `/api/a
   token_hash AND type AND used_at IS NULL AND expires_at > now() RETURNING user_id` (race-safe, single use).
 - `POST /verify-email {token}` → 200 `{success, message}`; sets `user_credentials.email_verified_at`, or for an
   account without credentials inserts `email_verifications` (method `email_link`). Unusable token → 400
-  `{code: "invalid_or_expired_token"}` (kept by `AuthErrorFilter`).
+  `{code: "invalid_or_expired_token", reason}` (kept by `AuthErrorFilter`; `reason` since Phase 29: `used`,
+  `expired` or `invalid`, from `AuthTokenService.classifyUnusable()`, read-only; reset-password too).
 - `POST /resend-verification {email}` / `POST /forgot-password {email}` → always 200 with one fixed body each.
   The work runs in the BACKGROUND after the response (timing reveals nothing): exactly one matching account →
   new link (resend: only while unverified; forgot: any account, Supabase-only included); several matches →
@@ -165,7 +170,7 @@ with the default `publik` role (JIT sync).
 
 **Module structure** (`src/modules/`):
 - `auth/` — Supabase client, `POST /auth/change-password` (local accounts → `LocalAuthService`, Supabase accounts → legacy flow), legacy Supabase strategy in `auth/legacy/`
-- `auth-core/` — self-hosted auth (Phase 07): `PasswordService` (Argon2id, legacy bcrypt verify, policy), `KeyService` + `TokenService` (RS256 access tokens, JWKS), `RefreshTokenService` (rotation, reuse detection, cleanup), `local-jwt` strategy, `GET /api/auth/jwks.json`, entities `user_credentials`, `refresh_tokens`, `auth_identities`. No Supabase dependency. Since Phase 08: `LocalAuthController` (register, login, refresh, logout, logout-all), `LocalAuthService`, `LoginEmailLimiter`, `AuthErrorFilter` (keeps the `error` code of refresh errors and the `code` of email-token errors), cookie helpers. Since Phase 09: `EmailFlowsController`/`EmailFlowsService` (verify-email, resend-verification, forgot-password, reset-password), `AuthTokenService`, `EmailSendLimiter`, `AuthCleanupScheduler`, entities `auth_tokens`, `email_verifications`, helpers `auth-users.ts` and `email-verification.ts`.
+- `auth-core/` — self-hosted auth (Phase 07): `PasswordService` (Argon2id, legacy bcrypt verify, policy), `KeyService` + `TokenService` (RS256 access tokens, JWKS), `RefreshTokenService` (rotation, reuse detection, cleanup), `local-jwt` strategy, `GET /api/auth/jwks.json`, entities `user_credentials`, `refresh_tokens`, `auth_identities`. No Supabase dependency. Since Phase 08: `LocalAuthController` (register, login, refresh, logout, logout-all), `LocalAuthService`, `LoginEmailLimiter`, `AuthErrorFilter` (keeps the `error` code of refresh errors and the `code` of email-token errors; since Phase 29 also `reason`, `retryAfterSeconds` and the `Retry-After` header), cookie helpers. Since Phase 29: `LoginFailureTracker` (429 `login_locked`). Since Phase 09: `EmailFlowsController`/`EmailFlowsService` (verify-email, resend-verification, forgot-password, reset-password), `AuthTokenService`, `EmailSendLimiter`, `AuthCleanupScheduler`, entities `auth_tokens`, `email_verifications`, helpers `auth-users.ts` and `email-verification.ts`.
 - `users/` — profile management, admin role assignment, admin-created users
 - `prot/` — PROT CRUD + verification workflow (`verifikasi.service.ts`; since Phase 26 the no-self-review rule in `self-review.ts`, pending deploy); since Phase 25 `AdminProtController` + `ProtAdminService` (`/api/admin/prot/:id/media/remove`, `/api/admin/prot/:id/revisi`, admin_kpoti, any status, own audit row; pending deploy)
 - `blockchain/` — Polygon anchoring via ethers.js (deprioritized)
@@ -251,6 +256,17 @@ Loaded by `@nestjs/config` from `.env.local`, then `.env` (`src/config/config.mo
    - Email flows (Phase 09): email verification (24 h link) and password reset (1 h link) with one-time tokens in `auth_tokens` (hash only, single use, a new link invalidates the older one), endpoints `POST /api/auth/verify-email`, `/resend-verification`, `/forgot-password`, `/reset-password`; generic answers that never reveal an account; at most 3 emails per address per hour per purpose; Indonesian emails with links to `{APP_PUBLIC_URL}/verify-email?token=...` and `{APP_PUBLIC_URL}/reset-password?token=...` (the frontend pages are built in a later phase). Users may log in without a verified email; `emailVerified` is on `GET /api/users/me` and `@RequireVerifiedEmail()` (403 `EMAIL_NOT_VERIFIED`) is ready for Points. "Verified" lives in `user_credentials.email_verified_at` for accounts with a password and in `email_verifications` for accounts without one (Supabase-only now; Google-only accounts in Phase 10 write a row with method `google`). A password reset clears the lockout, revokes all refresh tokens and makes every access token issued more than 5 s before it invalid (also after change-password; the own session continues through its next refresh).
    - Self-service migration (Phase 09, owner decision): forgot-password works for EVERY account with that email, including Supabase-only accounts without local credentials; completing the reset creates their `user_credentials` (and marks the email verified), so the user can sign in with the self-hosted login from then on. The reset link proves ownership of the address.
    - Brute force (Phase 08): per-account lockout (`LOGIN_MAX_FAILED` 5 wrong passwords → locked `LOGIN_LOCK_MINUTES` 15, atomic counter in SQL), per-email limit (10 login attempts / 15 min, in memory), generous per-IP limits (login and register 30 / min, refresh 60 / min). See Risks.
+   - Frontend on the self-hosted login (Phase 29): the frontend signs in with these endpoints when it is built with
+     `NEXT_PUBLIC_AUTH_MODE=local`; the default `supabase` keeps today's Supabase login unchanged. One auth facade
+     (`nusantara-play-fe/lib/auth/`), the build contains only one implementation (no Supabase code in local mode).
+     Email/password only; Google for the local login is the next phase. **Production still runs Supabase mode**:
+     switching needs the backend deployment first (frontend CLAUDE.md "Self-hosted login in the frontend (Phase 29)",
+     go-live checklist; rollback = flip the variable back). Backend additions (additive, pending deployment item 14):
+     429 `{code: "login_locked", retryAfterSeconds}` + `Retry-After` from the 5th failed login per email for 15
+     minutes, given for known AND unknown emails alike (in-memory `LoginFailureTracker`, mirrors the database
+     lockout, so no account is revealed), and `reason: "used" | "expired" | "invalid"` next to
+     `invalid_or_expired_token`. No code tells a Supabase-only account apart (it would reveal accounts); the frontend
+     shows the "Akun lama?" hint with every invalid-credentials error instead.
 5. Multiplayer will run on a separate realtime server (Colyseus, Node.js, TypeScript) in nusantara-play-be/realtime/, with one room per province.
 6. Hardware target: a mid-range Android phone (4 GB RAM, Chrome). Performance budget: at least 30 fps, initial 3D download max 5 MB, max 8 MB per province, max 100k triangles and 100 draw calls per scene, textures max 1024x1024 and compressed, max 20 visible avatars per room. A 2D fallback must exist for weak devices.
 7. Out of scope: open world, vehicles, combat, heavy physics, AI NPCs, day-night cycle, realtime shadows, detailed avatar editors, realistic graphics.
@@ -578,13 +594,27 @@ column, so running the migration first is safe for the old code too.
      backend deploy: the old DTO rejects `selfReviewOverrideReason` and the whole request fails.
    - Check: a pakar who created a DIKURASI record gets 403 on pick; `audit_logs` gets a `PROT_SELF_REVIEW_OVERRIDE` row
      when an admin decides on or publishes their own record with a reason.
+14. Phase 29 login answers for the frontend (no migration, no env; needs the Phase 08/09 code of items 6 and 8):
+   - `POST /api/auth/login`: from the `LOGIN_MAX_FAILED`-th generic failure (5) per normalized email, 429
+     `{statusCode, code: "login_locked", retryAfterSeconds, message}` + `Retry-After` for `LOGIN_LOCK_MINUTES` (15),
+     for known and unknown emails alike (`LoginFailureTracker`, in memory per process, SHA-256 keys); a success resets
+     it. Before: the generic 401 for a locked account (still the answer when the tracker has no record, e.g. after a
+     restart, while the database lock holds).
+   - `POST /api/auth/verify-email` and `/reset-password`: `invalid_or_expired_token` answers carry
+     `reason: "used" | "expired" | "invalid"` (one read-only query).
+   - The frontend's local mode reads both; the switch itself is the frontend go-live checklist (frontend CLAUDE.md
+     "Self-hosted login in the frontend (Phase 29)"). Never set `NEXT_PUBLIC_AUTH_MODE=local` on Vercel before items
+     4 to 6, 8, 9 and this one are deployed.
 
 ## Local development
 
-Both repos run fully locally against a disposable PostgreSQL (Phase 05). **The frontend still cannot log in
-locally**: it signs in through Supabase, and the local Supabase values are fake
-(`https://supabase-placeholder.invalid`). The backend's own login works since Phase 08 (register, login,
-refresh, logout under `http://localhost:3000/api/auth/`; walk-through with curl in
+Both repos run fully locally against a disposable PostgreSQL (Phase 05). **Since Phase 29 the frontend can log in
+locally** with `NEXT_PUBLIC_AUTH_MODE=local` and `BACKEND_ORIGIN=http://localhost:3000` (everything through the
+`/backend-api` rewrite, backend with `AUTH_COOKIE_PATH=/backend-api/auth`, `FRONTEND_URLS=http://localhost:3001`,
+`APP_PUBLIC_URL=http://localhost:3001`, Mailpit): `nusantara-play-fe/tests/e2e-local/start-backend.ps1` and
+`start-frontend.ps1` set exactly that, README next to them. In the default supabase mode the frontend still cannot
+log in locally (fake Supabase values, `https://supabase-placeholder.invalid`). The backend's own login also works
+directly (register, login, refresh, logout under `http://localhost:3000/api/auth/`; walk-through with curl in
 `nusantara-play-be/docs/auth-local-testing.md`) once a dev key pair is in `.env.local`. Public pages and
 public endpoints work.
 
@@ -655,6 +685,12 @@ public endpoints work.
 - Email delivery (Phase 09): production has no SMTP credentials yet; until they are set, verification and reset
   emails are not delivered (logged as failures) while the endpoints still answer 200.
 - Same-origin cookies (including Supabase `sb-*` auth cookies) are now forwarded to the backend with every browser API call. Large cookie headers could exceed nginx header buffer limits (unknown production config).
+- Local login in the frontend (Phase 29): the middleware trusts the readable `np_logged_in` cookie for REDIRECTS only.
+  A forged cookie gets a protected page's HTML, whose first refresh fails (401) and sends the visitor to the login;
+  data still needs a valid access token. If that refresh cannot reach the backend (offline, 5xx, a 429 of the shared
+  per-IP refresh limit behind Vercel) the visitor stays on the page signed out until the next refresh. The
+  `login_locked` answer lives in each backend instance's memory like the other login limits (N instances or a restart
+  → the database lock still holds but answers the generic 401).
 - Rewards (Phase 15): browser-reported XP can still be earned by a script with a valid login, but only up to the rule
   caps (each province and each public PROT counts once per account, 60 activity requests / min per user), and it is XP
   only, never Points. The leaderboard cache (60 s) lives in each backend instance's memory, so N instances can show
@@ -664,15 +700,13 @@ public endpoints work.
 
 Small known problems that a later phase should fix. Do not fix them in passing.
 
-- (Phase 23 review, noted in Phase 25) The frontend gasing integration test
-  (`nusantara-play-fe/tests/games/gasing-integration.test.tsx`) once hit Vitest's default 5 s test timeout while the
-  machine was under load (a production build and headless Chrome running at the same time); it passes when run alone.
-  Give its slow cases an explicit timeout or make the simulated match shorter.
-- (Phase 26) Under load (the backend unit suite or a build running at the same time) more frontend tests hit the 5 s
-  timeout: `tests/jelajah/concept-scenes.test.tsx`, `tests/jelajah/three-isolation.test.ts`,
-  `tests/config/fonts.test.ts`, `tests/games/congklak-engine.test.ts`, and `tests/games/gasing-match-ai.test.ts` failed a
-  timing assertion (10.3 ms against 7.5 ms). All pass when the suite runs alone. Raise the timeout of the slow
-  source-scanning tests (or `testTimeout` in `vitest.config.ts`) and make the timing test relative.
+- (Phase 26; the timeout part fixed in Phase 29 with `testTimeout: 15_000`) `tests/games/gasing-match-ai.test.ts`
+  failed a timing assertion under load (10.3 ms against 7.5 ms); make the timing test relative.
+- (Phase 29) Backend `npm run test:int`: `test/integration/verifikasi-queue.int-spec.ts` fails to build its test module
+  ("Nest can't resolve dependencies of the VerifikasiService ... AuditLogRepository"); same failure on the Phase 28
+  `main` (00a3921). The test module needs the `AuditLog` repository the service gained in Phase 26.
+- (Phase 29) `test/email-flows.e2e-spec.ts` "registering an existing email" still fails now and then on the email order
+  (Phase 15 decisions log); seen once in Phase 29, passed in the full run.
 - (Phase 27) `app/landing-page/1` and `/2` (old drafts, removal waits for the cleanup phase) were only run through the
   colour codemods, not redesigned (Phase 28's form-control codemod skipped them too).
 - (Phase 28) Concept film scene 5 ("jelajah", the dive into Sumatera Selatan) still shows the old map: cream provinces
@@ -778,6 +812,9 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
 - Frontend after Phase 28: unchanged, 43 errors, 64 warnings (64 new and touched files; every new file is clean; the 16
   touched files with existing problems have exactly the counts they had on `main`).
 - Backend after Phase 28: unchanged (only CLAUDE.md and the phase report changed).
+- Frontend after Phase 29: unchanged, 43 errors, 64 warnings (every new file is clean; touched files keep the problems
+  they had: `AdminHeader.tsx` and `UserNav.tsx` no-img-element warnings).
+- Backend after Phase 29: unchanged, 219 errors, 29 warnings (every new and touched file is clean).
 - Frontend `pnpm lint`: 44 errors, 87 warnings. Per rule: @typescript-eslint/no-unused-vars 47 (warn), @typescript-eslint/no-explicit-any 39, @next/next/no-img-element 26 (warn), react-hooks/exhaustive-deps 14 (warn), @typescript-eslint/no-empty-object-type 4, react-hooks/set-state-in-effect 1.
 
 ## Decisions log
@@ -1179,6 +1216,29 @@ Phases must not add lint errors in the files they touch. Counts below are the wh
   WCAG 1.4.11); `bg-input` (the border token used as a fill since Phase 27) became `bg-background`; borderless fields got
   a border. Login and signup show only Indonesian headings; the Google buttons say "Masuk dengan Google" / "Daftar dengan
   Google".
+
+- 2026-11-27: Frontend on the self-hosted login (Phase 29): build-time switch `NEXT_PUBLIC_AUTH_MODE` (`supabase`
+  default, `local`), one facade in `lib/auth/`, the implementation chosen by aliasing four switch-point modules in
+  `next.config.ts` (not by runtime checks), so local builds contain no Supabase code and supabase builds no local-login
+  code; `next.config.ts` always defines the variable (an unset NEXT_PUBLIC variable is not inlined).
+- 2026-11-27: No error code that tells a Supabase-only account apart (Phase 29): it would reveal that an account exists
+  (Phase 08 rule). The frontend shows "Akun lama? Atur kata sandi baru sekali lewat email" with every invalid-credentials
+  error; the reset flow (Phase 09) migrates the account.
+- 2026-11-27: Lockout message (Phase 29): `LoginFailureTracker` counts generic login failures per normalized email for
+  known and unknown emails alike and answers 429 `login_locked` with the remaining time from the 5th, mirroring the
+  database lockout (count reset only by a success, the next failure after a lock locks again). The database lock stays
+  the real protection.
+- 2026-11-27: Email-link answers carry `reason` (used / expired / invalid, Phase 29): only the holder of the 32-byte
+  token can ask, so it reveals nothing about other accounts.
+- 2026-11-27: No route uses `@RequireVerifiedEmail()` yet; Phase 29 added none (a route without a feature). The frontend
+  handles 403 `EMAIL_NOT_VERIFIED` globally (notice + resend); the end-to-end run answers one request in that shape.
+- 2026-11-27: Local session rules (Phase 29): access token in memory only; one refresh at start when `np_logged_in` is
+  present; 401 → one refresh, one retry; 409 → wait 400 ms, retry once, never sign out; network errors and 5xx never
+  sign out; proactive refresh `min(60 s, half the TTL)` before expiry while visible; tabs share sign-in and sign-out
+  over BroadcastChannel (event type only); a session that ends by itself sends a protected page to the login with
+  `redirectTo`; logout goes to `/`. In local mode server components get no token: the landing page's two token
+  fetches became public.
+- 2026-11-27: Vitest `testTimeout` 15 s (Phase 29): the source-scanning and simulation tests stay green under load.
 
 ## Phase workflow
 
